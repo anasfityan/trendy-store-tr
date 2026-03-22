@@ -1,0 +1,1399 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  MessageCircle,
+  FileText,
+  Loader2,
+  Link2,
+  ImageIcon,
+  X,
+  Languages,
+  Package,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { useAuthStore } from "@/store/auth";
+import { formatIQD, formatTRY } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface Customer {
+  id: string;
+  name: string;
+  phone?: string;
+  instagram?: string;
+  city?: string;
+  area?: string;
+}
+
+interface Batch {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface Order {
+  id: string;
+  customerId: string;
+  customer: Customer;
+  batchId?: string | null;
+  batch?: Batch | null;
+  productType: string;
+  productName: string;
+  color?: string;
+  size?: string;
+  instagramLink?: string;
+  productLink?: string;
+  governorate?: string;
+  area?: string;
+  phone?: string;
+  purchaseCost: number;
+  sellingPrice: number;
+  deliveryCost: number;
+  deposit: number;
+  status: string;
+  paymentStatus: string;
+  notes?: string;
+  images?: string;
+  items?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface OrderFormData {
+  customerName: string;
+  customerPhone: string;
+  instagram: string; // combined: username or full link
+  governorate: string;
+  area: string;
+  batchId: string;
+  sellingPrice: string;
+  deliveryCost: string;
+  deposit: string;
+  status: string;
+  paymentStatus: string;
+  notes: string;
+}
+
+interface ProductItem {
+  id: string;
+  productLink: string;
+  productType: string;
+  productName: string;
+  color: string;
+  size: string;
+  purchaseCost: string;
+  images: string;
+  availableColors: { name: string; image?: string }[];
+  availableSizes: string[];
+  fetchedImages: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const STATUS_TABS = [
+  { label: "الكل", value: "all" },
+  { label: "جديد", value: "new" },
+  { label: "قيد التنفيذ", value: "in_progress" },
+  { label: "تم الشراء", value: "bought" },
+  { label: "تم الشحن", value: "shipped" },
+  { label: "تم التسليم", value: "delivered" },
+  { label: "غير مدفوع", value: "unpaid" },
+] as const;
+
+const PRODUCT_TYPES = [
+  { label: "حقيبة", value: "Bag" },
+  { label: "حذاء", value: "Shoe" },
+  { label: "ملابس", value: "Clothing" },
+  { label: "إكسسوار", value: "Accessory" },
+  { label: "أخرى", value: "Other" },
+];
+
+const STATUS_OPTIONS = [
+  { label: "جديد", value: "new" },
+  { label: "قيد التنفيذ", value: "in_progress" },
+  { label: "تم الشراء", value: "bought" },
+  { label: "تم الشحن", value: "shipped" },
+  { label: "تم التسليم", value: "delivered" },
+];
+
+const PAYMENT_OPTIONS = [
+  { label: "غير مدفوع", value: "unpaid" },
+  { label: "دفع جزئي", value: "partial" },
+  { label: "مدفوع", value: "paid" },
+];
+
+const IRAQI_CITIES = [
+  "بغداد",
+  "البصرة",
+  "أربيل",
+  "الموصل",
+  "النجف",
+  "كربلاء",
+  "السليمانية",
+  "دهوك",
+  "كركوك",
+  "الأنبار",
+  "بابل",
+  "ديالى",
+  "ذي قار",
+  "القادسية",
+  "المثنى",
+  "ميسان",
+  "واسط",
+  "صلاح الدين",
+];
+
+const DELIVERY_COSTS = [
+  { label: "5,000 د.ع", value: "5000" },
+  { label: "6,000 د.ع", value: "6000" },
+];
+
+const EMPTY_FORM: OrderFormData = {
+  customerName: "",
+  customerPhone: "",
+  instagram: "",
+  governorate: "",
+  area: "",
+  batchId: "",
+  sellingPrice: "",
+  deliveryCost: "",
+  deposit: "",
+  status: "new",
+  paymentStatus: "unpaid",
+  notes: "",
+};
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function createEmptyItem(): ProductItem {
+  return {
+    id: String(Date.now()) + Math.random().toString(36).slice(2),
+    productLink: "",
+    productType: "Bag",
+    productName: "",
+    color: "",
+    size: "",
+    purchaseCost: "",
+    images: "",
+    availableColors: [],
+    availableSizes: [],
+    fetchedImages: [],
+  };
+}
+
+function statusBadgeVariant(status: string) {
+  switch (status) {
+    case "new": return "default";
+    case "in_progress": return "warning";
+    case "bought": return "secondary";
+    case "shipped": return "outline";
+    case "delivered": return "success";
+    default: return "default";
+  }
+}
+
+function paymentBadgeVariant(status: string) {
+  switch (status) {
+    case "paid": return "success";
+    case "partial": return "warning";
+    case "unpaid": return "destructive";
+    default: return "default";
+  }
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  new: "جديد",
+  in_progress: "قيد التنفيذ",
+  bought: "تم الشراء",
+  shipped: "تم الشحن",
+  delivered: "تم التسليم",
+  cancelled: "ملغي",
+  unpaid: "غير مدفوع",
+  partial: "دفع جزئي",
+  paid: "مدفوع",
+};
+
+function prettyStatus(status: string) {
+  return STATUS_LABELS[status] || status;
+}
+
+const PRODUCT_TYPE_LABELS: Record<string, string> = {
+  Bag: "حقيبة",
+  Shoe: "حذاء",
+  Clothing: "ملابس",
+  Accessory: "إكسسوار",
+  Other: "أخرى",
+};
+
+function openInvoice(order: Order) {
+  const finalPrice = order.sellingPrice + order.deliveryCost - order.deposit;
+  const productImages = order.images ? JSON.parse(order.images) : [];
+  const imageHtml = productImages.length > 0
+    ? `<div style="text-align:center;margin:16px 0;"><img src="${productImages[0]}" alt="صورة المنتج" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e0e0e0;" /></div>`
+    : "";
+
+  const html = `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>فاتورة - ${order.id}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1a1a1a; max-width: 800px; margin: 0 auto; direction: rtl; }
+    .header { text-align: center; margin-bottom: 32px; border-bottom: 3px solid #1a1a1a; padding-bottom: 16px; }
+    .header h1 { font-size: 28px; font-weight: 700; letter-spacing: 2px; }
+    .header p { color: #666; margin-top: 4px; }
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 14px; font-weight: 600; letter-spacing: 1px; color: #666; margin-bottom: 8px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; }
+    .field { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e0e0e0; }
+    .field-label { font-weight: 500; color: #555; }
+    .field-value { font-weight: 600; text-align: left; }
+    .totals { background: #f8f8f8; border-radius: 8px; padding: 16px; margin-top: 24px; }
+    .totals .field { border-bottom-color: #ccc; }
+    .totals .total-row { font-size: 18px; color: #1a1a1a; border-bottom: none; padding-top: 12px; }
+    .footer { text-align: center; margin-top: 48px; color: #999; font-size: 12px; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>متجر ترندي</h1>
+    <p>فاتورة</p>
+  </div>
+
+  ${imageHtml}
+
+  <div class="section">
+    <div class="section-title">معلومات الطلب</div>
+    <div class="grid">
+      <div class="field"><span class="field-label">رقم الطلب</span><span class="field-value">${order.id.slice(0, 8).toUpperCase()}</span></div>
+      <div class="field"><span class="field-label">التاريخ</span><span class="field-value">${format(new Date(order.createdAt), "dd MMM yyyy")}</span></div>
+      <div class="field"><span class="field-label">الحالة</span><span class="field-value">${prettyStatus(order.status)}</span></div>
+      <div class="field"><span class="field-label">الدفع</span><span class="field-value">${prettyStatus(order.paymentStatus)}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">العميل</div>
+    <div class="grid">
+      <div class="field"><span class="field-label">الاسم</span><span class="field-value">${order.customer?.name || "-"}</span></div>
+      <div class="field"><span class="field-label">الهاتف</span><span class="field-value">${order.phone || order.customer?.phone || "-"}</span></div>
+      <div class="field"><span class="field-label">الموقع</span><span class="field-value">${[order.governorate, order.area].filter(Boolean).join("، ") || "-"}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">المنتج</div>
+    <div class="grid">
+      <div class="field"><span class="field-label">النوع</span><span class="field-value">${PRODUCT_TYPE_LABELS[order.productType] || order.productType || "-"}</span></div>
+      <div class="field"><span class="field-label">الاسم</span><span class="field-value">${order.productName || "-"}</span></div>
+      <div class="field"><span class="field-label">اللون</span><span class="field-value">${order.color || "-"}</span></div>
+      <div class="field"><span class="field-label">المقاس</span><span class="field-value">${order.size || "-"}</span></div>
+    </div>
+  </div>
+
+  <div class="totals">
+    <div class="section-title">الأسعار</div>
+    <div class="field"><span class="field-label">سعر البيع</span><span class="field-value">${formatIQD(order.sellingPrice)}</span></div>
+    <div class="field"><span class="field-label">كلفة التوصيل</span><span class="field-value">${formatIQD(order.deliveryCost)}</span></div>
+    <div class="field"><span class="field-label">العربون المدفوع</span><span class="field-value">- ${formatIQD(order.deposit)}</span></div>
+    <div class="field total-row"><span class="field-label">المتبقي للدفع</span><span class="field-value">${formatIQD(finalPrice)}</span></div>
+  </div>
+
+  <div class="footer">
+    <p>شكراً لتسوقكم من متجر ترندي!</p>
+  </div>
+
+  <script>window.onload = function() { window.print(); };</script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (w) {
+    w.document.write(html);
+    w.document.close();
+  }
+}
+
+function buildWhatsAppUrl(order: Order) {
+  const phone = (order.phone || order.customer?.phone || "").replace(/\D/g, "");
+  const remaining = order.sellingPrice + order.deliveryCost - order.deposit;
+  const text = encodeURIComponent(
+    `مرحباً ${order.customer?.name || ""},\n\n` +
+      `طلبك من متجر ترندي:\n` +
+      `المنتج: ${PRODUCT_TYPE_LABELS[order.productType] || order.productType} - ${order.productName}\n` +
+      (order.color ? `اللون: ${order.color}\n` : "") +
+      (order.size ? `المقاس: ${order.size}\n` : "") +
+      `السعر: ${formatIQD(order.sellingPrice)}\n` +
+      `التوصيل: ${formatIQD(order.deliveryCost)}\n` +
+      (order.deposit > 0 ? `العربون: ${formatIQD(order.deposit)}\n` : "") +
+      `المتبقي: ${formatIQD(remaining)}\n\n` +
+      `الحالة: ${prettyStatus(order.status)}\n` +
+      `شكراً لك!`
+  );
+  return `https://wa.me/${phone}?text=${text}`;
+}
+
+function getOrderItemCount(order: Order): number {
+  if (!order.items) return 1;
+  try {
+    const parsed = JSON.parse(order.items);
+    return 1 + (Array.isArray(parsed) ? parsed.length : 0);
+  } catch {
+    return 1;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Page Component
+// ---------------------------------------------------------------------------
+
+export default function OrdersPage() {
+  const { token, isAdmin } = useAuthStore();
+
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [activeTab, setActiveTab] = useState("all");
+  const [search, setSearch] = useState("");
+  const [searchDebounced, setSearchDebounced] = useState("");
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [form, setForm] = useState<OrderFormData>(EMPTY_FORM);
+  const [productItems, setProductItems] = useState<ProductItem[]>([createEmptyItem()]);
+  const [saving, setSaving] = useState(false);
+
+  // Per-item loading states
+  const [fetchingItemId, setFetchingItemId] = useState<string | null>(null);
+  const [translatingItemId, setTranslatingItemId] = useState<string | null>(null);
+  const [fetchingIG, setFetchingIG] = useState(false);
+
+  const fetchInstagramName = useCallback(async () => {
+    const raw = form.instagram.trim();
+    if (!raw) return;
+    // Extract username from link or handle
+    let handle = raw;
+    if (raw.includes("instagram.com/")) {
+      const match = raw.match(/instagram\.com\/([^/?#]+)/);
+      if (match) handle = match[1];
+    }
+    handle = handle.replace(/^@/, "");
+    if (!handle) return;
+    setFetchingIG(true);
+    try {
+      const res = await fetch("/api/instagram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: handle }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.displayName) {
+          setForm((f) => ({ ...f, customerName: f.customerName || data.displayName }));
+        }
+      }
+    } catch { /* ignore */ }
+    setFetchingIG(false);
+  }, [form.instagram]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (activeTab === "unpaid") {
+        params.set("paymentStatus", "unpaid");
+      } else if (activeTab !== "all") {
+        params.set("status", activeTab);
+      }
+      if (searchDebounced) params.set("search", searchDebounced);
+
+      const res = await fetch(`/api/orders?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setOrders(await res.json());
+    } catch (err) {
+      console.error("Failed to fetch orders", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, searchDebounced, token]);
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  useEffect(() => {
+    async function loadBatches() {
+      try {
+        const res = await fetch("/api/batches", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBatches(Array.isArray(data) ? data : []);
+        }
+      } catch { /* ignore */ }
+    }
+    loadBatches();
+  }, [token]);
+
+  const setField = useCallback(
+    (field: keyof OrderFormData, value: string) =>
+      setForm((prev) => ({ ...prev, [field]: value })),
+    []
+  );
+
+  const updateProductItem = useCallback(
+    (itemId: string, updates: Partial<ProductItem>) => {
+      setProductItems((prev) =>
+        prev.map((item) => (item.id === itemId ? { ...item, ...updates } : item))
+      );
+    },
+    []
+  );
+
+  const addProductItem = useCallback(() => {
+    setProductItems((prev) => [...prev, createEmptyItem()]);
+  }, []);
+
+  const removeProductItem = useCallback((itemId: string) => {
+    setProductItems((prev) => prev.filter((item) => item.id !== itemId));
+  }, []);
+
+  const totalPurchaseCost = useMemo(() => {
+    return productItems.reduce((sum, item) => sum + (parseFloat(item.purchaseCost) || 0), 0);
+  }, [productItems]);
+
+  const finalPrice = useMemo(() => {
+    const sp = parseFloat(form.sellingPrice) || 0;
+    const dc = parseFloat(form.deliveryCost) || 0;
+    const dp = parseFloat(form.deposit) || 0;
+    return sp + dc - dp;
+  }, [form.sellingPrice, form.deliveryCost, form.deposit]);
+
+  // Fetch product info from URL — per item
+  const handleFetchProduct = async (itemId: string) => {
+    const item = productItems.find((i) => i.id === itemId);
+    if (!item || !item.productLink) return;
+    setFetchingItemId(itemId);
+    try {
+      const res = await fetch("/api/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: item.productLink }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const fetchedImages: string[] = data.allImages || (data.image ? [data.image] : []);
+        updateProductItem(itemId, {
+          productName: data.name || item.productName,
+          color: data.color || item.color,
+          purchaseCost: data.price || item.purchaseCost,
+          productType: data.productType || item.productType,
+          images: fetchedImages.length > 0 ? JSON.stringify(fetchedImages) : item.images,
+          fetchedImages,
+          availableColors: data.colors || data.availableColors || [],
+          availableSizes: data.sizes || data.availableSizes || [],
+        });
+      } else {
+        alert("فشل في جلب بيانات المنتج");
+      }
+    } catch {
+      alert("خطأ في الاتصال");
+    } finally {
+      setFetchingItemId(null);
+    }
+  };
+
+  // Translate product name — per item
+  const handleTranslate = async (itemId: string) => {
+    const item = productItems.find((i) => i.id === itemId);
+    if (!item || !item.productName) return;
+    setTranslatingItemId(itemId);
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: item.productName, from: "tr", to: "ar" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.translated) {
+          updateProductItem(itemId, { productName: data.translated });
+        }
+      } else {
+        alert("فشل في الترجمة");
+      }
+    } catch {
+      alert("خطأ في الاتصال");
+    } finally {
+      setTranslatingItemId(null);
+    }
+  };
+
+  const handleNewOrder = () => {
+    setEditingOrder(null);
+    setForm(EMPTY_FORM);
+    setProductItems([createEmptyItem()]);
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (order: Order) => {
+    setEditingOrder(order);
+
+    // Build first product item from main order fields
+    const imgs = order.images ? (() => { try { return JSON.parse(order.images!); } catch { return []; } })() : [];
+    const firstItem: ProductItem = {
+      id: String(Date.now()) + Math.random().toString(36).slice(2),
+      productLink: order.productLink || "",
+      productType: order.productType || "Bag",
+      productName: order.productName || "",
+      color: order.color || "",
+      size: order.size || "",
+      purchaseCost: String(order.purchaseCost || ""),
+      images: order.images || "",
+      availableColors: [],
+      availableSizes: [],
+      fetchedImages: imgs,
+    };
+
+    // Parse additional items
+    let additionalItems: ProductItem[] = [];
+    if (order.items) {
+      try {
+        const parsed = JSON.parse(order.items);
+        if (Array.isArray(parsed)) {
+          additionalItems = parsed.map((i: Record<string, unknown>) => ({
+            id: String(Date.now()) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
+            productLink: (i.productLink as string) || "",
+            productType: (i.productType as string) || "Bag",
+            productName: (i.productName as string) || "",
+            color: (i.color as string) || "",
+            size: (i.size as string) || "",
+            purchaseCost: String(i.purchaseCost || ""),
+            images: i.images ? JSON.stringify(i.images) : "",
+            availableColors: [],
+            availableSizes: [],
+            fetchedImages: Array.isArray(i.images) ? (i.images as string[]) : [],
+          }));
+        }
+      } catch { /* ignore */ }
+    }
+
+    setProductItems([firstItem, ...additionalItems]);
+
+    // Compute total purchase cost from all items except the first (first is in order.purchaseCost)
+    // Actually, on edit the purchaseCost field had the total. For additional items we set individual costs.
+    // We need to figure out item1's purchaseCost. The order.purchaseCost is the total.
+    // If there are additional items, we need to subtract their costs from the total to get item1's cost.
+    // But the additional items already have their own purchaseCost stored. So item1's cost is total - sum(additional).
+    if (additionalItems.length > 0) {
+      const additionalTotal = additionalItems.reduce((s, ai) => s + (parseFloat(ai.purchaseCost) || 0), 0);
+      const item1Cost = (order.purchaseCost || 0) - additionalTotal;
+      firstItem.purchaseCost = String(item1Cost > 0 ? item1Cost : order.purchaseCost || "");
+    }
+
+    setForm({
+      customerName: order.customer?.name || "",
+      customerPhone: order.phone || order.customer?.phone || "",
+      instagram: order.instagramLink || order.customer?.instagram || "",
+      governorate: order.governorate || "",
+      area: order.area || "",
+      batchId: order.batchId || "",
+      sellingPrice: String(order.sellingPrice || ""),
+      deliveryCost: String(order.deliveryCost || ""),
+      deposit: String(order.deposit || ""),
+      status: order.status || "new",
+      paymentStatus: order.paymentStatus || "unpaid",
+      notes: order.notes || "",
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const firstItem = productItems[0];
+      const body = {
+        customerName: form.customerName,
+        customerPhone: form.customerPhone,
+        customerInstagram: form.instagram.includes("instagram.com/")
+          ? form.instagram.match(/instagram\.com\/([^/?#]+)/)?.[1] || form.instagram
+          : form.instagram.replace(/^@/, ""),
+        productType: firstItem.productType,
+        productName: firstItem.productName,
+        color: firstItem.color,
+        size: firstItem.size,
+        instagramLink: form.instagram,
+        productLink: firstItem.productLink,
+        governorate: form.governorate,
+        area: form.area,
+        batchId: form.batchId || null,
+        purchaseCost: String(totalPurchaseCost),
+        sellingPrice: form.sellingPrice,
+        deliveryCost: form.deliveryCost,
+        deposit: form.deposit,
+        phone: form.customerPhone,
+        status: form.status,
+        paymentStatus: form.paymentStatus,
+        notes: form.notes,
+        images: firstItem.images || (firstItem.fetchedImages.length > 0 ? JSON.stringify(firstItem.fetchedImages) : null),
+        items: productItems.length > 1
+          ? JSON.stringify(
+              productItems.slice(1).map((i) => ({
+                productType: i.productType,
+                productName: i.productName,
+                color: i.color,
+                size: i.size,
+                purchaseCost: i.purchaseCost,
+                productLink: i.productLink,
+                images: i.fetchedImages,
+              }))
+            )
+          : null,
+      };
+
+      const url = editingOrder ? `/api/orders/${editingOrder.id}` : "/api/orders";
+      const method = editingOrder ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        setDialogOpen(false);
+        fetchOrders();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.error || "فشل في حفظ الطلب");
+      }
+    } catch {
+      alert("خطأ في الشبكة");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (order: Order) => {
+    if (!confirm(`هل تريد حذف طلب "${order.customer?.name}"؟`)) return;
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) fetchOrders();
+      else {
+        const err = await res.json().catch(() => null);
+        alert(err?.error || "فشل في حذف الطلب");
+      }
+    } catch {
+      alert("خطأ في الشبكة");
+    }
+  };
+
+  // -----------------------------------------------------------------------
+  // Product Item Card Component
+  // -----------------------------------------------------------------------
+  const renderProductItemCard = (item: ProductItem, index: number) => {
+    const isFetching = fetchingItemId === item.id;
+    const isTranslating = translatingItemId === item.id;
+
+    return (
+      <div
+        key={item.id}
+        className="rounded-xl border border-[var(--border)] bg-[var(--surface-secondary)] p-4 space-y-4"
+      >
+        {/* Header with item number and delete */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <Package className="h-4 w-4" />
+            <span>المنتج {index + 1}</span>
+          </div>
+          {productItems.length > 1 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => removeProductItem(item.id)}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4 me-1" />
+              حذف المنتج
+            </Button>
+          )}
+        </div>
+
+        {/* Product Link + Fetch */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Input
+              placeholder="الصق رابط المنتج من Trendyol, HepsiBurada, N11, Koton..."
+              value={item.productLink}
+              onChange={(e) => updateProductItem(item.id, { productLink: e.target.value })}
+              dir="ltr"
+              className="text-left"
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={() => handleFetchProduct(item.id)}
+            disabled={!item.productLink || isFetching}
+            variant="secondary"
+            className="shrink-0"
+          >
+            {isFetching ? (
+              <Loader2 className="h-4 w-4 animate-spin me-2" />
+            ) : (
+              <Link2 className="h-4 w-4 me-2" />
+            )}
+            {isFetching ? "جاري الجلب..." : "جلب البيانات"}
+          </Button>
+        </div>
+
+        {/* Image Gallery */}
+        {item.fetchedImages.length > 0 && (
+          <div className="animate-fade-in-up">
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {item.fetchedImages.map((img, i) => (
+                <div key={i} className="relative group shrink-0">
+                  <img
+                    src={img}
+                    alt={`منتج ${i + 1}`}
+                    className="h-20 w-20 rounded-lg object-cover border-2 border-border hover:border-primary/50 transition-all duration-200 hover:scale-105"
+                  />
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  updateProductItem(item.id, {
+                    fetchedImages: [],
+                    images: "",
+                  })
+                }
+                className="shrink-0 h-20 w-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-destructive hover:text-destructive transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Product Type + Name + Translate */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>نوع المنتج</Label>
+            <Select
+              value={item.productType}
+              onChange={(e) => updateProductItem(item.id, { productType: e.target.value })}
+            >
+              {PRODUCT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>اسم المنتج</Label>
+            <div className="flex gap-1.5">
+              <Input
+                value={item.productName}
+                onChange={(e) => updateProductItem(item.id, { productName: e.target.value })}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => handleTranslate(item.id)}
+                disabled={!item.productName || isTranslating}
+                title="ترجمة إلى العربية"
+                className="shrink-0"
+              >
+                {isTranslating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Languages className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Color Picker */}
+        <div className="space-y-2">
+          <Label>اللون</Label>
+          {item.availableColors.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {item.availableColors.map((c, ci) => (
+                  <button
+                    key={ci}
+                    type="button"
+                    title={c.name}
+                    onClick={() => updateProductItem(item.id, { color: c.name })}
+                    className={`w-8 h-8 rounded-full border-2 cursor-pointer transition-all shrink-0 ${
+                      item.color === c.name
+                        ? "border-[var(--accent)] ring-2 ring-[var(--accent)] ring-offset-1"
+                        : "border-[var(--border)] hover:border-[var(--accent)]/50"
+                    }`}
+                    style={
+                      c.image
+                        ? {
+                            backgroundImage: `url(${c.image})`,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                          }
+                        : {}
+                    }
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={item.color}
+                  onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
+                  placeholder="أو اكتب اللون يدوياً"
+                  className="text-sm"
+                />
+                {item.color && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{item.color}</span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <Input
+              value={item.color}
+              onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
+              placeholder="اللون"
+            />
+          )}
+        </div>
+
+        {/* Size Picker */}
+        <div className="space-y-2">
+          <Label>المقاس</Label>
+          {item.availableSizes.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex gap-2 flex-wrap">
+                {item.availableSizes.map((s, si) => (
+                  <button
+                    key={si}
+                    type="button"
+                    onClick={() => updateProductItem(item.id, { size: s })}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium cursor-pointer transition-all ${
+                      item.size === s
+                        ? "bg-[var(--accent)] text-white"
+                        : "bg-[var(--surface-secondary)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--foreground)]"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <Input
+                value={item.size}
+                onChange={(e) => updateProductItem(item.id, { size: e.target.value })}
+                placeholder="أو اكتب المقاس يدوياً"
+                className="text-sm"
+              />
+            </div>
+          ) : (
+            <Input
+              value={item.size}
+              onChange={(e) => updateProductItem(item.id, { size: e.target.value })}
+              placeholder="المقاس"
+            />
+          )}
+        </div>
+
+        {/* Purchase Cost */}
+        <div className="space-y-2">
+          <Label>سعر الشراء (ليرة)</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={item.purchaseCost}
+            onChange={(e) => updateProductItem(item.id, { purchaseCost: e.target.value })}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  // -----------------------------------------------------------------------
+  // Render
+  // -----------------------------------------------------------------------
+  return (
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Page header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">الطلبات</h1>
+        <Button onClick={handleNewOrder} className="group">
+          <Plus className="me-2 h-4 w-4 transition-transform group-hover:rotate-90" />
+          طلب جديد
+        </Button>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex flex-wrap gap-2">
+        {STATUS_TABS.map((tab) => (
+          <Button
+            key={tab.value}
+            variant={activeTab === tab.value ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveTab(tab.value)}
+            className="transition-all duration-200"
+          >
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="البحث في الطلبات..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pe-9"
+        />
+      </div>
+
+      {/* Orders Table */}
+      <Card className="card-hover overflow-hidden">
+        <CardHeader>
+          <CardTitle className="text-lg">
+            الطلبات{" "}
+            <span className="text-muted-foreground font-normal text-sm">
+              ({orders.length})
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground animate-fade-in-up">
+              لا توجد طلبات
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap text-start">الصورة</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">العميل</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">المنتج</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">اللون / المقاس</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">سعر الشراء</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">سعر البيع</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">المتبقي</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">الحالة</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">الدفع</TableHead>
+                    <TableHead className="whitespace-nowrap text-end">الإجراءات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((order, idx) => {
+                    const remaining = order.sellingPrice + order.deliveryCost - order.deposit;
+                    const imgs = order.images ? (() => { try { return JSON.parse(order.images!); } catch { return []; } })() : [];
+                    const itemCount = getOrderItemCount(order);
+                    return (
+                      <TableRow
+                        key={order.id}
+                        className="hover:bg-accent/50 transition-colors"
+                        style={{ animationDelay: `${idx * 30}ms` }}
+                      >
+                        <TableCell>
+                          {imgs.length > 0 ? (
+                            <img
+                              src={imgs[0]}
+                              alt=""
+                              className="h-10 w-10 rounded-md object-cover border border-border"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap font-medium">
+                          {order.customer?.name || "-"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="text-muted-foreground text-xs">
+                            {PRODUCT_TYPE_LABELS[order.productType] || order.productType}
+                          </span>{" "}
+                          {order.productName || "-"}
+                          {itemCount > 1 && (
+                            <Badge variant="secondary" className="ms-2 text-xs">
+                              + {itemCount - 1} منتجات
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {[order.color, order.size].filter(Boolean).join(" / ") || "-"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatTRY(order.purchaseCost)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatIQD(order.sellingPrice)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatIQD(remaining)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={statusBadgeVariant(order.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}
+                            className="badge-animate"
+                          >
+                            {prettyStatus(order.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={paymentBadgeVariant(order.paymentStatus) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}
+                            className="badge-animate"
+                          >
+                            {prettyStatus(order.paymentStatus)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(order)} title="تعديل">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            {isAdmin() && (
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(order)} title="حذف">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                            <a
+                              href={buildWhatsAppUrl(order)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                              title="واتساب"
+                            >
+                              <MessageCircle className="h-4 w-4 text-green-600" />
+                            </a>
+                            <Button variant="ghost" size="icon" onClick={() => openInvoice(order)} title="فاتورة">
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create / Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingOrder ? "تعديل الطلب" : "طلب جديد"}
+            </DialogTitle>
+            <DialogClose onClose={() => setDialogOpen(false)} />
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="mt-4 space-y-6">
+            {/* Customer Section */}
+            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "50ms" }}>
+              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
+                العميل
+              </legend>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="customerName">اسم العميل *</Label>
+                  <Input
+                    id="customerName"
+                    required
+                    value={form.customerName}
+                    onChange={(e) => setField("customerName", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customerPhone">هاتف العميل</Label>
+                  <Input
+                    id="customerPhone"
+                    value={form.customerPhone}
+                    onChange={(e) => setField("customerPhone", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instagram">انستغرام</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="instagram"
+                      dir="ltr"
+                      className="flex-1 text-left"
+                      value={form.instagram}
+                      onChange={(e) => setField("instagram", e.target.value)}
+                      placeholder="اسم المستخدم أو الرابط"
+                      onBlur={() => {
+                        if (form.instagram && !form.customerName) fetchInstagramName();
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={fetchInstagramName}
+                      disabled={!form.instagram.trim() || fetchingIG}
+                      title="جلب الاسم من انستغرام"
+                      className="shrink-0 h-10"
+                    >
+                      {fetchingIG ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "جلب الاسم"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+
+            {/* Product Items Section */}
+            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
+                المنتجات
+              </legend>
+
+              {productItems.map((item, index) => renderProductItemCard(item, index))}
+
+              {/* Add Product Button */}
+              <button
+                type="button"
+                onClick={addProductItem}
+                className="w-full border-2 border-dashed border-[var(--border)] rounded-xl p-3 text-center text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all"
+              >
+                <Plus className="h-4 w-4 inline-block me-1" />
+                إضافة منتج آخر
+              </button>
+
+              {/* Total Purchase Cost */}
+              {productItems.length > 1 && (
+                <div className="rounded-lg bg-muted/60 px-4 py-2 text-sm border border-border/50">
+                  <span className="text-muted-foreground">إجمالي سعر الشراء: </span>
+                  <span className="font-bold">{formatTRY(totalPurchaseCost)}</span>
+                </div>
+              )}
+            </fieldset>
+
+            {/* Location & Batch */}
+            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "150ms" }}>
+              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
+                الشحن
+              </legend>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="governorate">المحافظة</Label>
+                  <Select
+                    id="governorate"
+                    value={form.governorate}
+                    onChange={(e) => setField("governorate", e.target.value)}
+                  >
+                    <option value="">اختر المحافظة</option>
+                    {IRAQI_CITIES.map((city) => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="area">المنطقة</Label>
+                  <Input
+                    id="area"
+                    value={form.area}
+                    onChange={(e) => setField("area", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="batchId">الشحنة</Label>
+                  <Select
+                    id="batchId"
+                    value={form.batchId}
+                    onChange={(e) => setField("batchId", e.target.value)}
+                  >
+                    <option value="">بدون شحنة</option>
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            </fieldset>
+
+            {/* Pricing */}
+            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "200ms" }}>
+              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
+                الأسعار
+              </legend>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="sellingPrice">سعر البيع (دينار)</Label>
+                  <Input
+                    id="sellingPrice"
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={form.sellingPrice}
+                    onChange={(e) => setField("sellingPrice", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryCost">كلفة التوصيل (دينار)</Label>
+                  <Select
+                    id="deliveryCost"
+                    value={form.deliveryCost}
+                    onChange={(e) => setField("deliveryCost", e.target.value)}
+                  >
+                    <option value="">اختر كلفة التوصيل</option>
+                    {DELIVERY_COSTS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deposit">العربون (دينار)</Label>
+                  <Input
+                    id="deposit"
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={form.deposit}
+                    onChange={(e) => setField("deposit", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="rounded-lg bg-muted/60 px-4 py-3 text-sm border border-border/50">
+                <span className="text-muted-foreground">السعر النهائي: </span>
+                <span className="font-bold text-lg animate-count-up">{formatIQD(finalPrice)}</span>
+                <span className="me-2 text-muted-foreground text-xs">
+                  (البيع + التوصيل - العربون)
+                </span>
+              </div>
+            </fieldset>
+
+            {/* Status */}
+            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "250ms" }}>
+              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
+                الحالة
+              </legend>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="status">حالة الطلب</Label>
+                  <Select
+                    id="status"
+                    value={form.status}
+                    onChange={(e) => setField("status", e.target.value)}
+                  >
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentStatus">حالة الدفع</Label>
+                  <Select
+                    id="paymentStatus"
+                    value={form.paymentStatus}
+                    onChange={(e) => setField("paymentStatus", e.target.value)}
+                  >
+                    {PAYMENT_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            </fieldset>
+
+            {/* Notes */}
+            <div className="space-y-2 animate-fade-in-up" style={{ animationDelay: "300ms" }}>
+              <Label htmlFor="notes">ملاحظات</Label>
+              <Textarea
+                id="notes"
+                rows={3}
+                value={form.notes}
+                onChange={(e) => setField("notes", e.target.value)}
+                placeholder="أي ملاحظات إضافية..."
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 pt-2 border-t border-border/50">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDialogOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
+                {editingOrder ? "حفظ" : "إنشاء"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Trendy Store — نظام الإدارة</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyDD51lbYjzcdEf6pZ_1EjnucYkl7JL2kLY",
+    authDomain: "trendy-store-64796.firebaseapp.com",
+    databaseURL: "https://trendy-store-64796-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "trendy-store-64796",
+    storageBucket: "trendy-store-64796.firebasestorage.app",
+    messagingSenderId: "714487511142",
+    appId: "1:714487511142:web:57d1eb9078fa4dc57dd5a7"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const auth = getAuth(app);
+  window._firebase = { db, auth, ref, set, push, onValue, remove, update, signInWithEmailAndPassword, signOut, onAuthStateChanged };
+  window._firebaseReady = true;
+  document.dispatchEvent(new Event('firebaseReady'));
+</script>
+<style>
+:root {
+  --bg: #f0f4f8;
+  --bg2: #e8edf3;
+  --surface: #ffffff;
+  --surface2: #f5f7fa;
+  --surface3: #eef1f6;
+  --border: #e2e8f0;
+  --border2: #cbd5e1;
+  --primary: #6366f1;
+  --primary2: #4f46e5;
+  --primary-light: rgba(99,102,241,0.1);
+  --primary-glow: rgba(99,102,241,0.15);
+  --emerald: #10b981;
+  --emerald-bg: rgba(16,185,129,0.1);
+  --rose: #f43f5e;
+  --rose-bg: rgba(244,63,94,0.1);
+  --amber: #f59e0b;
+  --amber-bg: rgba(245,158,11,0.1);
+  --sky: #0ea5e9;
+  --violet: #8b5cf6;
+  --gold: #fbbf24;
+  --text: #1e293b;
+  --text2: #64748b;
+  --text3: #94a3b8;
+  --r: 16px;
+  --r2: 10px;
+  --shadow: 0 4px 20px rgba(0,0,0,0.06);
+  --shadow2: 0 8px 32px rgba(0,0,0,0.1);
+  --nav: 64px;
+  --sidebar: 240px;
+}
+
+/* DARK THEME */
+body.theme-dark {
+  --bg:#0a0a12;--bg2:#0f0f1a;--surface:#13131f;--surface2:#1a1a2e;--surface3:#222238;
+  --border:#2a2a45;--border2:#363660;--text:#e2e2f0;--text2:#9494b8;--text3:#55557a;
+  --shadow:0 4px 20px rgba(0,0,0,0.4);--shadow2:0 8px 32px rgba(0,0,0,0.5);
+}
+body.theme-gold {
+  --bg:#0d0b00;--bg2:#141000;--surface:#1a1500;--surface2:#221c00;--surface3:#2a2200;
+  --border:#3d3000;--border2:#5a4700;--text:#fff8e0;--text2:#c9a84c;--text3:#7a6030;
+  --primary:#fbbf24;--primary2:#f59e0b;--primary-glow:rgba(251,191,36,0.15);--primary-light:rgba(251,191,36,0.07);
+}
+body.theme-rose {
+  --bg:#0d0005;--bg2:#130008;--surface:#1a000c;--surface2:#220010;--surface3:#2a0015;
+  --border:#3d0018;--border2:#5a0025;--text:#ffe0ea;--text2:#c94a6a;--text3:#7a3048;
+  --primary:#f43f5e;--primary2:#e11d48;--primary-glow:rgba(244,63,94,0.15);--primary-light:rgba(244,63,94,0.07);
+}
+body.theme-ocean {
+  --bg:#000d1a;--bg2:#001020;--surface:#001528;--surface2:#001d35;--surface3:#002540;
+  --border:#003355;--border2:#004470;--text:#e0f2ff;--text2:#4ab0e0;--text3:#2a6080;
+  --primary:#0ea5e9;--primary2:#0284c7;--primary-glow:rgba(14,165,233,0.15);--primary-light:rgba(14,165,233,0.07);
+}
+
+/* RESET */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:15px;line-height:1.5;transition:background 0.3s,color 0.3s}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+.hidden{display:none!important}
+
+/* LOGIN */
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,rgba(99,102,241,0.08) 0%,transparent 50%),
+  linear-gradient(225deg,rgba(244,63,94,0.05) 0%,transparent 50%),var(--bg);padding:20px}
+.login-box{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--border);
+  border-radius:24px;padding:44px 36px;box-shadow:var(--shadow2)}
+.login-logo{text-align:center;margin-bottom:36px}
+.login-logo-img{width:72px;height:72px;border-radius:18px;object-fit:cover;margin:0 auto 12px;display:block;border:2px solid var(--border)}
+.login-logo h1{font-size:26px;font-weight:900;color:var(--text);margin-bottom:4px}
+.login-logo p{font-size:13px;color:var(--text3)}
+.login-error{background:var(--rose-bg);border:1px solid rgba(244,63,94,0.3);border-radius:var(--r2);
+  padding:10px 14px;font-size:13px;color:var(--rose);margin-bottom:16px;display:none}
+
+/* FORM */
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.fg label{font-size:12px;font-weight:700;color:var(--text2);letter-spacing:0.5px}
+.fg input,.fg select,.fg textarea{
+  background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--r2);
+  padding:10px 14px;font-size:14px;color:var(--text);font-family:'Tajawal',sans-serif;
+  transition:border-color 0.2s;outline:none;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--primary)}
+.fg textarea{min-height:80px;resize:vertical}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fgrid .full{grid-column:1/-1}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:var(--r2);
+  font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all 0.2s;font-family:'Tajawal',sans-serif}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 4px 14px var(--primary-glow)}
+.btn-primary:hover{background:var(--primary2);transform:translateY(-1px)}
+.btn-outline{background:transparent;color:var(--text2);border:1.5px solid var(--border2)}
+.btn-outline:hover{background:var(--surface2);color:var(--text)}
+.btn-danger{background:var(--rose-bg);color:var(--rose);border:1px solid rgba(244,63,94,0.3)}
+.btn-danger:hover{background:var(--rose);color:#fff}
+.btn-sm{padding:7px 14px;font-size:13px}
+.btn-xs{padding:5px 11px;font-size:12px;border-radius:8px}
+
+/* APP LAYOUT */
+.app{display:flex;flex-direction:column;min-height:100vh}
+
+/* TOPBAR */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:200;height:var(--nav);padding:0 24px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow)}
+.topbar-logo{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:900;color:var(--text)}
+.topbar-logo img{width:36px;height:36px;border-radius:10px;object-fit:cover;border:1px solid var(--border);display:none}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.role-chip{font-size:11px;font-weight:700;padding:4px 12px;border-radius:100px;
+  background:var(--primary-light);border:1px solid rgba(99,102,241,0.25);color:var(--primary)}
+.topbar-btn{width:38px;height:38px;border-radius:var(--r2);background:var(--surface2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;transition:all 0.2s}
+.topbar-btn:hover{background:var(--primary-light);border-color:var(--primary)}
+
+/* QUICK ACTIONS BAR */
+.quick-bar{position:fixed;top:var(--nav);left:0;right:0;z-index:190;height:52px;padding:0 24px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;overflow-x:auto}
+.quick-bar::-webkit-scrollbar{display:none}
+.qbtn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;
+  font-size:13px;font-weight:700;cursor:pointer;border:1.5px solid var(--border2);
+  background:var(--surface);color:var(--text2);white-space:nowrap;transition:all 0.2s}
+.qbtn:hover,.qbtn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.qbtn-primary{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 3px 10px var(--primary-glow)}
+
+/* SIDEBAR */
+.sidebar{position:fixed;top:calc(var(--nav) + 52px);right:0;bottom:0;width:var(--sidebar);
+  background:var(--surface);border-left:1px solid var(--border);
+  padding:16px 10px;z-index:100;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.nav-section{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text3);
+  text-transform:uppercase;padding:14px 12px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r2);
+  cursor:pointer;transition:all 0.18s;color:var(--text2);font-size:13px;font-weight:600;border:1px solid transparent}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--primary-light);border-color:rgba(99,102,241,0.2);color:var(--primary)}
+.nav-item .ni{font-size:17px;flex-shrink:0}
+.nav-badge{margin-right:auto;margin-left:0;background:var(--rose);color:#fff;
+  font-size:9px;font-weight:800;padding:1px 6px;border-radius:100px;min-width:18px;text-align:center}
+.sidebar-footer{padding:12px;font-size:10px;color:var(--text3);text-align:center;
+  border-top:1px solid var(--border);margin-top:auto;padding-top:14px}
+
+/* MAIN */
+.main{margin-top:calc(var(--nav) + 52px);margin-right:var(--sidebar);padding:24px;min-height:calc(100vh - var(--nav) - 52px)}
+
+/* BOTTOM NAV */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:64px;
+  background:var(--surface);backdrop-filter:blur(20px);border-top:1px solid var(--border);
+  z-index:200;padding:0 4px;align-items:center;justify-content:space-around}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 10px;
+  border-radius:12px;cursor:pointer;transition:all 0.2s;color:var(--text3);font-size:10px;font-weight:700;min-width:50px}
+.bn-item .bi{font-size:22px;transition:transform 0.2s}
+.bn-item.active{color:var(--primary)}
+.bn-item.active .bi{transform:scale(1.15)}
+
+/* DRAWER */
+.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:300;backdrop-filter:blur(4px)}
+.drawer{position:fixed;top:0;right:-280px;bottom:0;width:264px;background:var(--surface);
+  border-left:1px solid var(--border2);z-index:310;transition:right 0.28s cubic-bezier(0.32,0,0.2,1);
+  padding:0;display:flex;flex-direction:column;overflow-y:auto;box-shadow:-8px 0 40px rgba(0,0,0,0.15)}
+.drawer-head{padding:20px 16px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.drawer-head img{width:40px;height:40px;border-radius:12px;object-fit:cover;display:none}
+.drawer-name{font-size:16px;font-weight:900;color:var(--text)}
+.drawer-close{margin-right:auto;margin-left:0;width:32px;height:32px;border-radius:8px;background:var(--surface2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text2)}
+.drawer-body{flex:1;padding:8px;display:flex;flex-direction:column;gap:2px}
+.drawer-footer{padding:14px 16px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);text-align:center}
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 12px}
+.theme-btn{background:var(--surface2);border:2px solid var(--border);border-radius:10px;
+  padding:10px 8px;text-align:center;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2);transition:all 0.2s}
+.theme-btn:hover{border-color:var(--primary);color:var(--primary)}
+.theme-btn.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:18px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;cursor:default}
+.stat-card::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--sc)}
+.stat-ico{font-size:28px;margin-bottom:10px}
+.stat-val{font-size:24px;font-weight:900;color:var(--text);font-family:'IBM Plex Mono',monospace;line-height:1}
+.stat-lbl{font-size:12px;color:var(--text2);margin-top:5px;font-weight:600}
+
+/* QUICK ACTIONS CARDS */
+.quick-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.qcard{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);
+  padding:16px;text-align:center;cursor:pointer;transition:all 0.2s;box-shadow:var(--shadow)}
+.qcard:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:var(--shadow2)}
+.qcard-ico{font-size:28px;margin-bottom:8px}
+.qcard-lbl{font-size:12px;font-weight:700;color:var(--text2)}
+.qcard-primary{background:var(--primary);border-color:var(--primary)}
+.qcard-primary .qcard-lbl{color:rgba(255,255,255,0.9)}
+
+/* DASH GRID */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card-title{font-size:14px;font-weight:800;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+/* OPEN BATCH CARD */
+.batch-open-card{background:linear-gradient(135deg,var(--primary) 0%,var(--primary2) 100%);
+  border-radius:var(--r);padding:20px;margin-bottom:20px;color:#fff;position:relative;overflow:hidden}
+.batch-open-card::after{content:'📦';position:absolute;left:-10px;top:50%;transform:translateY(-50%);font-size:80px;opacity:0.1}
+.boc-title{font-size:16px;font-weight:900;margin-bottom:6px}
+.boc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.boc-stat{text-align:center;background:rgba(255,255,255,0.15);border-radius:10px;padding:12px 8px}
+.boc-val{font-size:22px;font-weight:900;font-family:'IBM Plex Mono',monospace}
+.boc-lbl{font-size:10px;opacity:0.8;margin-top:3px}
+.prog-wrap{height:6px;background:rgba(255,255,255,0.2);border-radius:3px;margin-top:14px}
+.prog-bar{height:100%;background:#fff;border-radius:3px;transition:width 0.5s}
+
+/* TABLE */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--surface2);padding:12px 14px;font-size:11px;font-weight:700;color:var(--text2);
+  text-align:right;letter-spacing:0.5px;border-bottom:1px solid var(--border)}
+td{padding:13px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.ractions{display:flex;gap:6px}
+.ract{width:30px;height:30px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all 0.15s}
+.ract:hover{background:var(--primary-light);border-color:var(--primary)}
+.ract.del:hover{background:var(--rose-bg);border-color:var(--rose)}
+
+/* FILTER TABS */
+.ftabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.ftab{padding:7px 16px;border-radius:100px;font-size:12px;font-weight:700;cursor:pointer;
+  border:1.5px solid var(--border2);color:var(--text2);transition:all 0.18s}
+.ftab.active{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* PAGE HEADER */
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;gap:12px;flex-wrap:wrap}
+.ph-title{font-size:22px;font-weight:900;color:var(--text)}
+.ph-sub{font-size:12px;color:var(--text2);margin-top:3px}
+.ph-actions{display:flex;gap:8px;flex-wrap:wrap}
+.search{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:var(--r2);padding:7px 12px;min-width:200px}
+.search input{background:none;border:none;outline:none;font-size:13px;color:var(--text);width:100%;font-family:'Tajawal',sans-serif}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700}
+.b-new{background:var(--amber-bg);color:var(--amber)}
+.b-bought{background:rgba(99,102,241,0.1);color:var(--primary)}
+.b-batch{background:rgba(139,92,246,0.1);color:var(--violet)}
+.b-shipping{background:rgba(14,165,233,0.1);color:var(--sky)}
+.b-delivery{background:rgba(245,158,11,0.1);color:var(--amber)}
+.b-done{background:var(--emerald-bg);color:var(--emerald)}
+.b-paid{background:var(--emerald-bg);color:var(--emerald)}
+.b-cancelled{background:var(--rose-bg);color:var(--rose)}
+.b-open{background:var(--emerald-bg);color:var(--emerald)}
+.b-shipped{background:rgba(14,165,233,0.1);color:var(--sky)}
+.b-dist{background:rgba(139,92,246,0.1);color:var(--violet)}
+.b-complete{background:var(--amber-bg);color:var(--amber)}
+.pay-paid{background:var(--emerald-bg);color:var(--emerald)}
+.pay-pending{background:var(--rose-bg);color:var(--rose)}
+.pay-partial{background:var(--amber-bg);color:var(--amber)}
+
+/* BATCHES */
+.batches-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.batch-card{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--bc,var(--primary));
+  border-radius:var(--r);padding:18px;box-shadow:var(--shadow);transition:transform 0.2s}
+.batch-card:hover{transform:translateY(-2px);box-shadow:var(--shadow2)}
+.bc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.bc-name{font-size:15px;font-weight:800;color:var(--text)}
+.bc-date{font-size:11px;color:var(--text3);margin-top:3px}
+.bc-stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:4px;
+  background:var(--surface2);border-radius:var(--r2);padding:12px;border:1px solid var(--border)}
+.bcs-val{font-size:18px;font-weight:900;font-family:'IBM Plex Mono',monospace;color:var(--text)}
+.bcs-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* CUSTOMERS */
+.customers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.cust-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:18px;box-shadow:var(--shadow);transition:transform 0.2s}
+.cust-card:hover{transform:translateY(-2px);box-shadow:var(--shadow2)}
+.cust-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.cust-av{width:44px;height:44px;border-radius:12px;background:var(--primary-light);
+  display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:var(--primary);flex-shrink:0}
+.cust-name{font-size:15px;font-weight:800;color:var(--text)}
+.cust-ig{font-size:11px;color:var(--text3);margin-top:2px}
+.cust-row{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;
+  background:var(--surface2);border-radius:var(--r2);padding:10px;gap:4px;border:1px solid var(--border)}
+.crv{font-size:16px;font-weight:900;color:var(--text)}
+.crl{font-size:10px;color:var(--text3);margin-top:2px}
+.vip{font-size:11px;font-weight:700;color:var(--gold);background:rgba(251,191,36,0.12);
+  padding:4px 12px;border-radius:100px;display:inline-block;margin-top:8px;border:1px solid rgba(251,191,36,0.25)}
+
+/* FINANCE */
+.fin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.fin-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;
+  border-top:3px solid var(--fc);box-shadow:var(--shadow)}
+.fin-val{font-size:22px;font-weight:900;color:var(--fc);font-family:'IBM Plex Mono',monospace;margin-bottom:4px}
+.fin-lbl{font-size:12px;color:var(--text2);font-weight:600}
+.ex-bar{background:var(--primary-light);border:1px solid rgba(99,102,241,0.2);border-radius:var(--r2);
+  padding:10px 16px;margin-bottom:16px;font-size:13px;color:var(--text2);display:flex;align-items:center;gap:10px}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(6px);
+  z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow2)}
+.mhead{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
+.mtitle{font-size:16px;font-weight:800;color:var(--text)}
+.mclose{width:32px;height:32px;border-radius:8px;background:var(--surface2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text2)}
+.mbody{overflow-y:auto;padding:20px 22px;flex:1}
+.mfoot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+.calc-result{background:var(--primary-light);border:2px solid var(--primary);border-radius:var(--r2);
+  padding:12px 16px;font-size:18px;font-weight:900;color:var(--primary);font-family:'IBM Plex Mono',monospace;text-align:center}
+
+/* UNPAID / ACTIVITY */
+.unpaid-list,.act-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.unpaid-item,.act-item{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--surface2);border-radius:var(--r2);border:1px solid var(--border)}
+.unpaid-dot{width:8px;height:8px;border-radius:50%;background:var(--rose);flex-shrink:0}
+.unpaid-name{flex:1;font-size:13px;font-weight:600;color:var(--text)}
+.unpaid-amt{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:800;color:var(--rose)}
+.act-ico{font-size:18px;width:36px;height:36px;border-radius:10px;background:var(--surface3);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.act-text{font-size:13px;font-weight:600;color:var(--text)}
+.act-time{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 24px;color:var(--text3)}
+.empty-ico{font-size:44px;margin-bottom:12px}
+.empty-title{font-size:16px;font-weight:700}
+
+/* TOAST */
+#toastC{position:fixed;bottom:80px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--text);color:var(--surface);padding:12px 18px;border-radius:12px;
+  font-size:13px;font-weight:700;box-shadow:var(--shadow2);animation:slideIn 0.3s ease}
+.toast.ok{background:var(--emerald);color:#fff}
+.toast.err{background:var(--rose);color:#fff}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* PAGE */
+.page{animation:fadeUp 0.22s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* WORKER NOTICE */
+.worker-notice{background:var(--amber-bg);border:1px solid rgba(245,158,11,0.3);border-radius:var(--r2);
+  padding:10px 14px;font-size:13px;color:var(--amber);margin-bottom:16px}
+
+/* INVOICE */
+#invoicePrint{display:none;position:fixed;inset:0;background:#fff;z-index:9999;overflow-y:auto;padding:0}
+.inv-header{display:flex;justify-content:space-between;align-items:flex-start;padding:30px 36px;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
+.inv-logo{font-size:22px;font-weight:900;margin-bottom:4px}
+.inv-num{text-align:left;background:rgba(255,255,255,0.15);border-radius:12px;padding:12px 16px}
+.inv-body{padding:28px 36px}
+.inv-section{background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:16px}
+.inv-section h4{font-size:13px;font-weight:800;color:#4f46e5;margin-bottom:10px;letter-spacing:1px;text-transform:uppercase}
+.inv-table{width:100%;border-collapse:collapse;margin:16px 0}
+.inv-table th{background:#f1f5f9;padding:10px 14px;font-size:12px;text-align:right;font-weight:700}
+.inv-table td{padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px}
+.inv-totals{background:#f8fafc;border-radius:12px;padding:16px;margin-top:16px}
+.inv-row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;border-bottom:1px solid #e2e8f0}
+.inv-row.total{border-bottom:none;margin-top:8px;padding-top:12px;font-size:16px;font-weight:900;color:#4f46e5}
+.inv-footer{text-align:center;padding:20px;color:#6b7280;font-size:13px;border-top:1px solid #e2e8f0}
+@media print{#invoicePrint{position:static}}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{display:none!important}
+  .quick-bar{display:none!important}
+  .main{margin-right:0;margin-top:var(--nav);padding:14px;padding-bottom:80px}
+  .bottom-nav{display:flex!important}
+  .stats{grid-template-columns:1fr 1fr}
+  .dash-grid{grid-template-columns:1fr}
+  .fin-grid{grid-template-columns:1fr 1fr}
+  .quick-cards{grid-template-columns:repeat(2,1fr)}
+  .fgrid{grid-template-columns:1fr}
+  .fgrid .full{grid-column:1}
+  table{display:block;overflow-x:auto}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr 1fr}
+  .fin-grid{grid-template-columns:1fr}
+  .quick-cards{grid-template-columns:1fr 1fr}
+}
+</style>
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <img id="loginLogoImg" class="login-logo-img" src="" alt="">
+      <h1 id="loginTitle">Trendy Store</h1>
+      <p>نظام إدارة الطلبات</p>
+    </div>
+    <div id="loginError" class="login-error"></div>
+    <div class="fg"><label>البريد الإلكتروني</label><input type="email" id="loginEmail" placeholder="admin@trendystore.com"></div>
+    <div class="fg"><label>كلمة المرور</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" onclick="doLogin()">دخول →</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appShell" class="app hidden">
+  <!-- TOPBAR -->
+  <nav class="topbar">
+    <div class="topbar-logo">
+      <img id="storeLogoImg" alt="">
+      <span id="storeName">Trendy Store</span>
+    </div>
+    <div class="topbar-right">
+      <span class="role-chip" id="roleChip">👑 أدمن</span>
+      <div class="topbar-btn" onclick="toggleDrawer()" title="القائمة">☰</div>
+    </div>
+  </nav>
+
+  <!-- QUICK BAR -->
+  <div class="quick-bar" id="quickBar">
+    <div class="qbtn qbtn-primary" onclick="openOrderModal()">➕ طلب جديد</div>
+    <div class="qbtn" onclick="navigate('orders',null)">📋 الطلبات</div>
+    <div class="qbtn" onclick="navigate('batches',null)">📦 الوجبات</div>
+    <div class="qbtn admin-only" onclick="navigate('customers',null)">👥 الزبائن</div>
+    <div class="qbtn admin-only" onclick="navigate('finance',null)">💹 المالية</div>
+    <div class="qbtn admin-only" onclick="navigate('settings',null)">⚙️ الإعدادات</div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="nav-section">القائمة الرئيسية</div>
+    <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard',this)"><span class="ni">🏠</span>لوحة التحكم</div>
+    <div class="nav-item" data-page="orders" onclick="navigate('orders',this)"><span class="ni">📋</span>الطلبات<span class="nav-badge hidden" id="sb-badge">0</span></div>
+    <div class="nav-item" data-page="batches" onclick="navigate('batches',this)"><span class="ni">📦</span>الوجبات</div>
+    <div class="nav-item admin-only" data-page="customers" onclick="navigate('customers',this)"><span class="ni">👥</span>الزبائن</div>
+    <div class="nav-item admin-only" data-page="finance" onclick="navigate('finance',this)"><span class="ni">💹</span>المالية</div>
+    <div class="nav-section admin-only">الإعدادات</div>
+    <div class="nav-item admin-only" data-page="settings" onclick="navigate('settings',this)"><span class="ni">⚙️</span>الإعدادات</div>
+    <div style="flex:1"></div>
+    <div class="nav-item" style="color:var(--rose)" onclick="doLogout()"><span class="ni">🚪</span>تسجيل الخروج</div>
+    <div class="sidebar-footer">تم التصميم بواسطة<br><strong style="color:var(--primary)">أنس فتيان</strong></div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="mainContent"></main>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <div class="bn-item active" onclick="navigateM('dashboard',this)"><span class="bi">🏠</span>الرئيسية</div>
+    <div class="bn-item" onclick="navigateM('orders',this)"><span class="bi">📋</span>الطلبات</div>
+    <div class="bn-item" onclick="navigateM('batches',this)"><span class="bi">📦</span>الوجبات</div>
+    <div class="bn-item admin-only" onclick="navigateM('customers',this)"><span class="bi">👥</span>الزبائن</div>
+    <div class="bn-item admin-only" onclick="navigateM('finance',this)"><span class="bi">💹</span>المالية</div>
+  </nav>
+</div>
+
+<!-- DRAWER -->
+<div id="drawerOverlay" class="drawer-overlay" onclick="toggleDrawer()"></div>
+<div id="drawer" class="drawer">
+  <div class="drawer-head">
+    <img id="drawerLogo" alt="">
+    <div class="drawer-name" id="drawerName">Trendy Store</div>
+    <div class="drawer-close" onclick="toggleDrawer()">✕</div>
+  </div>
+  <div class="drawer-body">
+    <div class="nav-section">القائمة</div>
+    <div class="nav-item" onclick="navigate('dashboard',null);toggleDrawer()"><span class="ni">🏠</span>لوحة التحكم</div>
+    <div class="nav-item" onclick="navigate('orders',null);toggleDrawer()"><span class="ni">📋</span>الطلبات</div>
+    <div class="nav-item" onclick="navigate('batches',null);toggleDrawer()"><span class="ni">📦</span>الوجبات</div>
+    <div class="nav-item admin-only" onclick="navigate('customers',null);toggleDrawer()"><span class="ni">👥</span>الزبائن</div>
+    <div class="nav-item admin-only" onclick="navigate('finance',null);toggleDrawer()"><span class="ni">💹</span>المالية</div>
+    <div class="nav-section">🎨 الثيم</div>
+    <div class="theme-grid">
+      <div class="theme-btn" data-theme="light" onclick="setTheme('light')">☀️ فاتح</div>
+      <div class="theme-btn" data-theme="dark" onclick="setTheme('dark')">🌑 داكن</div>
+      <div class="theme-btn" data-theme="gold" onclick="setTheme('gold')">✨ ذهبي</div>
+      <div class="theme-btn" data-theme="rose" onclick="setTheme('rose')">🌹 وردي</div>
+      <div class="theme-btn" data-theme="ocean" onclick="setTheme('ocean')" style="grid-column:1/-1">🌊 أزرق</div>
+    </div>
+    <div class="nav-section admin-only">الإعدادات</div>
+    <div class="nav-item admin-only" onclick="navigate('settings',null);toggleDrawer()"><span class="ni">⚙️</span>إعدادات التطبيق</div>
+  </div>
+  <div style="padding:8px">
+    <div class="nav-item" style="color:var(--rose)" onclick="doLogout()"><span class="ni">🚪</span>تسجيل الخروج</div>
+  </div>
+  <div class="drawer-footer">تم التصميم بواسطة<br><strong style="color:var(--primary)">أنس فتيان</strong></div>
+</div>
+
+<!-- TOAST -->
+<div id="toastC"></div>
+
+<!-- ORDER MODAL -->
+<div class="overlay" id="orderModal">
+  <div class="modal">
+    <div class="mhead">
+      <span class="mtitle" id="omTitle">➕ طلب جديد</span>
+      <div class="mclose" onclick="closeOverlay('orderModal')">✕</div>
+    </div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg"><label>اسم الزبون *</label><input id="o_custName" placeholder="اكتب اسم الزبون"></div>
+        <div class="fg"><label>الوجبة</label><select id="o_batch"><option value="">-- اختر وجبة --</option></select></div>
+        <div class="fg"><label>نوع المنتج *</label>
+          <select id="o_type"><option>حقيبة</option><option>حذاء</option><option>ملابس</option><option>إكسسوار</option><option>أخرى</option></select>
+        </div>
+        <div class="fg"><label>اللون</label><input id="o_color" placeholder="أسود، بني، أبيض..."></div>
+        <div class="fg"><label>المقاس / القياس</label><input id="o_size" placeholder="38، M، XL..."></div>
+        <div class="fg"><label>التاريخ</label><input type="date" id="o_date"></div>
+        <div class="fg"><label>رابط انستقرام الزبون</label><input id="o_ig" placeholder="https://instagram.com/..."></div>
+        <div class="fg"><label>رابط المنتج</label><input id="o_link" placeholder="https://..."></div>
+        <div class="fg"><label>المحافظة</label>
+          <select id="o_gov">
+            <option>بغداد</option><option>البصرة</option><option>أربيل</option><option>الموصل</option>
+            <option>النجف</option><option>كربلاء</option><option>السليمانية</option><option>كركوك</option>
+            <option>الديوانية</option><option>الحلة</option><option>العمارة</option><option>الناصرية</option>
+            <option>الرمادي</option><option>تكريت</option><option>سامراء</option><option>أخرى</option>
+          </select>
+        </div>
+        <div class="fg"><label>المنطقة / الحي</label><input id="o_area" placeholder="مثال: الكرادة، المنصور..."></div>
+        <div class="fg full">
+          <label>رقم هاتف الزبون</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="o_phone" placeholder="07xxxxxxxxx" style="flex:1" oninput="updateWA()">
+            <a id="wa_link" href="https://wa.me/" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:#25d366;color:#fff;border-radius:var(--r2);font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">💬 واتساب</a>
+          </div>
+        </div>
+        <div class="fg"><label>سعر الشراء (ليرة تركية)</label><input type="number" id="o_costTRY" placeholder="0" oninput="calcTotal()"></div>
+        <div class="fg"><label>سعر البيع (دينار عراقي)</label><input type="number" id="o_priceIQD" placeholder="0" oninput="calcTotal()"></div>
+        <div class="fg">
+          <label>أجرة التوصيل (دينار)</label>
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <button type="button" class="btn btn-outline btn-sm" style="flex:1" onclick="setDelivery(5000)">5,000</button>
+            <button type="button" class="btn btn-outline btn-sm" style="flex:1" onclick="setDelivery(6000)">6,000</button>
+          </div>
+          <input type="number" id="o_delivery" placeholder="أو اكتب مبلغ آخر" oninput="calcTotal()">
+        </div>
+        <div class="fg"><label>العربون المدفوع (دينار)</label><input type="number" id="o_deposit" placeholder="0" oninput="calcTotal()"></div>
+        <div class="fg full">
+          <label>💰 السعر النهائي</label>
+          <div class="calc-result" id="o_total">0 دينار</div>
+        </div>
+        <div class="fg full">
+          <label>📷 صور المنتج</label>
+          <input type="file" id="o_images" accept="image/*" multiple onchange="previewImgs()" style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--r2);padding:10px;color:var(--text2);font-size:13px;width:100%">
+          <div id="o_imgPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+          <div id="o_savedImgs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+        </div>
+        <div class="fg"><label>حالة الطلب</label>
+          <select id="o_status">
+            <option value="new">⏳ طلب جديد</option><option value="bought">🛍️ تم الشراء</option>
+            <option value="batch">📦 في الوجبة</option><option value="shipping">✈️ في الطريق</option>
+            <option value="delivery">🏢 عند التوصيل</option><option value="done">✅ تم التسليم</option>
+            <option value="paid">💰 مدفوع</option><option value="cancelled">❌ ملغي</option>
+          </select>
+        </div>
+        <div class="fg"><label>حالة الدفع</label>
+          <select id="o_pay">
+            <option value="pending">❌ غير مدفوع</option>
+            <option value="partial">⚠️ مدفوع جزئياً</option>
+            <option value="paid">✅ مدفوع كاملاً</option>
+          </select>
+        </div>
+        <div class="fg full"><label>ملاحظات</label><textarea id="o_notes" placeholder="أي تفاصيل إضافية..."></textarea></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-outline" onclick="closeOverlay('orderModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveOrder()">💾 حفظ الطلب</button>
+    </div>
+  </div>
+</div>
+
+<!-- BATCH MODAL -->
+<div class="overlay" id="batchModal">
+  <div class="modal">
+    <div class="mhead"><span class="mtitle" id="bmTitle">📦 وجبة جديدة</span><div class="mclose" onclick="closeOverlay('batchModal')">✕</div></div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg full"><label>اسم الوجبة *</label><input id="b_name" placeholder="مثال: وجبة مارس 2026"></div>
+        <div class="fg"><label>تاريخ الفتح</label><input type="date" id="b_open"></div>
+        <div class="fg"><label>تاريخ الإغلاق المتوقع</label><input type="date" id="b_close"></div>
+        <div class="fg"><label>حالة الوجبة</label>
+          <select id="b_status">
+            <option value="open">🟢 مفتوحة</option><option value="shipped">✈️ مشحونة</option>
+            <option value="dist">🏢 في التوزيع</option><option value="done">✅ مكتملة</option>
+          </select>
+        </div>
+        <div class="fg"><label>تكلفة الشحن (دولار)</label><input type="number" id="b_ship" placeholder="0"></div>
+        <div class="fg full"><label>ملاحظات</label><textarea id="b_notes" placeholder="أي تفاصيل..."></textarea></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-outline" onclick="closeOverlay('batchModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveBatch()">💾 حفظ الوجبة</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMER MODAL -->
+<div class="overlay" id="custModal">
+  <div class="modal">
+    <div class="mhead"><span class="mtitle" id="cmTitle">👤 زبون جديد</span><div class="mclose" onclick="closeOverlay('custModal')">✕</div></div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg full"><label>اسم الزبون *</label><input id="c_name" placeholder="الاسم الكامل"></div>
+        <div class="fg"><label>انستقرام</label><input id="c_ig" placeholder="@username"></div>
+        <div class="fg"><label>رقم الهاتف</label><input id="c_phone" placeholder="07xxxxxxxxx"></div>
+        <div class="fg"><label>المحافظة</label>
+          <select id="c_city"><option>بغداد</option><option>البصرة</option><option>أربيل</option><option>الموصل</option><option>النجف</option><option>كربلاء</option><option>أخرى</option></select>
+        </div>
+        <div class="fg"><label>المنطقة</label><input id="c_area" placeholder="الحي أو المنطقة"></div>
+        <div class="fg full"><label>ملاحظات</label><textarea id="c_notes" placeholder="أي ملاحظات..."></textarea></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-outline" onclick="closeOverlay('custModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVOICE -->
+<div id="invoicePrint">
+  <div style="max-width:700px;margin:0 auto;font-family:'Tajawal',sans-serif">
+    <div class="inv-header">
+      <div>
+        <div class="inv-logo" id="invStoreName">🛍️ Trendy Store</div>
+        <p style="opacity:0.8;margin-top:4px;font-size:13px">متجر متخصص في الأزياء والإكسسوارات</p>
+        <p style="opacity:0.6;margin-top:4px;font-size:12px">تركيا 🇹🇷 → العراق 🇮🇶</p>
+      </div>
+      <div class="inv-num" style="text-align:left;color:#fff">
+        <div style="font-size:11px;opacity:0.8">فاتورة رقم</div>
+        <div id="invNum" style="font-family:monospace;font-size:18px;font-weight:900">#000000</div>
+        <div id="invDate" style="font-size:11px;opacity:0.7;margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="inv-body" id="invoiceContent"></div>
+    <div class="inv-footer">
+      <button class="btn btn-outline btn-sm" onclick="closeInvoice()" style="margin-bottom:8px">✕ إغلاق</button>
+      <button class="btn btn-primary btn-sm" onclick="window.print()" style="margin-bottom:8px">🖨️ طباعة</button>
+    </div>
+  </div>
+</div>
+<script>
+// STATE
+let DB = {orders:{},batches:{},customers:{},settings:{}};
+let currentRole = 'admin';
+let currentPage = 'dashboard';
+let orderFilter = 'all';
+let editingId = {order:null,batch:null,customer:null};
+let unsubscribers = [];
+
+// INIT
+document.addEventListener('firebaseReady', () => {
+  const { auth, onAuthStateChanged } = window._firebase;
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      currentRole = user.email.includes('worker') ? 'worker' : 'admin';
+      document.getElementById('roleChip').textContent = currentRole==='admin' ? '👑 أدمن' : '👷 عامل';
+      document.querySelectorAll('.admin-only').forEach(el => el.style.display = currentRole==='admin' ? '' : 'none');
+      startListeners();
+      showApp();
+    } else {
+      stopListeners();
+      showLogin();
+    }
+  });
+});
+
+async function doLogin() {
+  const { auth, signInWithEmailAndPassword } = window._firebase;
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginError');
+  err.style.display = 'none';
+  if (!email || !pass) { err.textContent = 'الرجاء إدخال البريد وكلمة المرور'; err.style.display = 'block'; return; }
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(e) {
+    err.textContent = 'بيانات الدخول غير صحيحة';
+    err.style.display = 'block';
+  }
+}
+async function doLogout() { const { auth, signOut } = window._firebase; await signOut(auth); }
+
+function showLogin() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('appShell').classList.add('hidden');
+}
+function showApp() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appShell').classList.remove('hidden');
+  loadTheme();
+  renderPage('dashboard');
+}
+
+// FIREBASE
+function startListeners() {
+  const { db, ref, onValue } = window._firebase;
+  ['orders','batches','customers','settings'].forEach(p => {
+    const unsub = onValue(ref(db, p), snap => {
+      DB[p] = snap.val() || {};
+      if (p === 'settings') {
+        const s = DB.settings;
+        if(s.storeName) { document.getElementById('storeName').textContent = s.storeName; document.getElementById('loginTitle').textContent = s.storeName; document.getElementById('drawerName').textContent = s.storeName; }
+        const logo = s.storeLogo||'';
+        ['storeLogoImg','drawerLogo'].forEach(id => { const el=document.getElementById(id); if(el){el.src=logo;el.style.display=logo?'inline-block':'none';} });
+        const li = document.getElementById('loginLogoImg'); if(li){li.src=logo;li.style.display=logo?'block':'none';}
+      }
+      updateBadge();
+      if (currentPage) renderPage(currentPage);
+    });
+    unsubscribers.push(unsub);
+  });
+}
+function stopListeners() { unsubscribers.forEach(u => u && u()); unsubscribers = []; }
+function dbSet(p,d){const{db,ref,set}=window._firebase;return set(ref(db,p),d)}
+function dbPush(p,d){const{db,ref,push}=window._firebase;return push(ref(db,p),d)}
+function dbRemove(p){const{db,ref,remove}=window._firebase;return remove(ref(db,p))}
+
+function ordersArr(){return Object.entries(DB.orders||{}).map(([id,v])=>({...v,id})).sort((a,b)=>b.createdAt-a.createdAt)}
+function batchesArr(){return Object.entries(DB.batches||{}).map(([id,v])=>({...v,id})).sort((a,b)=>b.createdAt-a.createdAt)}
+function customersArr(){return Object.entries(DB.customers||{}).map(([id,v])=>({...v,id})).sort((a,b)=>b.createdAt-a.createdAt)}
+
+// NAVIGATION
+function navigate(page, el) {
+  if (currentRole === 'worker' && ['customers','finance','settings'].includes(page)) return;
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else document.querySelectorAll(`[data-page="${page}"]`).forEach(i=>i.classList.add('active'));
+  renderPage(page);
+}
+function navigateM(page, el) {
+  if (currentRole === 'worker' && ['customers','finance','settings'].includes(page)) return;
+  currentPage = page;
+  document.querySelectorAll('.bn-item').forEach(i => i.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderPage(page);
+}
+function renderPage(page) {
+  const m = document.getElementById('mainContent');
+  if (!m) return;
+  m.innerHTML = '';
+  updateBadge();
+  ({dashboard:renderDash,orders:renderOrders,batches:renderBatches,customers:renderCustomers,finance:renderFinance,settings:renderSettings})[page]?.();
+}
+
+// DASHBOARD
+function renderDash() {
+  const orders = ordersArr(), batches = batchesArr();
+  const total = orders.length;
+  const pending = orders.filter(o=>!['paid','cancelled'].includes(o.status)).length;
+  const revenue = orders.filter(o=>o.payStatus==='paid').reduce((s,o)=>s+(o.priceIQD||0),0);
+  const unpaid = orders.filter(o=>o.payStatus==='pending'&&o.status==='done').reduce((s,o)=>s+(o.finalTotal||0),0);
+  const openB = batches.find(b=>b.status==='open');
+  const openOrders = openB ? orders.filter(o=>o.batchId===openB.id) : [];
+  const unpaidList = orders.filter(o=>o.payStatus==='pending'&&o.status==='done').slice(0,5);
+  const recent = orders.slice(0,5);
+
+  document.getElementById('mainContent').innerHTML = `
+  <div class="page">
+    ${currentRole==='worker'?`<div class="worker-notice">⚠️ أنت مسجل كعامل — يمكنك إضافة وتعديل الطلبات فقط</div>`:''}
+    <div class="ph">
+      <div><div class="ph-title">👋 مرحباً!</div><div class="ph-sub">${new Date().toLocaleDateString('ar-IQ',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card" style="--sc:var(--primary)"><div class="stat-ico">📋</div><div class="stat-val">${total}</div><div class="stat-lbl">إجمالي الطلبات</div></div>
+      <div class="stat-card" style="--sc:var(--amber)"><div class="stat-ico">⏳</div><div class="stat-val">${pending}</div><div class="stat-lbl">قيد التنفيذ</div></div>
+      ${currentRole==='admin'?`
+      <div class="stat-card" style="--sc:var(--emerald)"><div class="stat-ico">💰</div><div class="stat-val">${fmtK(revenue)}</div><div class="stat-lbl">مبيعات محصّلة (K دينار)</div></div>
+      <div class="stat-card" style="--sc:var(--rose)"><div class="stat-ico">💸</div><div class="stat-val">${fmtK(unpaid)}</div><div class="stat-lbl">مستحقات (K دينار)</div></div>`:`
+      <div class="stat-card" style="--sc:var(--emerald)"><div class="stat-ico">📦</div><div class="stat-val">${batches.filter(b=>b.status==='open').length}</div><div class="stat-lbl">وجبات مفتوحة</div></div>
+      <div class="stat-card" style="--sc:var(--sky)"><div class="stat-ico">✅</div><div class="stat-val">${orders.filter(o=>o.status==='done').length}</div><div class="stat-lbl">تم تسليمها</div></div>`}
+    </div>
+
+    ${openB ? `
+    <div class="batch-open-card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="boc-title">📦 الوجبة المفتوحة: ${openB.name}</div>
+          <div style="font-size:12px;opacity:0.8">${openB.openDate||''}</div>
+        </div>
+        <span style="background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:100px;font-size:12px;font-weight:700">🟢 نشطة</span>
+      </div>
+      <div class="boc-stats">
+        <div class="boc-stat"><div class="boc-val">${openOrders.length}</div><div class="boc-lbl">إجمالي طلبات</div></div>
+        <div class="boc-stat"><div class="boc-val">${openOrders.filter(o=>o.status!=='new').length}</div><div class="boc-lbl">تم شراؤه</div></div>
+        <div class="boc-stat"><div class="boc-val">${openOrders.filter(o=>o.status==='new').length}</div><div class="boc-lbl">لم يُشترَ</div></div>
+      </div>
+      <div class="prog-wrap"><div class="prog-bar" style="width:${openOrders.length?Math.round(openOrders.filter(o=>o.status!=='new').length/openOrders.length*100):0}%"></div></div>
+    </div>` : `<div class="card" style="margin-bottom:20px;text-align:center;padding:28px"><div style="font-size:36px;margin-bottom:8px">📦</div><div style="font-weight:800;color:var(--text2)">لا توجد وجبة مفتوحة</div>${currentRole==='admin'?`<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="navigate('batches',null)">فتح وجبة جديدة</button>`:''}</div>`}
+
+    <div class="dash-grid">
+      ${currentRole==='admin'?`
+      <div class="card">
+        <div class="card-title">💸 مستحقات غير محصّلة</div>
+        <div class="unpaid-list">
+          ${unpaidList.length ? unpaidList.map(o=>`
+            <div class="unpaid-item">
+              <div class="unpaid-dot"></div>
+              <div class="unpaid-name">${o.custName||'زبون'} · ${o.type||''}</div>
+              <div class="unpaid-amt">${fmt(o.finalTotal||0)}</div>
+            </div>`).join('') : '<div style="color:var(--text3);font-size:13px;padding:12px 0;text-align:center">🎉 لا توجد مستحقات</div>'}
+        </div>
+      </div>`:'<div></div>'}
+      <div class="card">
+        <div class="card-title">🕐 آخر الطلبات</div>
+        <div class="act-list">
+          ${recent.map(o=>`
+            <div class="act-item">
+              <span class="act-ico">${sico(o.status)}</span>
+              <div style="flex:1"><div class="act-text">${o.custName||'—'} · ${o.type||''}</div><div class="act-time">${ago(o.createdAt)}</div></div>
+              <div class="ract" onclick="openOrderModal('${o.id}')">✏️</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ORDERS
+function renderOrders() {
+  const orders = ordersArr();
+  const counts = {all:orders.length,new:orders.filter(o=>o.status==='new').length,inprogress:orders.filter(o=>['bought','batch','shipping','delivery'].includes(o.status)).length,done:orders.filter(o=>o.status==='done'&&o.payStatus==='pending').length};
+  let filtered = orders;
+  if(orderFilter==='new') filtered=orders.filter(o=>o.status==='new');
+  else if(orderFilter==='inprogress') filtered=orders.filter(o=>['bought','batch','shipping','delivery'].includes(o.status));
+  else if(orderFilter==='done') filtered=orders.filter(o=>o.status==='done'&&o.payStatus==='pending');
+
+  document.getElementById('mainContent').innerHTML=`
+  <div class="page">
+    <div class="ph">
+      <div><div class="ph-title">📋 الطلبات</div><div class="ph-sub">${orders.length} طلب إجمالاً</div></div>
+      <div class="ph-actions">
+        <div class="search"><span>🔍</span><input placeholder="بحث..." oninput="srch(this.value)"></div>
+        <button class="btn btn-primary" onclick="openOrderModal()">➕ جديد</button>
+      </div>
+    </div>
+    <div class="ftabs">
+      <div class="ftab ${orderFilter==='all'?'active':''}" onclick="setOF('all')">الكل (${counts.all})</div>
+      <div class="ftab ${orderFilter==='new'?'active':''}" onclick="setOF('new')">جديد (${counts.new})</div>
+      <div class="ftab ${orderFilter==='inprogress'?'active':''}" onclick="setOF('inprogress')">قيد التنفيذ (${counts.inprogress})</div>
+      <div class="ftab ${orderFilter==='done'?'active':''}" onclick="setOF('done')">غير مدفوع (${counts.done})</div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>الزبون</th><th>المنتج</th><th>الوجبة</th><th>السعر النهائي</th><th>الحالة</th><th>الدفع</th><th>إجراء</th></tr></thead>
+        <tbody id="ordersBody">${oRows(filtered)}</tbody>
+      </table>
+      ${filtered.length===0?`<div class="empty"><div class="empty-ico">📋</div><div class="empty-title">لا توجد طلبات</div></div>`:''}
+    </div>
+  </div>`;
+}
+function oRows(arr){
+  return arr.map(o=>{
+    const b=DB.batches[o.batchId];
+    const img=o.images&&o.images.length?`<img src="${o.images[0]}" style="width:34px;height:34px;object-fit:cover;border-radius:8px;margin-left:8px;vertical-align:middle;border:1px solid var(--border)">`:'' ;
+    return `<tr>
+      <td style="color:var(--text3);font-family:'IBM Plex Mono',monospace;font-size:10px">${o.id.slice(-5)}</td>
+      <td><div style="font-weight:700;display:flex;align-items:center">${img}${o.custName||'—'}</div><div style="font-size:10px;color:var(--text3)">${o.govn||''} ${o.area?'· '+o.area:''}</div></td>
+      <td><div style="font-weight:600">${o.type||'—'}</div><div style="font-size:10px;color:var(--text3)">${o.color?o.color+(o.size?' · '+o.size:''):''}</div></td>
+      <td style="font-size:11px;color:var(--text2)">${b?b.name:'—'}</td>
+      <td><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:800;color:var(--primary)">${fmt(o.finalTotal||0)}</span></td>
+      <td>${sbadge(o.status)}</td>
+      <td>${pbadge(o.payStatus)}</td>
+      <td><div class="ractions">
+        <div class="ract" onclick="printInvoice('${o.id}')" title="فاتورة">🖨️</div>
+        <div class="ract" onclick="openOrderModal('${o.id}')" title="تعديل">✏️</div>
+        ${currentRole==='admin'?`<div class="ract del" onclick="delOrder('${o.id}')" title="حذف">🗑️</div>`:''}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function setOF(f){orderFilter=f;renderOrders()}
+function srch(q){document.querySelectorAll('#ordersBody tr').forEach(r=>{r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none';})}
+
+// BATCHES
+function renderBatches(){
+  const batches=batchesArr(),orders=ordersArr(),rate=DB.settings?.exchangeRate||85;
+  const bcols={open:'var(--emerald)',shipped:'var(--sky)',dist:'var(--violet)',done:'var(--gold)'};
+  const blbls={open:'🟢 مفتوحة',shipped:'✈️ مشحونة',dist:'🏢 في التوزيع',done:'✅ مكتملة'};
+  const bbc={open:'b-open',shipped:'b-shipped',dist:'b-dist',done:'b-complete'};
+  document.getElementById('mainContent').innerHTML=`
+  <div class="page">
+    <div class="ph">
+      <div><div class="ph-title">📦 الوجبات</div><div class="ph-sub">${batches.length} وجبة</div></div>
+      ${currentRole==='admin'?`<button class="btn btn-primary" onclick="openBatchModal()">➕ وجبة جديدة</button>`:''}
+    </div>
+    <div class="batches-grid">
+      ${batches.length?batches.map(b=>{
+        const bo=orders.filter(o=>o.batchId===b.id);
+        const rev=bo.filter(o=>o.payStatus==='paid').reduce((s,o)=>s+(o.priceIQD||0),0);
+        const cost=bo.reduce((s,o)=>s+(o.costTRY||0),0)*(rate/30)*1000;
+        const profit=rev-cost-((b.shippingCost||0)*1500);
+        return `<div class="batch-card" style="--bc:${bcols[b.status]||'var(--primary)'}">
+          <div class="bc-head">
+            <div><div class="bc-name">${b.name}</div><div class="bc-date">${b.openDate||''}</div></div>
+            <span class="badge ${bbc[b.status]||''}">${blbls[b.status]||b.status}</span>
+          </div>
+          <div class="bc-stats">
+            <div><div class="bcs-val">${bo.length}</div><div class="bcs-lbl">طلب</div></div>
+            <div><div class="bcs-val" style="color:var(--emerald)">${fmtK(rev)}</div><div class="bcs-lbl">إيرادات</div></div>
+            ${currentRole==='admin'?`<div><div class="bcs-val" style="color:${profit>=0?'var(--emerald)':'var(--rose)'}">${fmtK(profit)}</div><div class="bcs-lbl">ربح تقريبي</div></div>`:'<div></div>'}
+          </div>
+          <div style="display:flex;gap:7px;margin-top:14px;flex-wrap:wrap">
+            <button class="btn btn-outline btn-xs" onclick="filterBatch('${b.id}')">📋 الطلبات</button>
+            ${currentRole==='admin'?`<button class="btn btn-outline btn-xs" onclick="openBatchModal('${b.id}')">✏️ تعديل</button><button class="btn btn-xs btn-danger" onclick="delBatch('${b.id}')">🗑️</button>`:''}
+          </div>
+        </div>`;
+      }).join(''):`<div class="empty"><div class="empty-ico">📦</div><div class="empty-title">لا توجد وجبات</div></div>`}
+    </div>
+  </div>`;
+}
+function filterBatch(batchId){orderFilter='all';navigate('orders',null);setTimeout(()=>{const b=DB.batches[batchId];if(!b)return;document.querySelectorAll('#ordersBody tr').forEach(r=>{r.style.display=r.textContent.includes(b.name)?'':'none'});},200);}
+
+// CUSTOMERS
+function renderCustomers(){
+  const custs=customersArr(),orders=ordersArr();
+  document.getElementById('mainContent').innerHTML=`
+  <div class="page">
+    <div class="ph">
+      <div><div class="ph-title">👥 الزبائن</div><div class="ph-sub">${custs.length} زبون</div></div>
+      <button class="btn btn-primary" onclick="openCustModal()">➕ زبون جديد</button>
+    </div>
+    <div class="customers-grid">
+      ${custs.length?custs.map(c=>{
+        const co=orders.filter(o=>(o.custName||'').toLowerCase().trim()===(c.name||'').toLowerCase().trim());
+        const tot=co.reduce((s,o)=>s+(o.priceIQD||0),0);
+        return `<div class="cust-card">
+          <div class="cust-head">
+            <div class="cust-av">${c.name?.charAt(0)||'؟'}</div>
+            <div><div class="cust-name">${c.name}</div><div class="cust-ig">${c.ig||'—'}</div></div>
+          </div>
+          <div class="cust-row">
+            <div><div class="crv">${co.length}</div><div class="crl">طلب</div></div>
+            <div><div class="crv" style="color:var(--emerald)">${fmtK(tot)}</div><div class="crl">إجمالي</div></div>
+            <div><div class="crv" style="font-size:12px;color:var(--text2)">${c.city||'—'}</div><div class="crl">المحافظة</div></div>
+          </div>
+          ${co.length>=3?'<div class="vip">⭐ زبون دائم</div>':''}
+          <div style="display:flex;gap:7px;margin-top:12px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-xs" onclick="addOrderForCust('${c.name}')">➕ طلب جديد</button>
+            <button class="btn btn-outline btn-xs" onclick="openCustModal('${c.id}')">✏️ تعديل</button>
+            <button class="btn btn-xs btn-danger" onclick="delCust('${c.id}')">🗑️</button>
+          </div>
+        </div>`;
+      }).join(''):`<div class="empty"><div class="empty-ico">👥</div><div class="empty-title">لا يوجد زبائن</div></div>`}
+    </div>
+  </div>`;
+}
+
+// FINANCE
+function renderFinance(){
+  const orders=ordersArr(),batches=batchesArr(),rate=DB.settings?.exchangeRate||85;
+  const paid=orders.filter(o=>o.payStatus==='paid');
+  const totalRev=paid.reduce((s,o)=>s+(o.priceIQD||0),0);
+  const totalCost=orders.reduce((s,o)=>s+(o.costTRY||0),0)*(rate/30)*1000;
+  const totalShip=batches.reduce((s,b)=>s+(b.shippingCost||0),0)*1500;
+  const net=totalRev-totalCost-totalShip;
+  const unpaidAmt=orders.filter(o=>o.payStatus==='pending'&&o.status==='done').reduce((s,o)=>s+(o.finalTotal||0),0);
+  const unpaidN=orders.filter(o=>o.payStatus==='pending'&&o.status==='done').length;
+  document.getElementById('mainContent').innerHTML=`
+  <div class="page">
+    <div class="ph"><div><div class="ph-title">💹 المالية</div><div class="ph-sub">ملخص الأرباح والمصاريف</div></div></div>
+    <div class="ex-bar">💱 سعر الصرف: <strong>1$ = ${rate} TRY</strong><button class="btn btn-outline btn-xs" onclick="navigate('settings',null)">⚙️ تعديل</button></div>
+    <div class="fin-grid">
+      <div class="fin-card" style="--fc:var(--emerald)"><div class="fin-val">${fmtM(totalRev)}</div><div class="fin-lbl">إجمالي المبيعات المحصّلة</div></div>
+      <div class="fin-card" style="--fc:var(--rose)"><div class="fin-val">${fmtM(totalCost)}</div><div class="fin-lbl">تكاليف الشراء تقريباً</div></div>
+      <div class="fin-card" style="--fc:var(--amber)"><div class="fin-val">${fmt(totalShip)}</div><div class="fin-lbl">تكاليف الشحن</div></div>
+      <div class="fin-card" style="--fc:${net>=0?'var(--emerald)':'var(--rose)'}"><div class="fin-val">${fmtM(net)}</div><div class="fin-lbl">صافي الربح التقريبي</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="card"><div class="card-title">📦 ربح كل وجبة</div>
+        ${batches.map(b=>{const bo=orders.filter(o=>o.batchId===b.id);const r=bo.filter(o=>o.payStatus==='paid').reduce((s,o)=>s+(o.priceIQD||0),0);const c=bo.reduce((s,o)=>s+(o.costTRY||0),0)*(rate/30)*1000;const p=r-c-((b.shippingCost||0)*1500);return`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)"><div style="font-size:12px;font-weight:600">${b.name}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:800;color:${p>=0?'var(--emerald)':'var(--rose)'}">${fmtK(p)} K</div></div>`;}).join('')}
+      </div>
+      <div class="card"><div class="card-title">💸 مستحقات</div>
+        <div style="font-size:32px;font-weight:900;color:var(--rose);font-family:'IBM Plex Mono',monospace;margin-bottom:4px">${fmtM(unpaidAmt)}</div>
+        <div style="font-size:12px;color:var(--text2)">من ${unpaidN} طلب غير مدفوع</div>
+        <button class="btn btn-outline btn-sm" style="margin-top:12px" onclick="setOF('done');navigate('orders',null)">عرض التفاصيل ←</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// SETTINGS
+function renderSettings(){
+  const s=DB.settings||{},t=localStorage.getItem('ts_theme')||'light';
+  document.getElementById('mainContent').innerHTML=`
+  <div class="page">
+    <div class="ph"><div><div class="ph-title">⚙️ الإعدادات</div></div></div>
+    <div style="max-width:480px;display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="card-title">🏪 إعدادات المتجر</div>
+        <div class="fg"><label>اسم المتجر</label><input id="s_name" value="${s.storeName||'Trendy Store'}"></div>
+        <div class="fg">
+          <label>شعار المتجر</label>
+          ${s.storeLogo?`<img src="${s.storeLogo}" style="width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid var(--border);margin-bottom:8px;display:block">`:''}
+          <input type="file" id="s_logo" accept="image/*" style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--r2);padding:10px;color:var(--text2);font-size:13px;width:100%">
+        </div>
+        <div class="fg"><label>1 دولار = كم ليرة تركية؟</label><input type="number" id="s_rate" value="${s.exchangeRate||85}"></div>
+        <button class="btn btn-primary" style="margin-top:6px" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🎨 مظهر التطبيق</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="theme-btn ${t==='light'?'active':''}" data-theme="light" onclick="setTheme('light')">☀️ فاتح</div>
+          <div class="theme-btn ${t==='dark'?'active':''}" data-theme="dark" onclick="setTheme('dark')">🌑 داكن</div>
+          <div class="theme-btn ${t==='gold'?'active':''}" data-theme="gold" onclick="setTheme('gold')">✨ ذهبي</div>
+          <div class="theme-btn ${t==='rose'?'active':''}" data-theme="rose" onclick="setTheme('rose')">🌹 وردي</div>
+          <div class="theme-btn ${t==='ocean'?'active':''}" data-theme="ocean" onclick="setTheme('ocean')" style="grid-column:1/-1">🌊 أزرق</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📤 تصدير البيانات</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px">احفظ نسخة احتياطية من بياناتك</div>
+        <button class="btn btn-outline" onclick="exportData()">📥 تصدير JSON</button>
+      </div>
+      <div class="card" style="border-color:rgba(244,63,94,0.2)">
+        <div class="card-title" style="color:var(--rose)">🚪 تسجيل الخروج</div>
+        <button class="btn btn-danger" onclick="doLogout()">تسجيل الخروج</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function saveSettings(){
+  const name=document.getElementById('s_name').value||'Trendy Store';
+  const rate=parseFloat(document.getElementById('s_rate').value)||85;
+  const lf=document.getElementById('s_logo')?.files[0];
+  let logo=DB.settings?.storeLogo||'';
+  if(lf){logo=await new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(lf);});}
+  await dbSet('settings',{storeName:name,exchangeRate:rate,storeLogo:logo});
+  toast('تم حفظ الإعدادات ✅','ok');
+}
+function exportData(){const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`trendy-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();toast('تم التصدير','ok');}
+
+// DRAWER
+function toggleDrawer(){
+  const d=document.getElementById('drawer'),o=document.getElementById('drawerOverlay');
+  const open=d.style.right==='0px';
+  d.style.right=open?'-280px':'0px';
+  o.style.display=open?'none':'block';
+}
+
+// THEMES
+function setTheme(t){
+  document.body.className='';
+  if(t!=='light') document.body.classList.add('theme-'+t);
+  localStorage.setItem('ts_theme',t);
+  document.querySelectorAll('.theme-btn').forEach(b=>{b.classList.toggle('active',b.dataset.theme===t)});
+}
+function loadTheme(){const t=localStorage.getItem('ts_theme')||'light';setTheme(t);}
+
+// WHATSAPP
+function sendWAMessage(order){
+  const phone=(order.phone||'').trim().replace(/\D/g,'');
+  if(!phone)return;
+  let intl=phone;
+  if(phone.startsWith('07')&&phone.length===11)intl='964'+phone.slice(1);
+  else if(phone.startsWith('7')&&phone.length===10)intl='964'+phone;
+  const sn=DB.settings?.storeName||'Trendy Store';
+  const msg=`✅ تم استلام طلبك في ${sn}\n━━━━━━━━━━━━━━\n👤 الاسم: ${order.custName||'—'}\n🛍️ المنتج: ${order.type||'—'} ${order.color?'· '+order.color:''} ${order.size?'· '+order.size:''}\n💰 السعر: ${(order.finalTotal||0).toLocaleString('ar-IQ')} دينار\n📍 ${order.govn||''} ${order.area?'· '+order.area:''}\n📅 ${order.orderDate||'—'}\n━━━━━━━━━━━━━━\nشكراً لتسوقك معنا 🙏`;
+  window.open('https://wa.me/'+intl+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+// ORDER MODAL
+function openOrderModal(id=null){
+  editingId.order=id;window._editImages=[];
+  document.getElementById('omTitle').textContent=id?'✏️ تعديل الطلب':'➕ طلب جديد';
+  document.getElementById('o_batch').innerHTML='<option value="">-- اختر وجبة --</option>'+batchesArr().map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+  const today=new Date().toISOString().slice(0,10);
+  if(id&&DB.orders[id]){
+    const o=DB.orders[id];
+    ['o_custName','o_color','o_size','o_ig','o_link','o_area','o_phone','o_costTRY','o_priceIQD','o_delivery','o_deposit','o_notes'].forEach(f=>{
+      const map={o_custName:'custName',o_color:'color',o_size:'size',o_ig:'igLink',o_link:'productLink',o_area:'area',o_phone:'phone',o_costTRY:'costTRY',o_priceIQD:'priceIQD',o_delivery:'deliveryCost',o_deposit:'deposit',o_notes:'notes'};
+      document.getElementById(f).value=o[map[f]]||'';
+    });
+    document.getElementById('o_batch').value=o.batchId||'';
+    document.getElementById('o_type').value=o.type||'حقيبة';
+    document.getElementById('o_gov').value=o.govn||'بغداد';
+    document.getElementById('o_date').value=o.orderDate||today;
+    document.getElementById('o_status').value=o.status||'new';
+    document.getElementById('o_pay').value=o.payStatus||'pending';
+    const si=document.getElementById('o_savedImgs');si.innerHTML='';
+    if(o.images&&o.images.length){window._editImages=[...o.images];o.images.forEach((img,i)=>{si.innerHTML+=`<div style="position:relative"><img src="${img}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"><div onclick="removeImg(${i})" style="position:absolute;top:-4px;left:-4px;background:var(--rose);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer">✕</div></div>`});}
+    updateWA();calcTotal();
+  } else {
+    ['o_custName','o_color','o_size','o_ig','o_link','o_area','o_phone','o_costTRY','o_priceIQD','o_delivery','o_deposit','o_notes'].forEach(f=>document.getElementById(f).value='');
+    document.getElementById('o_type').value='حقيبة';document.getElementById('o_gov').value='بغداد';
+    document.getElementById('o_date').value=today;document.getElementById('o_status').value='new';
+    document.getElementById('o_pay').value='pending';document.getElementById('o_total').textContent='0 دينار';
+    document.getElementById('o_imgPreview').innerHTML='';document.getElementById('o_savedImgs').innerHTML='';
+    document.getElementById('o_images').value='';document.getElementById('wa_link').href='https://wa.me/';
+  }
+  openOverlay('orderModal');
+}
+function updateWA(){const p=(document.getElementById('o_phone').value||'').trim().replace(/\D/g,'');let intl=p;if(p.startsWith('07')&&p.length===11)intl='964'+p.slice(1);else if(p.startsWith('7')&&p.length===10)intl='964'+p;document.getElementById('wa_link').href='https://wa.me/'+intl;}
+function setDelivery(v){document.getElementById('o_delivery').value=v;calcTotal();}
+function previewImgs(){const files=document.getElementById('o_images').files;const prev=document.getElementById('o_imgPreview');prev.innerHTML='';Array.from(files).forEach(f=>{const r=new FileReader();r.onload=e=>{prev.innerHTML+=`<img src="${e.target.result}" style="width:66px;height:66px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">`};r.readAsDataURL(f)});}
+function removeImg(i){if(window._editImages)window._editImages.splice(i,1);openOrderModal(editingId.order);}
+function calcTotal(){const p=parseFloat(document.getElementById('o_priceIQD').value)||0,d=parseFloat(document.getElementById('o_delivery').value)||0,dep=parseFloat(document.getElementById('o_deposit').value)||0;document.getElementById('o_total').textContent=(p+d-dep).toLocaleString('ar-IQ')+' دينار';}
+async function saveOrder(){
+  const custName=document.getElementById('o_custName').value.trim();
+  if(!custName){toast('يرجى إدخال اسم الزبون','err');return;}
+  const price=parseFloat(document.getElementById('o_priceIQD').value)||0,del=parseFloat(document.getElementById('o_delivery').value)||0,dep=parseFloat(document.getElementById('o_deposit').value)||0;
+  const files=document.getElementById('o_images').files;
+  const newImgs=await Promise.all(Array.from(files).map(f=>new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(f);})));
+  const allImgs=[...(window._editImages||[]),...newImgs];
+  const order={custName,batchId:document.getElementById('o_batch').value,type:document.getElementById('o_type').value,color:document.getElementById('o_color').value,size:document.getElementById('o_size').value,orderDate:document.getElementById('o_date').value,igLink:document.getElementById('o_ig').value,productLink:document.getElementById('o_link').value,govn:document.getElementById('o_gov').value,area:document.getElementById('o_area').value,phone:document.getElementById('o_phone').value,costTRY:parseFloat(document.getElementById('o_costTRY').value)||0,priceIQD:price,deliveryCost:del,deposit:dep,finalTotal:price+del-dep,status:document.getElementById('o_status').value,payStatus:document.getElementById('o_pay').value,notes:document.getElementById('o_notes').value,images:allImgs,updatedAt:Date.now(),createdAt:editingId.order?(DB.orders[editingId.order]?.createdAt||Date.now()):Date.now()};
+  if(editingId.order)await dbSet(`orders/${editingId.order}`,order);
+  else{await dbPush('orders',order);if(order.phone){const s=confirm('تم حفظ الطلب!\nهل تريد إرسال رسالة واتساب للزبون؟');if(s)sendWAMessage(order);}}
+  closeOverlay('orderModal');toast(editingId.order?'تم تعديل الطلب ✅':'تم إضافة الطلب ✅','ok');
+}
+async function delOrder(id){if(!confirm('حذف هذا الطلب؟'))return;await dbRemove(`orders/${id}`);toast('تم الحذف','');}
+function addOrderForCust(name){navigate('orders',null);setTimeout(()=>{openOrderModal();setTimeout(()=>{const el=document.getElementById('o_custName');if(el)el.value=name;},100);},200);}
+
+// BATCH MODAL
+function openBatchModal(id=null){
+  editingId.batch=id;document.getElementById('bmTitle').textContent=id?'✏️ تعديل الوجبة':'📦 وجبة جديدة';
+  if(id&&DB.batches[id]){const b=DB.batches[id];document.getElementById('b_name').value=b.name||'';document.getElementById('b_open').value=b.openDate||'';document.getElementById('b_close').value=b.closeDate||'';document.getElementById('b_status').value=b.status||'open';document.getElementById('b_ship').value=b.shippingCost||'';document.getElementById('b_notes').value=b.notes||'';}
+  else{['b_name','b_open','b_close','b_ship','b_notes'].forEach(f=>document.getElementById(f).value='');document.getElementById('b_status').value='open';}
+  openOverlay('batchModal');
+}
+async function saveBatch(){const name=document.getElementById('b_name').value.trim();if(!name){toast('يرجى إدخال اسم الوجبة','err');return;}const batch={name,status:document.getElementById('b_status').value,openDate:document.getElementById('b_open').value,closeDate:document.getElementById('b_close').value,shippingCost:parseFloat(document.getElementById('b_ship').value)||0,notes:document.getElementById('b_notes').value,createdAt:editingId.batch?(DB.batches[editingId.batch]?.createdAt||Date.now()):Date.now()};if(editingId.batch)await dbSet(`batches/${editingId.batch}`,batch);else await dbPush('batches',batch);closeOverlay('batchModal');toast(editingId.batch?'تم تعديل الوجبة ✅':'تم إضافة الوجبة ✅','ok');}
+async function delBatch(id){if(!confirm('حذف هذه الوجبة؟'))return;await dbRemove(`batches/${id}`);toast('تم الحذف','');}
+
+// CUSTOMER MODAL
+function openCustModal(id=null){
+  editingId.customer=id;document.getElementById('cmTitle').textContent=id?'✏️ تعديل الزبون':'👤 زبون جديد';
+  if(id&&DB.customers[id]){const c=DB.customers[id];document.getElementById('c_name').value=c.name||'';document.getElementById('c_ig').value=c.ig||'';document.getElementById('c_phone').value=c.phone||'';document.getElementById('c_city').value=c.city||'بغداد';document.getElementById('c_area').value=c.area||'';document.getElementById('c_notes').value=c.notes||'';}
+  else{['c_name','c_ig','c_phone','c_area','c_notes'].forEach(f=>document.getElementById(f).value='');document.getElementById('c_city').value='بغداد';}
+  openOverlay('custModal');
+}
+async function saveCustomer(){const name=document.getElementById('c_name').value.trim();if(!name){toast('يرجى إدخال اسم الزبون','err');return;}const cust={name,ig:document.getElementById('c_ig').value,phone:document.getElementById('c_phone').value,city:document.getElementById('c_city').value,area:document.getElementById('c_area').value,notes:document.getElementById('c_notes').value,createdAt:editingId.customer?(DB.customers[editingId.customer]?.createdAt||Date.now()):Date.now()};if(editingId.customer)await dbSet(`customers/${editingId.customer}`,cust);else await dbPush('customers',cust);closeOverlay('custModal');toast(editingId.customer?'تم تعديل الزبون ✅':'تم إضافة الزبون ✅','ok');}
+async function delCust(id){if(!confirm('حذف هذا الزبون؟'))return;await dbRemove(`customers/${id}`);toast('تم الحذف','');}
+
+// INVOICE
+function printInvoice(orderId){
+  const o=DB.orders[orderId];if(!o){toast('الطلب غير موجود','err');return;}
+  const b=DB.batches[o.batchId]||{},sName=DB.settings?.storeName||'Trendy Store';
+  const date=new Date(o.createdAt).toLocaleDateString('ar-IQ',{year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('invStoreName').textContent='🛍️ '+sName;
+  document.getElementById('invNum').textContent='#'+orderId.slice(-6).toUpperCase();
+  document.getElementById('invDate').textContent=date;
+  document.getElementById('invoiceContent').innerHTML=`
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="inv-section"><h4>بيانات الزبون</h4><div style="font-size:14px;color:#1f2937;line-height:2">
+      <div><b>الاسم:</b> ${o.custName||'—'}</div><div><b>الهاتف:</b> ${o.phone||'—'}</div>
+      <div><b>المحافظة:</b> ${o.govn||'—'}</div><div><b>المنطقة:</b> ${o.area||'—'}</div>
+    </div></div>
+    <div class="inv-section"><h4>تفاصيل الطلب</h4><div style="font-size:14px;color:#1f2937;line-height:2">
+      <div><b>النوع:</b> ${o.type||'—'}</div><div><b>اللون:</b> ${o.color||'—'}</div>
+      <div><b>المقاس:</b> ${o.size||'—'}</div><div><b>الوجبة:</b> ${b.name||'—'}</div>
+    </div></div>
+  </div>
+  ${o.images&&o.images.length?`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">${o.images.map(img=>`<img src="${img}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0">`).join('')}</div>`:''}
+  <div class="inv-totals">
+    <div class="inv-row"><span>سعر المنتج</span><span style="font-family:monospace">${(o.priceIQD||0).toLocaleString()} IQD</span></div>
+    <div class="inv-row"><span>أجرة التوصيل</span><span style="font-family:monospace">+ ${(o.deliveryCost||0).toLocaleString()} IQD</span></div>
+    <div class="inv-row"><span>العربون المدفوع</span><span style="font-family:monospace;color:#dc2626">- ${(o.deposit||0).toLocaleString()} IQD</span></div>
+    <div class="inv-row total"><span>المبلغ المتبقي</span><span style="font-family:monospace">${(o.finalTotal||0).toLocaleString()} IQD</span></div>
+  </div>
+  ${o.notes?`<div style="margin-top:12px;padding:12px;background:#f9fafb;border-radius:8px;font-size:13px;color:#6b7280"><b>ملاحظات:</b> ${o.notes}</div>`:''} `;
+  document.getElementById('invoicePrint').style.display='block';
+}
+function closeInvoice(){document.getElementById('invoicePrint').style.display='none';}
+
+// OVERLAY
+function openOverlay(id){document.getElementById(id).classList.add('open')}
+function closeOverlay(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')});});
+
+// HELPERS
+function sbadge(s){const m={new:'<span class="badge b-new">⏳ جديد</span>',bought:'<span class="badge b-bought">🛍️ شراء</span>',batch:'<span class="badge b-batch">📦 وجبة</span>',shipping:'<span class="badge b-shipping">✈️ طريق</span>',delivery:'<span class="badge b-delivery">🏢 توصيل</span>',done:'<span class="badge b-done">✅ تسليم</span>',paid:'<span class="badge b-paid">💰 مدفوع</span>',cancelled:'<span class="badge b-cancelled">❌ ملغي</span>'};return m[s]||s}
+function pbadge(s){const m={paid:'<span class="badge pay-paid">✅ مدفوع</span>',pending:'<span class="badge pay-pending">❌ غير مدفوع</span>',partial:'<span class="badge pay-partial">⚠️ جزئي</span>'};return m[s]||s}
+function sico(s){const m={new:'⏳',bought:'🛍️',batch:'📦',shipping:'✈️',delivery:'🏢',done:'✅',paid:'💰',cancelled:'❌'};return m[s]||'📋'}
+function fmt(n){return(n||0).toLocaleString('ar-IQ')}
+function fmtK(n){return((n||0)/1000).toFixed(0)+'K'}
+function fmtM(n){const abs=Math.abs(n||0);return abs>=1000000?(n<0?'-':'')+((abs/1000000).toFixed(2))+'M':(n<0?'-':'')+fmt(abs)}
+function ago(ts){const d=Date.now()-ts;if(d<3600000)return`منذ ${Math.floor(d/60000)} دقيقة`;if(d<86400000)return`منذ ${Math.floor(d/3600000)} ساعة`;return`منذ ${Math.floor(d/86400000)} يوم`}
+function updateBadge(){const n=ordersArr().filter(o=>o.status==='new').length;const b=document.getElementById('sb-badge');if(b){b.textContent=n;b.classList.toggle('hidden',n===0)}}
+function toast(msg,type=''){const c=document.getElementById('toastC');const t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),3000)}
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  role      String   @default("worker")
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  instagram String?
+  phone     String?
+  city      String?
+  area      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model Batch {
+  id           String    @id @default(cuid())
+  name         String
+  openDate     DateTime  @default(now())
+  closeDate    DateTime?
+  shippingCost Float     @default(0)
+  status       String    @default("open")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  orders       Order[]
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  batchId       String?
+  batch         Batch?   @relation(fields: [batchId], references: [id])
+  productType   String
+  productName   String?
+  color         String?
+  size          String?
+  instagramLink String?
+  productLink   String?
+  governorate   String?
+  area          String?
+  phone         String?
+  purchaseCost  Float    @default(0)
+  sellingPrice  Float    @default(0)
+  deliveryCost  Float    @default(0)
+  deposit       Float    @default(0)
+  status        String   @default("new")
+  paymentStatus String   @default("unpaid")
+  notes         String?
+  images        String?
+  items         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Settings {
+  id        String   @id @default("default")
+  storeName String   @default("Trendy Store")
+  logo      String?
+  usdToTry  Float    @default(38.0)
+  usdToIqd  Float    @default(1460.0)
+  tryToIqd  Float    @default(38.4)
+  updatedAt DateTime @updatedAt
+}
