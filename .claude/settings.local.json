@@ -39,7 +39,8 @@
       "Bash(npx --yes neonctl auth)",
       "Bash(npx neonctl:*)",
       "Bash(taskkill //F //IM node.exe)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" api repos/ibra315-alt/trendy-store/deployments --jq '.[0].statuses_url')"
     ]
   }
 }
