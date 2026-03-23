@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 
+export const maxDuration = 15;
+
 function decodeHtmlEntities(str: string): string {
   return str
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
@@ -28,13 +30,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Use Googlebot UA — Instagram serves proper og: meta tags to crawlers
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
     const res = await fetch(`https://www.instagram.com/${encodeURIComponent(handle)}/`, {
       headers: {
         "User-Agent": "Googlebot/2.1 (+http://www.google.com/bot.html)",
         Accept: "text/html",
       },
       redirect: "follow",
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     if (!res.ok) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
