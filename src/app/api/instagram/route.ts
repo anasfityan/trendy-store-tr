@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 
-export const maxDuration = 15;
+// Use Edge runtime — 30s timeout even on Vercel Hobby
+export const runtime = "edge";
+export const maxDuration = 30;
 
 function decodeHtmlEntities(str: string): string {
   return str
@@ -15,9 +16,7 @@ function decodeHtmlEntities(str: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  // Auth is handled by middleware (cookie check)
   try {
     const { username } = await req.json();
     if (!username || typeof username !== "string") {

@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 
-/**
- * Uses Google Translate's free API to translate Turkish → Arabic.
- * No API key needed — uses the same endpoint the Google Translate website uses.
- */
+export const runtime = "edge";
+
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  // Auth is handled by middleware (cookie check)
   try {
     const { text, from = "tr", to = "ar" } = await req.json();
 
@@ -16,7 +11,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
     }
 
-    // Use Google Translate free API
     const params = new URLSearchParams({
       client: "gtx",
       sl: from,
@@ -40,8 +34,6 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json();
 
-    // Response format: [[["translated text","original text",null,null,10]],null,"tr",...]
-    // Concatenate all translated segments
     let translated = "";
     if (Array.isArray(data[0])) {
       for (const segment of data[0]) {
@@ -50,8 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ translated, from, to });
-  } catch (error) {
-    console.error("Translate error:", error);
+  } catch {
     return NextResponse.json({ error: "فشل في الترجمة" }, { status: 500 });
   }
 }

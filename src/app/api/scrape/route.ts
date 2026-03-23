@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 
-// Allow up to 30s on Vercel (Pro plan: 60s, Hobby: 10s default)
+// Use Edge runtime — 30s timeout even on Vercel Hobby (vs 10s for Node.js)
+export const runtime = "edge";
 export const maxDuration = 30;
 
 export interface ScrapedProduct {
@@ -19,9 +19,7 @@ export interface ScrapedProduct {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  // Auth is handled by middleware (cookie check)
   try {
     const { url } = await req.json();
     if (!url || typeof url !== "string") {
