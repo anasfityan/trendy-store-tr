@@ -1,10 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Menu, Moon, Sun } from "lucide-react";
-import { useAuthStore } from "@/store/auth";
+import { Sun, Moon } from "lucide-react";
 import { useThemeStore } from "@/store/theme";
-import { useState, useEffect } from "react";
+import { useAuthStore } from "@/store/auth";
 
 const pageTitles: Record<string, string> = {
   "/": "لوحة التحكم",
@@ -15,72 +14,59 @@ const pageTitles: Record<string, string> = {
   "/settings": "الإعدادات",
 };
 
-interface TopBarProps {
-  onMenuPress: () => void;
+function getPageTitle(pathname: string): string {
+  if (pageTitles[pathname]) return pageTitles[pathname];
+  for (const [path, title] of Object.entries(pageTitles)) {
+    if (path !== "/" && pathname.startsWith(path)) return title;
+  }
+  return "متجر ترندي";
 }
 
-export default function TopBar({ onMenuPress }: TopBarProps) {
+export function AppNavbar() {
   const pathname = usePathname();
-  const { user } = useAuthStore();
   const { theme, toggle } = useThemeStore();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
-  const isDark = mounted && theme === "dark";
-
-  const pageTitle =
-    pageTitles[pathname] ??
-    pageTitles[
-      Object.keys(pageTitles).find(
-        (key) => key !== "/" && pathname.startsWith(key)
-      ) ?? "/"
-    ] ?? "لوحة التحكم";
+  const user = useAuthStore((s) => s.user);
+  const title = getPageTitle(pathname);
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 sm:h-16 w-full items-center border-b border-[var(--glass-border)] glass px-3 sm:px-6 gap-2 sm:gap-4">
-      {/* Start: Menu + Title */}
-      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-        <div className="lg:hidden">
-          <button
-            onClick={onMenuPress}
-            className="p-2.5 rounded-xl hover:bg-[var(--default)] transition-colors"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-        </div>
-        <h1 className="text-lg font-semibold truncate">{pageTitle}</h1>
+    <header className="h-14 sm:h-16 sticky top-0 z-40 glass border-b border-[var(--border)] flex items-center px-4 sm:px-6 shrink-0">
+      {/* Start: Page title */}
+      <div className="flex-1">
+        <h1 className="text-base sm:text-lg font-semibold">{title}</h1>
       </div>
 
-      {/* End: Theme + User */}
-      <div className="flex items-center gap-1.5 sm:gap-3 flex-1 justify-end">
-        {/* Dark mode toggle */}
-        {mounted && (
-          <button
-            onClick={toggle}
-            className="relative p-2.5 rounded-xl hover:bg-[var(--default)] transition-colors overflow-hidden"
-            aria-label="تبديل الوضع"
-          >
-            <div className="relative w-5 h-5">
-              <Sun
-                className={`absolute inset-0 h-5 w-5 transition-all duration-200 ease-in-out ${
-                  isDark ? "opacity-0 scale-50 rotate-90" : "opacity-100 scale-100 rotate-0"
-                }`}
-              />
-              <Moon
-                className={`absolute inset-0 h-5 w-5 transition-all duration-200 ease-in-out ${
-                  isDark ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-50 -rotate-90"
-                }`}
-              />
-            </div>
-          </button>
-        )}
+      {/* Center: empty */}
+      <div className="flex-1" />
+
+      {/* End: Theme toggle + avatar */}
+      <div className="flex-1 flex items-center justify-end gap-3">
+        {/* Theme toggle */}
+        <button
+          onClick={toggle}
+          className="relative w-9 h-9 rounded-xl flex items-center justify-center text-[var(--muted)] hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] transition-colors"
+          title={theme === "light" ? "الوضع الداكن" : "الوضع الفاتح"}
+        >
+          <Sun
+            size={18}
+            className="absolute transition-all duration-300"
+            style={{
+              transform: theme === "light" ? "rotate(0deg) scale(1)" : "rotate(90deg) scale(0)",
+              opacity: theme === "light" ? 1 : 0,
+            }}
+          />
+          <Moon
+            size={18}
+            className="absolute transition-all duration-300"
+            style={{
+              transform: theme === "dark" ? "rotate(0deg) scale(1)" : "rotate(-90deg) scale(0)",
+              opacity: theme === "dark" ? 1 : 0,
+            }}
+          />
+        </button>
 
         {/* User avatar */}
         {user && (
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent)]/15 text-sm font-bold text-[var(--accent)] cursor-pointer transition-transform hover:scale-105"
-            title={user.name}
-          >
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[var(--accent)] text-[var(--accent-foreground)] flex items-center justify-center text-sm font-bold">
             {user.name.charAt(0)}
           </div>
         )}
@@ -88,3 +74,5 @@ export default function TopBar({ onMenuPress }: TopBarProps) {
     </header>
   );
 }
+
+export default AppNavbar;

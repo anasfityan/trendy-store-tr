@@ -10,7 +10,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <div className="relative">
         <select
           className={cn(
-            "flex h-10 w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] ps-3 pe-9 py-2 text-sm text-[var(--foreground)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50",
+            "h-10 w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--field-background)] ps-3.5 pe-9 text-sm text-[var(--field-foreground)] placeholder:text-[var(--field-placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] disabled:opacity-50 transition-all duration-150",
             className
           )}
           ref={ref}
@@ -18,7 +18,6 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         >
           {children}
         </select>
-        {/* Chevron — positioned at inline-end (LEFT in RTL) */}
         <div className="pointer-events-none absolute inset-y-0 end-0 flex items-center pe-3">
           <svg
             className="h-4 w-4 text-[var(--muted)]"

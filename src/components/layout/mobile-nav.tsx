@@ -8,51 +8,56 @@ import {
   Package,
   Users,
   DollarSign,
-  Settings,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
-import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "الرئيسية", icon: LayoutDashboard, href: "/", adminOnly: false },
-  { label: "الطلبات", icon: ShoppingCart, href: "/orders", adminOnly: false },
-  { label: "الشحنات", icon: Package, href: "/batches", adminOnly: false },
-  { label: "العملاء", icon: Users, href: "/customers", adminOnly: true },
-  { label: "المالية", icon: DollarSign, href: "/finance", adminOnly: true },
-  { label: "الإعدادات", icon: Settings, href: "/settings", adminOnly: true },
+  { href: "/", label: "الرئيسية", icon: LayoutDashboard, adminOnly: false },
+  { href: "/orders", label: "الطلبات", icon: ShoppingCart, adminOnly: false },
+  { href: "/batches", label: "الشحنات", icon: Package, adminOnly: false },
+  { href: "/customers", label: "العملاء", icon: Users, adminOnly: true },
+  { href: "/finance", label: "المالية", icon: DollarSign, adminOnly: true },
 ];
 
-export default function MobileNav() {
+export function MobileNav() {
   const pathname = usePathname();
-  const { isAdmin } = useAuthStore();
-  const admin = isAdmin();
-  const visibleItems = navItems.filter((item) => !item.adminOnly || admin);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+
+  const filteredItems = navItems.filter((item) => {
+    if (item.adminOnly && !isAdmin()) return false;
+    return true;
+  });
+
+  // Limit to 5 items max
+  const visibleItems = filteredItems.slice(0, 5);
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
+  };
 
   return (
-    <nav className="border-t border-[var(--glass-border)] glass safe-bottom">
-      <div className="flex items-center justify-around px-2 py-1.5">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 glass border-t border-[var(--border)] safe-bottom">
+      <div className="flex items-center justify-around h-16">
         {visibleItems.map((item) => {
-          const isActive =
-            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const Icon = item.icon;
+          const active = isActive(item.href);
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                "flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-all duration-200",
-                isActive
+              className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-xl transition-colors ${
+                active
                   ? "text-[var(--accent)]"
-                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
-              )}
+                  : "text-[var(--muted)]"
+              }`}
             >
-              <div className="relative">
-                <item.icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
-                {isActive && (
-                  <span className="absolute -top-1 start-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[var(--accent)] pulse-dot" />
-                )}
-              </div>
-              {item.label}
+              <Icon size={20} />
+              <span className="text-[10px] font-medium leading-none">{item.label}</span>
+              {active && (
+                <span className="w-1 h-1 rounded-full bg-[var(--accent)] pulse-dot" />
+              )}
             </Link>
           );
         })}
@@ -60,3 +65,5 @@ export default function MobileNav() {
     </nav>
   );
 }
+
+export default MobileNav;

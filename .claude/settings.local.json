@@ -54,7 +54,16 @@
       "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\" -X POST \"https://trendy-proxy.ibra-315.workers.dev\" -H \"Content-Type: application/json\" -d '{\"\"\"\"url\"\"\"\":\"\"\"\"https://www.hepsiburada.com/aulumu-sonsuz-360-magsafe-standi-3-eksenli-dondurme-g09-p-HBCV0000CVB483\"\"\"\"}')",
       "Bash(curl -s -X POST \"https://trendy-proxy.ibra-315.workers.dev\" -H \"Content-Type: application/json\" -d '{\"\"\"\"url\"\"\"\":\"\"\"\"https://webcache.googleusercontent.com/search?q=cache:hepsiburada.com/aulumu-sonsuz-360-magsafe-standi-3-eksenli-dondurme-g09-p-HBCV0000CVB483\"\"\"\"}')",
       "Bash(curl -s -X POST \"https://trendy-proxy.ibra-315.workers.dev\" -H \"Content-Type: application/json\" -d '{\"\"\"\"url\"\"\"\":\"\"\"\"https://html.duckduckgo.com/html/?q=hepsiburada+HBCV0000CVB483+aulumu\"\"\"\"}')",
-      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\" -X POST \"https://trendy-proxy.ibra-315.workers.dev\" -H \"Content-Type: application/json\" -d '{\"\"\"\"url\"\"\"\":\"\"\"\"https://html.duckduckgo.com/html/?q=hepsiburada+HBCV0000CVB483\"\"\"\"}')"
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\" -X POST \"https://trendy-proxy.ibra-315.workers.dev\" -H \"Content-Type: application/json\" -d '{\"\"\"\"url\"\"\"\":\"\"\"\"https://html.duckduckgo.com/html/?q=hepsiburada+HBCV0000CVB483\"\"\"\"}')",
+      "Bash(find d:/Mawj-Dream/mawj-erp/src -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js \\\\\\))",
+      "Bash(find d:/Mawj-Dream/mawj-erp/src/components -type f -name *.tsx)",
+      "Bash(find d:/Mawj-Dream/mawj-erp/src -type f -name *.tsx -o -name *.ts)",
+      "Bash(find d:/Mawj-ERP/mawj-platform/components -type f \\\\\\(-name *.vue -o -name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(find d:/Mawj-ERP/mawj-platform -type f \\\\\\(-name *.vue -o -name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(xargs grep:*)",
+      "Bash(find d:/Mawj-ERP/mawj-platform/node_modules/@primeuix/themes -path *dock* -type f)",
+      "Bash(find d:/Mawj-ERP/mawj-platform/node_modules/@primeuix/styles -path *dock*)",
+      "Bash(grep -r \"Dock\\\\|<Dock\" d:/Mawj-ERP/mawj-platform --include=*.vue --include=*.ts --include=*.tsx)"
     ]
   }
 }

@@ -1,38 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Sidebar from "./sidebar";
-import TopBar from "./top-bar";
-import MobileNav from "./mobile-nav";
+import { AppSidebar } from "./sidebar";
+import { AppNavbar } from "./top-bar";
+import { Dock } from "./dock";
+import { MobileNav } from "./mobile-nav";
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 1024);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
+export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-dvh overflow-hidden">
-      {/* Sidebar — first child in RTL flex = RIGHT side */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        isMobile={isMobile}
-      />
+    <div className="flex h-dvh overflow-hidden" dir="rtl">
+      {/* Sidebar - hidden on mobile, visible on lg+ */}
+      <AppSidebar />
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <TopBar onMenuPress={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top navbar */}
+        <AppNavbar />
+
+        {/* Main content */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 pb-24 md:pb-6">
           {children}
         </main>
-        {isMobile && <MobileNav />}
       </div>
+
+      {/* Desktop dock */}
+      <Dock />
+
+      {/* Mobile bottom nav */}
+      <MobileNav />
     </div>
   );
 }
+
+export default AppShell;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,125 +10,131 @@ import {
   Users,
   DollarSign,
   Settings,
-  ShoppingBag,
+  ChevronRight,
+  ChevronLeft,
   LogOut,
+  Store,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
-import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "لوحة التحكم", icon: LayoutDashboard, href: "/", adminOnly: false },
-  { label: "الطلبات", icon: ShoppingCart, href: "/orders", adminOnly: false },
-  { label: "الشحنات", icon: Package, href: "/batches", adminOnly: false },
-  { label: "العملاء", icon: Users, href: "/customers", adminOnly: true },
-  { label: "المالية", icon: DollarSign, href: "/finance", adminOnly: true },
-  { label: "الإعدادات", icon: Settings, href: "/settings", adminOnly: true },
+  { href: "/", label: "لوحة التحكم", icon: LayoutDashboard, adminOnly: false },
+  { href: "/orders", label: "الطلبات", icon: ShoppingCart, adminOnly: false },
+  { href: "/batches", label: "الشحنات", icon: Package, adminOnly: false },
+  { href: "/customers", label: "العملاء", icon: Users, adminOnly: true },
+  { href: "/finance", label: "المالية", icon: DollarSign, adminOnly: true },
+  { href: "/settings", label: "الإعدادات", icon: Settings, adminOnly: true },
 ];
 
-const roleLabels: Record<string, string> = {
-  admin: "مدير النظام",
-  worker: "موظف",
-};
+const STORAGE_KEY = "trendy-sidebar-collapsed";
 
-interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-  isMobile: boolean;
-}
-
-export default function Sidebar({ isOpen, onClose, isMobile }: SidebarProps) {
+export function AppSidebar() {
   const pathname = usePathname();
   const { user, logout, isAdmin } = useAuthStore();
-  const admin = isAdmin();
-  const visibleItems = navItems.filter((item) => !item.adminOnly || admin);
+  const [collapsed, setCollapsed] = useState(false);
 
-  const content = (
-    <div className="flex flex-col h-full w-[280px] glass border-s border-[var(--glass-border)] transition-all duration-300">
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored !== null) {
+      setCollapsed(stored === "true");
+    }
+  }, []);
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem(STORAGE_KEY, String(next));
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
+  };
+
+  const filteredItems = navItems.filter((item) => {
+    if (item.adminOnly && !isAdmin()) return false;
+    return true;
+  });
+
+  return (
+    <aside
+      className={`hidden lg:flex flex-col glass border-s border-[var(--border)] transition-all duration-300 ${
+        collapsed ? "w-[72px]" : "w-[280px]"
+      }`}
+      style={{ height: "100%" }}
+    >
       {/* Logo */}
-      <div className="flex items-center justify-center px-4 h-[72px] shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent)] shadow-lg">
-            <ShoppingBag className="h-5 w-5 text-[var(--accent-foreground)]" />
-          </div>
-          <span className="text-lg font-bold tracking-tight">متجر ترندي</span>
+      <div className="h-[72px] flex items-center gap-3 px-5 shrink-0 border-b border-[var(--border)]">
+        <div className="w-10 h-10 rounded-xl bg-[var(--accent)] text-[var(--accent-foreground)] flex items-center justify-center shrink-0">
+          <Store size={20} />
         </div>
+        {!collapsed && (
+          <span className="text-lg font-bold whitespace-nowrap overflow-hidden">
+            متجر ترندي
+          </span>
+        )}
       </div>
 
-      <div className="h-px bg-[var(--separator)]" />
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
-        {visibleItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        {filteredItems.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.href);
 
           return (
-            <div key={item.href} className="relative">
-              {isActive && (
-                <div className="absolute inset-0 rounded-xl bg-[var(--accent)]/10 transition-all duration-300" />
-              )}
-              <Link
-                href={item.href}
-                onClick={isMobile ? onClose : undefined}
-                className={cn(
-                  "relative flex items-center gap-3 px-3 py-3 rounded-xl text-base transition-colors hover:bg-[var(--default)]",
-                  isActive
-                    ? "text-[var(--accent)] font-semibold"
-                    : "text-[var(--default-foreground)] opacity-60 hover:opacity-100"
-                )}
-              >
-                <item.icon className={cn("w-6 h-6 shrink-0", isActive && "text-[var(--accent)]")} />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            </div>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                active
+                  ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
+                  : "text-[var(--muted)] hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)]"
+              } ${collapsed ? "justify-center" : ""}`}
+              title={collapsed ? item.label : undefined}
+            >
+              <Icon size={20} className="shrink-0" />
+              {!collapsed && <span>{item.label}</span>}
+            </Link>
           );
         })}
       </nav>
 
-      <div className="h-px bg-[var(--separator)]" />
-
-      {/* User */}
-      {user && (
-        <div className="px-4 py-4">
+      {/* User info */}
+      {user && !collapsed && (
+        <div className="px-4 py-3 border-t border-[var(--border)]">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent)]/15 text-sm font-bold text-[var(--accent)] shrink-0">
+            <div className="w-9 h-9 rounded-full bg-[var(--accent)] text-[var(--accent-foreground)] flex items-center justify-center text-sm font-bold shrink-0">
               {user.name.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-base font-medium truncate">{user.name}</p>
-              <p className="text-xs text-[var(--muted)]">{roleLabels[user.role] || user.role}</p>
+              <div className="text-sm font-medium truncate">{user.name}</div>
+              <div className="text-xs text-[var(--muted)]">
+                {user.role === "admin" ? "مدير" : "موظف"}
+              </div>
             </div>
             <button
               onClick={logout}
-              className="rounded-xl p-2 text-[var(--muted)] hover:bg-[var(--default)] hover:text-[var(--foreground)] transition-colors"
-              title="خروج"
+              className="p-1.5 rounded-lg text-[var(--muted)] hover:text-[var(--danger)] hover:bg-[var(--surface-secondary)] transition-colors"
+              title="تسجيل الخروج"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut size={16} />
             </button>
           </div>
         </div>
       )}
-    </div>
+
+      {/* Collapse toggle */}
+      <div className="px-3 py-3 border-t border-[var(--border)]">
+        <button
+          onClick={toggleCollapsed}
+          className="w-full flex items-center justify-center p-2 rounded-xl text-[var(--muted)] hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] transition-colors"
+          title={collapsed ? "توسيع" : "طي"}
+        >
+          {collapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </button>
+      </div>
+    </aside>
   );
-
-  // Mobile: drawer from right
-  if (isMobile) {
-    if (!isOpen) return null;
-    return (
-      <>
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 dialog-overlay"
-          onClick={onClose}
-        />
-        <div className="fixed top-0 right-0 h-full z-50 animate-slide-in-right">
-          {content}
-        </div>
-      </>
-    );
-  }
-
-  // Desktop: static sidebar
-  return <aside className="shrink-0 hidden lg:block">{content}</aside>;
 }
+
+export default AppSidebar;

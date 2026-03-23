@@ -16,7 +16,6 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
   const [closing, setClosing] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
 
-  // Need mounted check for portal
   React.useEffect(() => setMounted(true), []);
 
   React.useEffect(() => {
@@ -49,30 +48,37 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
 
   if (!visible || !mounted) return null;
 
-  // Portal to document.body so it escapes any overflow-hidden parent
   return createPortal(
-    <div className="fixed inset-0 z-[100]" dir="rtl">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-50" dir="rtl">
+      {/* Backdrop — scrollable when content is tall */}
       <div
         className={cn(
-          "fixed inset-0 bg-black/40 backdrop-blur-sm",
-          closing ? "dialog-overlay closing" : "dialog-overlay"
-        )}
-        onClick={() => onOpenChange(false)}
-      />
-      {/* Scrollable content layer */}
-      <div
-        className={cn(
-          "fixed inset-0 z-[101] overflow-y-auto",
-          closing ? "dialog-content-animate closing" : "dialog-content-animate"
+          "fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-sm transition-opacity duration-200",
+          closing ? "opacity-0" : "opacity-100"
         )}
         onClick={() => onOpenChange(false)}
       >
-        <div className="min-h-full flex items-start justify-center px-4 py-10">
+        <div className="min-h-full flex items-start justify-center py-8 px-4">
           <div
-            className="w-full max-w-2xl"
+            className={cn(
+              "relative w-full max-w-lg rounded-2xl bg-[var(--overlay)] text-[var(--foreground)] transition-all duration-200",
+              closing
+                ? "scale-95 opacity-0"
+                : "scale-100 opacity-100"
+            )}
+            style={{ boxShadow: "var(--overlay-shadow)" }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Close button — top-left for RTL */}
+            <button
+              type="button"
+              className="absolute top-4 left-4 rounded-xl p-1.5 text-[var(--muted)] hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] transition-all duration-150 focus:outline-none"
+              onClick={() => onOpenChange(false)}
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
             {children}
           </div>
         </div>
@@ -82,33 +88,16 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
   );
 }
 
-const DialogContent = React.forwardRef<
+const DialogHeader = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => (
+>(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn(
-      "relative w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-[var(--surface-foreground)] p-6",
-      className
-    )}
-    style={{ boxShadow: "var(--overlay-shadow)" }}
-    {...props}
-  >
-    {children}
-  </div>
-));
-DialogContent.displayName = "DialogContent";
-
-const DialogHeader = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn("flex items-start justify-between gap-4", className)}
+    className={cn("px-6 pt-6 pb-0", className)}
     {...props}
   />
-);
+));
 DialogHeader.displayName = "DialogHeader";
 
 const DialogTitle = React.forwardRef<
@@ -117,30 +106,47 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h2
     ref={ref}
-    className={cn("text-lg font-semibold leading-none tracking-tight text-[var(--foreground)] pt-0.5", className)}
+    className={cn(
+      "text-lg font-semibold text-[var(--foreground)]",
+      className
+    )}
     {...props}
   />
 ));
 DialogTitle.displayName = "DialogTitle";
+
+const DialogContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("px-6 py-5", className)}
+    {...props}
+  >
+    {children}
+  </div>
+));
+DialogContent.displayName = "DialogContent";
 
 interface DialogCloseProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   onClose?: () => void;
 }
 
 const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(
-  ({ className, onClose, ...props }, ref) => (
+  ({ className, onClose, children, ...props }, ref) => (
     <button
       ref={ref}
       type="button"
       className={cn(
-        "shrink-0 rounded-xl p-1.5 text-[var(--muted)] hover:bg-[var(--surface-secondary)] transition-all duration-150 hover:text-[var(--foreground)] hover:scale-110 active:scale-95 focus:outline-none",
+        "rounded-xl p-1.5 text-[var(--muted)] hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] transition-all duration-150 focus:outline-none",
         className
       )}
       onClick={onClose}
-      aria-label="إغلاق"
+      aria-label="Close"
       {...props}
     >
-      <X className="h-4 w-4" />
+      {children ?? <X className="h-4 w-4" />}
     </button>
   )
 );

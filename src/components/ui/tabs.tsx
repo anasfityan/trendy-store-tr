@@ -65,7 +65,7 @@ const TabsList = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-xl bg-[var(--surface-secondary)] p-1",
+      "inline-flex items-center rounded-xl bg-[var(--surface-secondary)] p-1 h-10",
       className
     )}
     {...props}
@@ -90,7 +90,7 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
         aria-selected={isActive}
         data-state={isActive ? "active" : "inactive"}
         className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap rounded-xl px-3 py-1.5 text-sm font-medium transition-all duration-150 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
           isActive
             ? "bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
             : "text-[var(--muted)] hover:text-[var(--foreground)]",
