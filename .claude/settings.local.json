@@ -64,7 +64,10 @@
       "Bash(find d:/Mawj-ERP/mawj-platform/node_modules/@primeuix/themes -path *dock* -type f)",
       "Bash(find d:/Mawj-ERP/mawj-platform/node_modules/@primeuix/styles -path *dock*)",
       "Bash(grep -r \"Dock\\\\|<Dock\" d:/Mawj-ERP/mawj-platform --include=*.vue --include=*.ts --include=*.tsx)",
-      "WebFetch(domain:mawjgiftserp.cloud)"
+      "WebFetch(domain:mawjgiftserp.cloud)",
+      "Read(//c/Users/ihima/.claude/**)",
+      "Bash(find C:/Users/ihima/.claude/projects/ -name *.md -type f)",
+      "Bash(find C:/Users/ihima/.claude/projects/ -name *vps* -o -name *hosting* -o -name *hostinger* -o -name *deploy* -o -name *server*)"
     ]
   }
 }

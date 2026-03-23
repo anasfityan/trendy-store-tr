@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,38 +13,22 @@ import {
 import { useAuthStore } from "@/store/auth";
 
 const navItems = [
-  { href: "/", label: "لوحة التحكم", icon: LayoutDashboard, adminOnly: false },
+  { href: "/", label: "الرئيسية", icon: LayoutDashboard, adminOnly: false },
   { href: "/orders", label: "الطلبات", icon: ShoppingCart, adminOnly: false },
   { href: "/batches", label: "الشحنات", icon: Package, adminOnly: false },
-  { href: "/customers", label: "العملاء", icon: Users, adminOnly: true },
   { href: "/finance", label: "المالية", icon: DollarSign, adminOnly: true },
-  { separator: true } as const,
-  { href: "/settings", label: "الإعدادات", icon: Settings, adminOnly: true },
-] as const;
-
-type NavItem =
-  | { href: string; label: string; icon: React.ComponentType<{ size?: number }>; adminOnly: boolean; separator?: undefined }
-  | { separator: true; href?: undefined; label?: undefined; icon?: undefined; adminOnly?: undefined };
+  { href: "/customers", label: "العملاء", icon: Users, adminOnly: true },
+  { href: "/settings", label: "النظام", icon: Settings, adminOnly: true },
+];
 
 export function Dock() {
   const pathname = usePathname();
   const isAdmin = useAuthStore((s) => s.isAdmin);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const filteredItems = (navItems as readonly NavItem[]).filter((item) => {
-    if (item.separator) return true;
+  const filteredItems = navItems.filter((item) => {
     if (item.adminOnly && !isAdmin()) return false;
     return true;
   });
-
-  const getScale = (index: number) => {
-    if (hoveredIndex === null) return 1;
-    const distance = Math.abs(index - hoveredIndex);
-    if (distance === 0) return 1.25;
-    if (distance === 1) return 1.15;
-    if (distance === 2) return 1.05;
-    return 1;
-  };
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -53,32 +36,32 @@ export function Dock() {
   };
 
   return (
-    <nav className="dock hidden md:flex">
-        {filteredItems.map((item, index) => {
-          if (item.separator) {
-            return <div key={`sep-${index}`} className="dock-separator" />;
-          }
-
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-[var(--border)] safe-bottom">
+      <div className="flex items-center justify-center gap-1 sm:gap-2 px-4 py-2 max-w-lg mx-auto">
+        {filteredItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
-          const scale = getScale(index);
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`dock-item${active ? " active" : ""}`}
-              style={{ transform: `scale(${scale})`, transition: "transform 200ms ease" }}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
+              className={`flex flex-col items-center gap-0.5 px-3 sm:px-4 py-1.5 rounded-xl transition-all relative ${
+                active
+                  ? "text-[var(--accent)]"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
             >
-              <span className="dock-icon">
-                <Icon size={22} />
-              </span>
-              <span className="dock-label">{item.label}</span>
+              {/* Active indicator line on top */}
+              {active && (
+                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-[var(--accent)]" />
+              )}
+              <Icon size={22} className="shrink-0" />
+              <span className="text-[0.625rem] sm:text-xs font-medium leading-tight">{item.label}</span>
             </Link>
           );
         })}
+      </div>
     </nav>
   );
 }
