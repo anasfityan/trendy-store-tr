@@ -31,19 +31,43 @@ export async function POST(req: NextRequest) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      redirect: "follow",
-      signal: controller.signal,
-    });
+    // Try Googlebot first (works better from datacenter IPs)
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: {
+          "User-Agent": "Googlebot/2.1 (+http://www.google.com/bot.html)",
+          "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+        redirect: "follow",
+        signal: controller.signal,
+      });
+    } catch {
+      clearTimeout(timeout);
+      // Retry with browser UA if Googlebot fails
+      const controller2 = new AbortController();
+      const timeout2 = setTimeout(() => controller2.abort(), 8000);
+      try {
+        res = await fetch(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          },
+          redirect: "follow",
+          signal: controller2.signal,
+        });
+      } catch {
+        clearTimeout(timeout2);
+        return NextResponse.json({ error: "انتهت مهلة الاتصال بالموقع" }, { status: 504 });
+      }
+      clearTimeout(timeout2);
+    }
     clearTimeout(timeout);
 
     if (!res.ok) {
-      return NextResponse.json({ error: "فشل في جلب الصفحة" }, { status: 502 });
+      return NextResponse.json({ error: `فشل في جلب الصفحة (${res.status})` }, { status: 502 });
     }
 
     const html = await res.text();
