@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Settings as SettingsIcon,
   Save,
   Download,
   RefreshCw,
+  Store,
+  Percent,
   Database,
+  Search,
+  X,
+  ChevronLeft,
 } from "lucide-react";
 
 interface SettingsData {
@@ -23,12 +25,21 @@ interface SettingsData {
   tryToIqd: number;
 }
 
+const categories = [
+  { key: "store", label: "هوية المتجر", icon: Store, description: "الاسم والهاتف والشعار" },
+  { key: "financial", label: "المالية والشحن", icon: Percent, description: "العملة وأسعار الصرف" },
+  { key: "system", label: "النظام والبيانات", icon: Database, description: "النسخ الاحتياطي والمعلومات" },
+];
+
 export default function SettingsPage() {
   const { isAdmin } = useAuthStore();
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("store");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showMobileContent, setShowMobileContent] = useState(false);
 
   // Form fields
   const [storeName, setStoreName] = useState("");
@@ -62,7 +73,7 @@ export default function SettingsPage() {
   if (!isAdmin()) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <p className="text-muted-foreground">صلاحية المسؤول مطلوبة.</p>
+        <p className="text-[var(--muted)]">صلاحية المسؤول مطلوبة.</p>
       </div>
     );
   }
@@ -70,7 +81,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <p className="text-muted-foreground">جاري التحميل...</p>
+        <p className="text-[var(--muted)]">جاري التحميل...</p>
       </div>
     );
   }
@@ -111,7 +122,7 @@ export default function SettingsPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `trendy-store-backup-${new Date().toISOString().split("T")[0]}.db`;
+        a.download = `trendy-store-backup-${new Date().toISOString().split("T")[0]}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -122,149 +133,332 @@ export default function SettingsPage() {
     }
   };
 
+  const filteredCategories = searchQuery.trim()
+    ? categories.filter(
+        (c) =>
+          c.label.includes(searchQuery) || c.description.includes(searchQuery)
+      )
+    : categories;
+
+  const activeCatLabel =
+    categories.find((c) => c.key === activeCategory)?.label ?? "";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 stagger-grid">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <SettingsIcon className="h-6 w-6" />
-            الإعدادات
+          <h1 className="text-2xl font-extrabold tracking-tight text-[var(--navy)]">
+            مركز التحكم
           </h1>
-          <p className="text-muted-foreground text-sm">
-            إدارة إعدادات المتجر وأسعار الصرف
+          <p className="text-sm text-[var(--muted)] mt-0.5">
+            إعدادات النظام والتخصيص
           </p>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <>
-              <RefreshCw className="h-4 w-4 me-2 animate-spin" />
-              جاري الحفظ...
-            </>
-          ) : saved ? (
-            <>
-              <Save className="h-4 w-4 me-2" />
-              تم الحفظ!
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 me-2" />
-              حفظ الإعدادات
-            </>
-          )}
-        </Button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[var(--navy)] text-white text-sm font-medium rounded-xl hover:opacity-90 disabled:opacity-60 transition-colors cursor-pointer"
+        >
+          <Save size={16} />
+          {saving ? "جاري الحفظ..." : saved ? "تم الحفظ!" : "حفظ الإعدادات"}
+        </button>
       </div>
 
-      {/* Store Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>معلومات المتجر</CardTitle>
-          <CardDescription>المعلومات الأساسية للمتجر</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="storeName">اسم المتجر</Label>
-            <Input
-              id="storeName"
-              value={storeName}
-              onChange={(e) => setStoreName(e.target.value)}
-              placeholder="Trendy Store"
+      {/* Settings Layout — Sidebar + Content */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Desktop Sidebar */}
+        <nav className="hidden lg:block w-72 shrink-0">
+          <div className="sticky top-28 space-y-3">
+            {/* Search */}
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none"
+              />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                type="search"
+                placeholder="بحث في الإعدادات..."
+                className="w-full pr-10 pl-4 py-2.5 bg-[var(--background)] border border-[var(--border)] rounded-xl text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none focus:border-[var(--navy)]/40 focus:bg-[var(--surface)] transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Category list */}
+            <div
+              className="bg-[var(--surface)] rounded-2xl overflow-hidden"
+              style={{ boxShadow: "var(--shadow-sm)" }}
+            >
+              {filteredCategories.map((cat, i) => {
+                const Icon = cat.icon;
+                const isActive = activeCategory === cat.key;
+                return (
+                  <button
+                    key={cat.key}
+                    onClick={() => setActiveCategory(cat.key)}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 text-right transition-all duration-200 cursor-pointer relative group ${
+                      isActive
+                        ? "bg-[var(--navy)]/8 text-[var(--navy)]"
+                        : "text-[var(--muted)] hover:bg-[var(--background)]/80 hover:text-[var(--foreground)]"
+                    } ${i > 0 ? "border-t border-[var(--border)]" : ""}`}
+                  >
+                    {/* Active indicator bar */}
+                    {isActive && (
+                      <div className="absolute right-0 top-2 bottom-2 w-[3px] rounded-l-full bg-[var(--navy)]" />
+                    )}
+
+                    <div
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200 ${
+                        isActive
+                          ? "bg-[var(--navy)]/12"
+                          : "bg-[var(--background)] group-hover:bg-[var(--navy)]/5"
+                      }`}
+                    >
+                      <Icon
+                        size={18}
+                        strokeWidth={isActive ? 2.2 : 1.8}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-semibold truncate">
+                        {cat.label}
+                      </p>
+                      <p className="text-[11px] text-[var(--muted)] truncate mt-0.5">
+                        {cat.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+
+              {filteredCategories.length === 0 && (
+                <div className="py-8 text-center text-sm text-[var(--muted)]">
+                  لا توجد نتائج
+                </div>
+              )}
+            </div>
+          </div>
+        </nav>
+
+        {/* Mobile: Category List */}
+        <div className={`lg:hidden ${showMobileContent ? "hidden" : "block"}`}>
+          <div className="relative mb-4">
+            <Search
+              size={16}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none"
+            />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              type="search"
+              placeholder="بحث في الإعدادات..."
+              className="w-full pr-10 pl-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-2xl text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none focus:border-[var(--navy)]/40 transition-all"
+              style={{ boxShadow: "var(--shadow-xs)" }}
             />
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="logo">رابط الشعار</Label>
-            <Input
-              id="logo"
-              value={logo}
-              onChange={(e) => setLogo(e.target.value)}
-              placeholder="https://example.com/logo.png"
-            />
-            {logo && (
-              <div className="mt-2">
-                <img
-                  src={logo}
-                  alt="معاينة شعار المتجر"
-                  className="h-16 w-16 object-contain rounded border"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
+            {filteredCategories.map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => {
+                    setActiveCategory(cat.key);
+                    setShowMobileContent(true);
+                    setSearchQuery("");
                   }}
-                />
-              </div>
-            )}
+                  className="w-full flex items-center gap-3 px-4 py-4 bg-[var(--surface)] rounded-2xl text-right transition-all duration-200 cursor-pointer active:scale-[0.98]"
+                  style={{ boxShadow: "var(--shadow-sm)" }}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[var(--navy)]/8 flex items-center justify-center shrink-0">
+                    <Icon size={20} className="text-[var(--navy)]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-[var(--foreground)]">
+                      {cat.label}
+                    </p>
+                    <p className="text-[11px] text-[var(--muted)]">
+                      {cat.description}
+                    </p>
+                  </div>
+                  <ChevronLeft
+                    size={16}
+                    className="text-[var(--muted)] shrink-0 rotate-180"
+                  />
+                </button>
+              );
+            })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Exchange Rates */}
-      <Card>
-        <CardHeader>
-          <CardTitle>أسعار الصرف</CardTitle>
-          <CardDescription>
-            أسعار تحويل العملات المستخدمة في حساب التكاليف
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="usdToTry">١ دولار = X ليرة تركية</Label>
-              <Input
-                id="usdToTry"
-                type="number"
-                step="0.01"
-                value={usdToTry}
-                onChange={(e) => setUsdToTry(e.target.value)}
-                placeholder="38.00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="usdToIqd">١ دولار = X دينار عراقي</Label>
-              <Input
-                id="usdToIqd"
-                type="number"
-                step="0.01"
-                value={usdToIqd}
-                onChange={(e) => setUsdToIqd(e.target.value)}
-                placeholder="1460.00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tryToIqd">١ ليرة = X دينار عراقي</Label>
-              <Input
-                id="tryToIqd"
-                type="number"
-                step="0.01"
-                value={tryToIqd}
-                onChange={(e) => setTryToIqd(e.target.value)}
-                placeholder="38.40"
-              />
-            </div>
+        {/* Mobile: Content with back button */}
+        <div className={`lg:hidden ${showMobileContent ? "block" : "hidden"}`}>
+          <button
+            onClick={() => setShowMobileContent(false)}
+            className="flex items-center gap-2 text-sm text-[var(--navy)] font-medium mb-4 cursor-pointer hover:opacity-80 transition-colors"
+          >
+            <ChevronLeft size={16} />
+            {activeCatLabel}
+          </button>
+          <div className="space-y-5 stagger-content">
+            {renderContent()}
           </div>
-          <p className="text-xs text-muted-foreground">
-            تُستخدم هذه الأسعار لتحويل تكاليف المنتجات بالليرة التركية وتكاليف الشحن بالدولار إلى الدينار العراقي في التقارير المالية.
-          </p>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Database Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            إدارة قاعدة البيانات
-          </CardTitle>
-          <CardDescription>
-            تصدير وإدارة قاعدة بيانات المتجر
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button variant="outline" onClick={handleExportDatabase}>
-            <Download className="h-4 w-4 me-2" />
-            تصدير قاعدة البيانات
-          </Button>
-          <p className="text-sm text-muted-foreground">
-            يتم تنزيل نسخة احتياطية من ملف قاعدة البيانات. احفظ هذه النسخة في مكان آمن. تحتوي قاعدة البيانات على جميع الطلبات والعملاء والدفعات والإعدادات.
-          </p>
-        </CardContent>
-      </Card>
+        {/* Desktop: Content Area */}
+        <div className="hidden lg:block flex-1 min-w-0">
+          <div className="space-y-5 stagger-content">
+            {renderContent()}
+          </div>
+        </div>
+      </div>
     </div>
   );
+
+  function renderContent() {
+    switch (activeCategory) {
+      case "store":
+        return (
+          <div
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 space-y-5"
+            style={{ boxShadow: "var(--shadow-sm)" }}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-xl bg-[var(--navy)]/10 flex items-center justify-center">
+                <Store size={18} className="text-[var(--navy)]" />
+              </div>
+              <h2 className="text-lg font-bold">هوية المتجر</h2>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="storeName">اسم المتجر</Label>
+              <Input
+                id="storeName"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="متجر ترندي"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="logo">رابط الشعار</Label>
+              <Input
+                id="logo"
+                value={logo}
+                onChange={(e) => setLogo(e.target.value)}
+                placeholder="https://example.com/logo.png"
+                dir="ltr"
+                className="text-left"
+              />
+              {logo && (
+                <div className="mt-2">
+                  <img
+                    src={logo}
+                    alt="معاينة الشعار"
+                    className="h-16 w-16 object-contain rounded-xl border border-[var(--border)]"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case "financial":
+        return (
+          <div
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 space-y-5"
+            style={{ boxShadow: "var(--shadow-sm)" }}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-xl bg-[var(--navy)]/10 flex items-center justify-center">
+                <Percent size={18} className="text-[var(--navy)]" />
+              </div>
+              <h2 className="text-lg font-bold">المالية وأسعار الصرف</h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="usdToTry">١ دولار = X ليرة تركية</Label>
+                <Input
+                  id="usdToTry"
+                  type="number"
+                  step="0.01"
+                  value={usdToTry}
+                  onChange={(e) => setUsdToTry(e.target.value)}
+                  placeholder="38.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="usdToIqd">١ دولار = X دينار عراقي</Label>
+                <Input
+                  id="usdToIqd"
+                  type="number"
+                  step="0.01"
+                  value={usdToIqd}
+                  onChange={(e) => setUsdToIqd(e.target.value)}
+                  placeholder="1460.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tryToIqd">١ ليرة = X دينار عراقي</Label>
+                <Input
+                  id="tryToIqd"
+                  type="number"
+                  step="0.01"
+                  value={tryToIqd}
+                  onChange={(e) => setTryToIqd(e.target.value)}
+                  placeholder="38.40"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-[var(--muted)]">
+              تُستخدم هذه الأسعار لتحويل تكاليف المنتجات بالليرة التركية
+              وتكاليف الشحن بالدولار إلى الدينار العراقي في التقارير المالية.
+            </p>
+          </div>
+        );
+
+      case "system":
+        return (
+          <div
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 space-y-5"
+            style={{ boxShadow: "var(--shadow-sm)" }}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-xl bg-[var(--navy)]/10 flex items-center justify-center">
+                <Database size={18} className="text-[var(--navy)]" />
+              </div>
+              <h2 className="text-lg font-bold">النظام والبيانات</h2>
+            </div>
+
+            <button
+              onClick={handleExportDatabase}
+              className="flex items-center gap-2 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
+            >
+              <Download size={16} />
+              تصدير قاعدة البيانات
+            </button>
+            <p className="text-sm text-[var(--muted)]">
+              يتم تنزيل نسخة احتياطية من قاعدة البيانات بصيغة JSON. احفظ هذه
+              النسخة في مكان آمن.
+            </p>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  }
 }

@@ -68,7 +68,8 @@
       "Read(//c/Users/ihima/.claude/**)",
       "Bash(find C:/Users/ihima/.claude/projects/ -name *.md -type f)",
       "Bash(find C:/Users/ihima/.claude/projects/ -name *vps* -o -name *hosting* -o -name *hostinger* -o -name *deploy* -o -name *server*)",
-      "Read(//d/Mawj-ERP/mawj-aura/**)"
+      "Read(//d/Mawj-ERP/mawj-aura/**)",
+      "Bash(find D:/Mawj-ERP/mawj-aura/app -name *settings* -o -name *Settings*)"
     ]
   }
 }
