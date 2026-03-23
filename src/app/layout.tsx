@@ -1,7 +1,16 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
+import { Providers } from "@/components/theme-provider";
 import { AuthGuard } from "@/components/auth-guard";
+
+const ibmPlex = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic", "latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-ibm-plex",
+  display: "swap",
+  preload: true,
+});
 
 export const metadata: Metadata = {
   title: "Trendy Store - نظام الإدارة",
@@ -17,13 +26,13 @@ export default function RootLayout({
     <html
       lang="ar"
       dir="rtl"
-      className="h-full antialiased"
+      className={`${ibmPlex.variable} h-full`}
       suppressHydrationWarning
     >
-      <body className="min-h-full bg-[var(--background)] text-[var(--foreground)]">
-        <ThemeProvider>
+      <body className="min-h-full antialiased">
+        <Providers>
           <AuthGuard>{children}</AuthGuard>
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );
