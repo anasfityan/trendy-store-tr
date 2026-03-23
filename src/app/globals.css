@@ -80,8 +80,8 @@
 .dark {
   --color-ground: #0B0F19;
   --color-card: #161B2E;
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-light: rgba(255, 255, 255, 0.03);
+  --color-border: #1E2642;
+  --color-border-light: #1A2038;
 
   --color-navy: #89B4F8;
   --color-navy-light: #A8C7FA;
@@ -100,13 +100,13 @@
   --color-ink-muted: #7B84A0;
   --color-ink-inverse: #0B0F19;
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --shadow-dock: 0 -4px 24px rgba(0, 0, 0, 0.3);
-  --shadow-command: 0 24px 64px rgba(0, 0, 0, 0.5);
+  --shadow-xs: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 16px 48px rgba(0, 0, 0, 0.5);
+  --shadow-dock: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 -4px 24px rgba(0, 0, 0, 0.3);
+  --shadow-command: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 64px rgba(0, 0, 0, 0.5);
 
   color-scheme: dark;
 }
@@ -143,11 +143,31 @@
   --field-background: var(--color-card);
   --field-foreground: var(--color-ink);
   --field-placeholder: var(--color-ink-muted);
+
+  /* Surface levels */
+  --surface-2: var(--color-border-light);
+  --card: var(--color-card);
+
+  /* Radius shorthand aliases */
+  --r-xs: var(--radius-xs);
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+  --r-2xl: var(--radius-2xl);
+  --r-full: var(--radius-full);
+
+  /* Color aliases for components */
+  --navy: var(--color-navy);
+  --royal: var(--color-royal);
+  --ink: var(--color-ink);
 }
 
 .dark {
   --surface-secondary: var(--color-border-light);
   --surface-tertiary: var(--color-border);
+  --surface-2: #1E2438;
+  --card: var(--color-card);
 }
 
 /* ============================================

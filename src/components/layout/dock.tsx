@@ -66,11 +66,11 @@ export function Dock() {
             <div
               className={`relative flex items-center justify-center w-10 h-8 rounded-xl transition-all duration-200 ${
                 active
-                  ? "bg-[var(--accent)]/12"
+                  ? "bg-[var(--accent)]/12 dock-glow"
                   : "group-hover:bg-[var(--accent)]/5"
               }`}
-              style={active ? { boxShadow: "0 0 12px rgba(37,99,235,0.15)" } : undefined}
             >
+              {active && <span className="pulse-ring" />}
               <Icon
                 size={active ? 22 : 20}
                 strokeWidth={active ? 2.4 : 1.8}
