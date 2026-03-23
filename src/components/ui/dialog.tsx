@@ -49,38 +49,35 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
   if (!visible || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50" dir="rtl">
-      {/* Backdrop — scrollable when content is tall */}
-      <div
-        className={cn(
-          "fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-sm transition-opacity duration-200",
-          closing ? "opacity-0" : "opacity-100"
-        )}
-        onClick={() => onOpenChange(false)}
-      >
-        <div className="min-h-full flex items-start justify-center py-8 px-4">
-          <div
-            className={cn(
-              "relative w-full max-w-lg rounded-2xl bg-[var(--overlay)] text-[var(--foreground)] transition-all duration-200",
-              closing
-                ? "scale-95 opacity-0"
-                : "scale-100 opacity-100"
-            )}
-            style={{ boxShadow: "var(--overlay-shadow)" }}
-            onClick={(e) => e.stopPropagation()}
+    <div
+      className={cn(
+        "fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm transition-opacity duration-200",
+        closing ? "opacity-0" : "opacity-100"
+      )}
+      dir="rtl"
+      onClick={() => onOpenChange(false)}
+    >
+      <div className="min-h-full flex items-start justify-center py-8 px-4">
+        <div
+          className={cn(
+            "relative bg-[var(--card)] border border-[var(--border)] rounded-[var(--r-2xl)] shadow-[var(--shadow-xl)] max-w-lg w-[95vw] text-[var(--ink)] transition-all duration-200",
+            closing
+              ? "scale-95 opacity-0"
+              : "scale-100 opacity-100"
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Close button — top-left for RTL */}
+          <button
+            type="button"
+            className="absolute top-4 left-4 rounded-[var(--r-xs)] p-1.5 text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--ink)] transition-all duration-150 focus:outline-none"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close"
           >
-            {/* Close button — top-left for RTL */}
-            <button
-              type="button"
-              className="absolute top-4 left-4 rounded-xl p-1.5 text-[var(--muted)] hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] transition-all duration-150 focus:outline-none"
-              onClick={() => onOpenChange(false)}
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <X className="h-4 w-4" />
+          </button>
 
-            {children}
-          </div>
+          {children}
         </div>
       </div>
     </div>,
@@ -107,7 +104,7 @@ const DialogTitle = React.forwardRef<
   <h2
     ref={ref}
     className={cn(
-      "text-lg font-semibold text-[var(--foreground)]",
+      "text-lg font-semibold text-[var(--ink)]",
       className
     )}
     {...props}
@@ -139,7 +136,7 @@ const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(
       ref={ref}
       type="button"
       className={cn(
-        "rounded-xl p-1.5 text-[var(--muted)] hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)] transition-all duration-150 focus:outline-none",
+        "rounded-[var(--r-xs)] p-1.5 text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--ink)] transition-all duration-150 focus:outline-none",
         className
       )}
       onClick={onClose}

@@ -65,7 +65,7 @@ const TabsList = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "inline-flex items-center rounded-xl bg-[var(--surface-secondary)] p-1 h-10",
+      "inline-flex items-center rounded-[var(--r-md)] bg-[var(--surface-2)] p-1 h-[42px]",
       className
     )}
     {...props}
@@ -90,10 +90,10 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
         aria-selected={isActive}
         data-state={isActive ? "active" : "inactive"}
         className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center whitespace-nowrap rounded-[var(--r-sm)] px-3 py-1.5 text-sm font-medium transition-all duration-150 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
           isActive
-            ? "bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
-            : "text-[var(--muted)] hover:text-[var(--foreground)]",
+            ? "bg-[var(--card)] text-[var(--ink)] shadow-[var(--shadow-sm)]"
+            : "text-[var(--muted)] hover:text-[var(--ink)]",
           className
         )}
         onClick={() => context.onValueChange(value)}
@@ -118,7 +118,7 @@ const TabsContent = React.forwardRef<HTMLDivElement, TabsContentProps>(
         ref={ref}
         role="tabpanel"
         data-state="active"
-        className={cn("mt-2 tabs__panel", className)}
+        className={cn("mt-2", className)}
         {...props}
       />
     );

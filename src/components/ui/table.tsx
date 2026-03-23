@@ -46,7 +46,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-11 px-4 text-start font-semibold text-[var(--muted)] text-xs uppercase",
+      "px-4 py-3 text-start text-[var(--muted)] text-xs font-semibold",
       className
     )}
     {...props}
@@ -61,7 +61,7 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "border-b border-[var(--separator)] hover:bg-[var(--surface-secondary)] transition-colors",
+      "border-b border-[var(--border)] hover:bg-[var(--surface-2)]/50 transition-colors",
       className
     )}
     {...props}
