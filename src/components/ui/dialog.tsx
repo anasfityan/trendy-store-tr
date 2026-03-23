@@ -60,7 +60,7 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
       <div className="min-h-full flex items-start justify-center py-8 px-4">
         <div
           className={cn(
-            "relative bg-[var(--card)] border border-[var(--border)] rounded-[var(--r-2xl)] shadow-[var(--shadow-xl)] max-w-lg w-[95vw] text-[var(--ink)] transition-all duration-200",
+            "relative bg-[var(--card)] border border-[var(--border)] rounded-[var(--r-2xl)] shadow-[var(--shadow-xl)] max-w-2xl w-[95vw] text-[var(--ink)] transition-all duration-200",
             closing
               ? "scale-95 opacity-0"
               : "scale-100 opacity-100"
