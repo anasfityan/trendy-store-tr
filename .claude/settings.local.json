@@ -63,7 +63,8 @@
       "Bash(xargs grep:*)",
       "Bash(find d:/Mawj-ERP/mawj-platform/node_modules/@primeuix/themes -path *dock* -type f)",
       "Bash(find d:/Mawj-ERP/mawj-platform/node_modules/@primeuix/styles -path *dock*)",
-      "Bash(grep -r \"Dock\\\\|<Dock\" d:/Mawj-ERP/mawj-platform --include=*.vue --include=*.ts --include=*.tsx)"
+      "Bash(grep -r \"Dock\\\\|<Dock\" d:/Mawj-ERP/mawj-platform --include=*.vue --include=*.ts --include=*.tsx)",
+      "WebFetch(domain:mawjgiftserp.cloud)"
     ]
   }
 }

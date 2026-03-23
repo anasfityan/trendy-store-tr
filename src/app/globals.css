@@ -85,7 +85,7 @@ body {
 }
 :is(.dark) .glass {
   background: rgba(17,24,39,0.75);
-  border-color: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.08);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
@@ -167,6 +167,84 @@ body {
 .stagger-children > *:nth-child(6) { animation-delay: 100ms; }
 .stagger-children > *:nth-child(7) { animation-delay: 120ms; }
 .stagger-children > *:nth-child(8) { animation-delay: 140ms; }
+
+/* ─── Aura Background Blobs ─── */
+.aura-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.03;
+  will-change: transform;
+}
+:is(.dark) .aura-blob {
+  filter: blur(140px);
+  opacity: 0.1;
+}
+.aura-blob-1 {
+  width: 650px;
+  height: 650px;
+  background: #4285f4;
+  top: -10%;
+  right: -5%;
+  animation: aura-drift-1 28s ease-in-out infinite;
+}
+.aura-blob-2 {
+  width: 500px;
+  height: 500px;
+  background: #3b5bdb;
+  bottom: -15%;
+  left: -10%;
+  animation: aura-drift-2 32s ease-in-out infinite;
+}
+.aura-blob-3 {
+  width: 400px;
+  height: 400px;
+  background: #7c3aed;
+  top: 40%;
+  left: 30%;
+  animation: aura-drift-3 25s ease-in-out infinite;
+}
+.aura-blob-4 {
+  width: 350px;
+  height: 350px;
+  background: #34a853;
+  top: 20%;
+  right: 20%;
+  animation: aura-drift-4 30s ease-in-out infinite;
+}
+.aura-blob-5 {
+  width: 300px;
+  height: 300px;
+  background: #4285f4;
+  bottom: 10%;
+  right: 30%;
+  animation: aura-drift-5 27s ease-in-out infinite;
+}
+@keyframes aura-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(30px, -40px) scale(1.08) rotate(5deg); }
+  66% { transform: translate(-20px, 20px) scale(0.95) rotate(-5deg); }
+}
+@keyframes aura-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(-40px, 30px) scale(1.1) rotate(-8deg); }
+  66% { transform: translate(30px, -20px) scale(0.92) rotate(8deg); }
+}
+@keyframes aura-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(50px, 20px) scale(1.06) rotate(10deg); }
+  66% { transform: translate(-30px, -30px) scale(0.97) rotate(-10deg); }
+}
+@keyframes aura-drift-4 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(-25px, -35px) scale(1.12) rotate(-15deg); }
+  66% { transform: translate(35px, 25px) scale(0.93) rotate(15deg); }
+}
+@keyframes aura-drift-5 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(20px, 40px) scale(1.05) rotate(7deg); }
+  66% { transform: translate(-40px, -15px) scale(0.98) rotate(-7deg); }
+}
 
 /* ─── Theme Transition ─── */
 

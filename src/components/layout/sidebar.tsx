@@ -85,14 +85,14 @@ export function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 text-base font-medium transition-colors ${
                 active
-                  ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
+                  ? "bg-[var(--accent)]/10 text-[var(--accent)] font-semibold"
                   : "text-[var(--muted)] hover:bg-[var(--surface-secondary)] hover:text-[var(--foreground)]"
               } ${collapsed ? "justify-center" : ""}`}
               title={collapsed ? item.label : undefined}
             >
-              <Icon size={20} className="shrink-0" />
+              <Icon className="w-6 h-6 shrink-0" />
               {!collapsed && <span>{item.label}</span>}
             </Link>
           );

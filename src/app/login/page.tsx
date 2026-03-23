@@ -49,6 +49,15 @@ export default function LoginPage() {
         backgroundSize: '32px 32px'
       }} />
 
+      {/* Aura background blobs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden>
+        <div className="aura-blob aura-blob-1" />
+        <div className="aura-blob aura-blob-2" />
+        <div className="aura-blob aura-blob-3" />
+        <div className="aura-blob aura-blob-4" />
+        <div className="aura-blob aura-blob-5" />
+      </div>
+
       <div className="relative w-full max-w-[420px] animate-fade-in-up">
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--overlay-shadow)]">
           {/* Logo */}
