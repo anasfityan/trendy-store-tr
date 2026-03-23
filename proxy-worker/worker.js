@@ -22,20 +22,65 @@ export default {
         return await handleInstagram(url);
       }
 
-      // Default: fetch page with browser UA
-      const res = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-          "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
-        redirect: "follow",
-      });
+      // Strategy 1: Try multiple User-Agents
+      const uas = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Googlebot/2.1 (+http://www.google.com/bot.html)",
+        "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)",
+      ];
 
-      const html = await res.text();
-      return new Response(html, {
-        status: res.status,
-        headers: { ...corsHeaders(), "Content-Type": "text/html; charset=utf-8" },
+      for (const ua of uas) {
+        try {
+          const res = await fetch(url, {
+            headers: {
+              "User-Agent": ua,
+              "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+              Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+            redirect: "follow",
+          });
+
+          if (res.ok) {
+            const html = await res.text();
+            // Check if we got a real page (not a captcha/block page)
+            if (html.includes("og:title") || html.includes("ld+json") || html.includes("__PRODUCT") || html.length > 50000) {
+              return new Response(html, {
+                status: 200,
+                headers: { ...corsHeaders(), "Content-Type": "text/html; charset=utf-8" },
+              });
+            }
+          }
+        } catch {}
+      }
+
+      // Strategy 2: Extract product info from the URL slug itself
+      // Most Turkish e-commerce URLs contain the product name in the slug
+      try {
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/').filter(Boolean);
+        // Find the product slug (usually the longest path segment with dashes)
+        let slug = pathParts.reduce((best, part) => part.length > best.length ? part : best, '');
+        // Remove product ID suffix like -p-XXXXX
+        slug = slug.replace(/-p-[A-Za-z0-9]+$/, '').replace(/-p\d+$/, '');
+        // Convert dashes to spaces and capitalize
+        const productName = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+        if (productName && productName.length > 5) {
+          const miniHtml = `<html><head>
+            <meta property="og:title" content="${productName.replace(/"/g, '&quot;')}" />
+            <meta property="product:price:currency" content="TRY" />
+          </head><body></body></html>`;
+          return new Response(miniHtml, {
+            status: 200,
+            headers: { ...corsHeaders(), "Content-Type": "text/html; charset=utf-8" },
+          });
+        }
+      } catch {}
+
+      // All strategies failed
+      return new Response("blocked", {
+        status: 403,
+        headers: corsHeaders(),
       });
     } catch (err) {
       return jsonResponse({ error: err.message }, 500);
