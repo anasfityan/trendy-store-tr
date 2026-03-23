@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Use Edge runtime — 30s timeout even on Vercel Hobby (vs 10s for Node.js)
 export const runtime = "edge";
+export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 export interface ScrapedProduct {

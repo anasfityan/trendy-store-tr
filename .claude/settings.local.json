@@ -69,7 +69,9 @@
       "Bash(find C:/Users/ihima/.claude/projects/ -name *.md -type f)",
       "Bash(find C:/Users/ihima/.claude/projects/ -name *vps* -o -name *hosting* -o -name *hostinger* -o -name *deploy* -o -name *server*)",
       "Read(//d/Mawj-ERP/mawj-aura/**)",
-      "Bash(find D:/Mawj-ERP/mawj-aura/app -name *settings* -o -name *Settings*)"
+      "Bash(find D:/Mawj-ERP/mawj-aura/app -name *settings* -o -name *Settings*)",
+      "Bash(find 'c:/Users/ihima/OneDrive/Desktop/Trendy store/node_modules/next/dist/docs' -name *.md)",
+      "Bash(grep -l \"export const runtime\" \"c:/Users/ihima/OneDrive/Desktop/Trendy store/src/app/api/\"*/route.ts)"
     ]
   }
 }

@@ -10,9 +10,6 @@
     "lint": "eslint",
     "seed": "npx tsx prisma/seed.ts"
   },
-  "prisma": {
-    "seed": "npx tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "^5.2.9",
     "@prisma/client": "^6.19.2",
