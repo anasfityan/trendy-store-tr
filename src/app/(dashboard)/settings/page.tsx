@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +33,8 @@ const categories = [
 ];
 
 export default function SettingsPage() {
-  const { isAdmin } = useAuthStore();
+  const { isAdmin, logout } = useAuthStore();
+  const router = useRouter();
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -131,6 +133,11 @@ export default function SettingsPage() {
     } catch (err) {
       console.error("Export database error:", err);
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
   };
 
   const filteredCategories = searchQuery.trim()
@@ -449,6 +456,12 @@ export default function SettingsPage() {
             >
               <Download size={16} />
               تصدير قاعدة البيانات
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2.5 border border-red-400 text-red-600 rounded-xl bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
+            >
+              تسجيل خروج
             </button>
             <p className="text-sm text-[var(--muted)]">
               يتم تنزيل نسخة احتياطية من قاعدة البيانات بصيغة JSON. احفظ هذه
