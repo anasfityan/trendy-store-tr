@@ -597,16 +597,24 @@ export default function OrdersPage() {
         const fetchedImages: string[] = mainImage ? [mainImage] : [];
         const firstColor = data.colors?.[0]?.name || "";
         const rawPrice = data.price || "";
+        const finalPurchaseCost = rawPrice ? String(parseFloat(rawPrice)) : item.purchaseCost;
         updateProductItem(itemId, {
           productName: data.name || item.productName,
           color: firstColor || item.color,
-          purchaseCost: rawPrice ? String(parseFloat(rawPrice)) : item.purchaseCost,
+          purchaseCost: finalPurchaseCost,
           productType: data.productType || item.productType,
           images: mainImage ? JSON.stringify(fetchedImages) : item.images,
           fetchedImages,
           availableColors: data.colors || [],
           availableSizes: data.sizes || [],
         });
+        if (finalPurchaseCost) {
+          const lira = parseFloat(finalPurchaseCost) || 0;
+          if (lira > 0) {
+            const converted = lookupIQD(lira, rates.usdIqd, rates.usdTry);
+            setField("sellingPrice", String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry))));
+          }
+        }
       } else {
         alert("فشل في جلب بيانات المنتج");
       }
@@ -816,136 +824,172 @@ export default function OrdersPage() {
           )}
         </div>
 
-        {/* Product Link — auto-fetch on input */}
-        <div className="relative">
-          <Input
-            placeholder="الصق رابط المنتج من Trendyol, HepsiBurada, Shule, N11, Koton..."
-            value={item.productLink}
-            onChange={(e) => updateProductItem(item.id, { productLink: e.target.value, fetchedImages: [], images: "" })}
-            dir="ltr"
-            className="text-left pe-10"
-          />
-          {isFetching ? (
-            <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--muted)]" />
-          ) : item.productLink && !isFetching ? (
-            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted)]" />
-          ) : null}
-        </div>
+        {/* Two-column layout: image left (50%) + fields right (50%) */}
+        <div className="grid grid-cols-2 gap-4 items-stretch">
 
-        {/* Image Gallery */}
-        {item.fetchedImages.length > 0 && (
-          <div className="animate-fade-in-up">
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {item.fetchedImages.map((img, i) => (
-                <div key={i} className="relative group shrink-0">
+          {/* Left: product image — centered horizontally & vertically */}
+          <div className="flex flex-col items-center justify-center gap-2 min-h-[200px]">
+            {item.fetchedImages.length > 0 ? (
+              <>
+                <div className="relative group w-full flex items-center justify-center">
                   <img
-                    src={img}
-                    alt={`منتج ${i + 1}`}
-                    className="h-20 w-20 rounded-lg object-cover border-2 border-border hover:border-primary/50 transition-all duration-200 hover:scale-105"
+                    src={item.fetchedImages[0]}
+                    alt="صورة المنتج"
+                    className="w-full aspect-square rounded-xl object-cover border-2 border-border"
                   />
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() =>
-                  updateProductItem(item.id, {
-                    fetchedImages: [],
-                    images: "",
-                  })
-                }
-                className="shrink-0 h-20 w-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-destructive hover:text-destructive transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Row 1: اللون + نوع المنتج */}
-        <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>اللون</Label>
-          <Input
-            value={item.color}
-            onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
-            placeholder="اللون"
-          />
-        </div>
-
-        {/* نوع المنتج */}
-        <div className="space-y-2">
-          <Label>نوع المنتج</Label>
-          <Select
-            value={item.productType}
-            onChange={(e) => updateProductItem(item.id, { productType: e.target.value })}
-          >
-            {PRODUCT_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </Select>
-        </div>
-        </div>
-
-        {/* Row 2: المقاس + سعر الشراء */}
-        <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>المقاس</Label>
-          {item.availableSizes.length > 0 ? (
-            <div className="space-y-2">
-              <div className="flex gap-2 flex-wrap">
-                {item.availableSizes.map((s, si) => (
                   <button
-                    key={si}
                     type="button"
-                    onClick={() => updateProductItem(item.id, { size: s })}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium cursor-pointer transition-all ${
-                      item.size === s
-                        ? "bg-[var(--accent)] text-white"
-                        : "bg-[var(--surface-secondary)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--foreground)]"
-                    }`}
+                    title="حذف الصورة"
+                    onClick={() => updateProductItem(item.id, { fetchedImages: [], images: "" })}
+                    className="absolute top-1 left-1 bg-black/50 hover:bg-destructive rounded-full p-0.5 text-white transition-colors"
                   >
-                    {s}
+                    <X className="h-3 w-3" />
                   </button>
-                ))}
+                </div>
+                {item.fetchedImages.length > 1 && (
+                  <div className="flex gap-1 overflow-x-auto pb-1 w-full justify-center">
+                    {item.fetchedImages.slice(1).map((img, i) => (
+                      <img
+                        key={i}
+                        src={img}
+                        alt={`صورة ${i + 2}`}
+                        className="h-10 w-10 shrink-0 rounded-lg object-cover border border-border opacity-70 hover:opacity-100 transition-opacity"
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="w-full aspect-square rounded-xl border-2 border-dashed border-border flex items-center justify-center text-muted-foreground">
+                <ImageIcon className="h-8 w-8 opacity-30" />
               </div>
+            )}
+          </div>
+
+          {/* Right: 6 fields — label inline with input */}
+          <div className="flex flex-col justify-center gap-1.5">
+            {/* رابط المنتج */}
+            <div className="flex items-center gap-2">
+              <Label className="text-xs shrink-0 w-16 text-end">رابط</Label>
+              <div className="relative flex-1">
+                <Input
+                  placeholder="الصق الرابط..."
+                  value={item.productLink}
+                  onChange={(e) => updateProductItem(item.id, { productLink: e.target.value, fetchedImages: [], images: "" })}
+                  dir="ltr"
+                  className="h-7 text-xs text-left pe-7"
+                />
+                {isFetching ? (
+                  <Loader2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-[var(--muted)]" />
+                ) : item.productLink ? (
+                  <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-[var(--muted)]" />
+                ) : null}
+              </div>
+            </div>
+
+            {/* اللون */}
+            <div className="flex items-center gap-2">
+              <Label className="text-xs shrink-0 w-16 text-end">اللون</Label>
               <Input
-                value={item.size}
-                onChange={(e) => updateProductItem(item.id, { size: e.target.value })}
-                placeholder="أو اكتب المقاس يدوياً"
-                className="text-sm"
+                value={item.color}
+                onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
+                placeholder="اللون"
+                className="h-7 text-xs flex-1"
               />
             </div>
-          ) : (
-            <Input
-              value={item.size}
-              onChange={(e) => updateProductItem(item.id, { size: e.target.value })}
-              placeholder="المقاس"
-            />
-          )}
-        </div>
 
-        {/* سعر الشراء */}
-        <div className="space-y-2">
-          <Label>سعر الشراء (ليرة)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            value={item.purchaseCost}
-            onChange={(e) => updateProductItem(item.id, { purchaseCost: e.target.value })}
-          />
-        </div>
-        </div>
+            {/* نوع المنتج */}
+            <div className="flex items-center gap-2">
+              <Label className="text-xs shrink-0 w-16 text-end">النوع</Label>
+              <Select
+                value={item.productType}
+                onChange={(e) => updateProductItem(item.id, { productType: e.target.value })}
+                className="h-7 text-xs flex-1 w-full"
+              >
+                {PRODUCT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </Select>
+            </div>
 
-        {/* IQD price preview */}
-        {parseFloat(item.purchaseCost) > 0 && (
-          <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)]">
-            <span className="text-xs text-[var(--muted)]">السعر بالدينار العراقي</span>
-            <span className="text-sm font-bold text-green-500">
-              {lookupIQD(parseFloat(item.purchaseCost), rates.usdIqd, rates.usdTry).toLocaleString("en-US")} د.ع
-            </span>
+            {/* المقاس */}
+            <div className="flex items-start gap-2">
+              <Label className="text-xs shrink-0 w-16 text-end mt-1.5">المقاس</Label>
+              <div className="flex-1">
+                {item.availableSizes.length > 0 ? (
+                  <div className="space-y-1">
+                    <div className="flex gap-1 flex-wrap">
+                      {item.availableSizes.map((s, si) => (
+                        <button
+                          key={si}
+                          type="button"
+                          onClick={() => updateProductItem(item.id, { size: s })}
+                          className={`px-2 py-0.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                            item.size === s
+                              ? "bg-[var(--accent)] text-white"
+                              : "bg-[var(--surface-secondary)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--foreground)]"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                    <Input
+                      value={item.size}
+                      onChange={(e) => updateProductItem(item.id, { size: e.target.value })}
+                      placeholder="يدوياً"
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                ) : (
+                  <Input
+                    value={item.size}
+                    onChange={(e) => updateProductItem(item.id, { size: e.target.value })}
+                    placeholder="المقاس"
+                    className="h-7 text-xs"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* سعر الشراء */}
+            <div className="flex items-center gap-2">
+              <Label className="text-xs shrink-0 w-16 text-end">شراء ليرة</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={item.purchaseCost}
+                className="h-7 text-xs flex-1"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  updateProductItem(item.id, { purchaseCost: val });
+                  const lira = parseFloat(val) || 0;
+                  if (lira > 0) {
+                    const converted = lookupIQD(lira, rates.usdIqd, rates.usdTry);
+                    setField("sellingPrice", String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry))));
+                  } else {
+                    setField("sellingPrice", "");
+                  }
+                }}
+              />
+            </div>
+
+            {/* سعر البيع */}
+            <div className="flex items-center gap-2">
+              <Label className="text-xs shrink-0 w-16 text-end" htmlFor="sellingPrice">بيع دينار</Label>
+              <Input
+                id="sellingPrice"
+                type="number"
+                step="1"
+                min="0"
+                value={form.sellingPrice}
+                className="h-7 text-xs flex-1"
+                onChange={(e) => setField("sellingPrice", e.target.value)}
+              />
+            </div>
           </div>
-        )}
+        </div>
       </div>
     );
   };
@@ -1254,18 +1298,7 @@ export default function OrdersPage() {
               <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
                 الأسعار
               </legend>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="sellingPrice">سعر البيع (دينار)</Label>
-                  <Input
-                    id="sellingPrice"
-                    type="number"
-                    step="1"
-                    min="0"
-                    value={form.sellingPrice}
-                    onChange={(e) => setField("sellingPrice", e.target.value)}
-                  />
-                </div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="deliveryCost">كلفة التوصيل (دينار)</Label>
                   <Select
