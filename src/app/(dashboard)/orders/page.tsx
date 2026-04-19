@@ -13,7 +13,6 @@ import {
   Link2,
   ImageIcon,
   X,
-  Languages,
   Package,
 } from "lucide-react";
 
@@ -179,6 +178,28 @@ const DELIVERY_COSTS = [
   { label: "5,000 د.ع", value: "5000" },
   { label: "6,000 د.ع", value: "6000" },
 ];
+
+// Pricing lookup table (TRY → IQD selling price) — from price calculator
+const PRICE_TABLE: [number, number][] = [[100,11000],[130,12000],[150,12000],[170,13000],[190,14000],[200,14000],[230,15000],[250,17000],[270,17000],[290,18000],[300,19000],[330,20000],[350,20000],[370,21000],[400,23000],[420,24000],[430,24000],[450,25000],[460,25000],[470,25000],[480,26000],[500,27000],[510,27000],[520,27000],[530,28000],[540,28000],[550,29000],[560,29000],[570,29000],[580,30000],[590,31000],[600,31000],[610,32000],[620,32000],[630,32000],[640,33000],[650,33000],[660,33000],[670,34000],[680,34000],[690,35000],[700,35000],[710,35000],[720,36000],[730,36000],[740,36000],[750,37000],[760,37000],[770,37000],[780,38000],[790,39000],[800,39000],[810,40000],[820,40000],[830,41000],[850,41000],[870,42000],[880,43000],[900,44000],[950,46000],[1000,51000],[1100,52000],[1150,54000],[1200,58000],[1300,61000],[1400,65000],[1500,68000],[1600,73000],[1700,77000],[1800,81000],[1900,84000],[2000,86000],[2050,88000],[2100,89000],[2150,91000],[2200,93000],[2250,95000],[2300,96000],[2350,99000],[2400,101000],[2450,103000],[2500,106000],[2600,110000],[2700,113000],[2800,117000],[2900,121000],[3000,125000],[3100,128000],[3200,132000],[3300,135000],[3400,141000],[3500,144000],[3600,148000],[3700,151000],[3800,155000],[3900,160000],[4000,164000],[4100,167000],[4200,171000],[4300,174000],[4400,179000],[4500,182000],[4600,186000],[4700,189000],[4800,193000],[4900,198000],[5000,202000],[5100,205000],[5200,209000],[5300,212000],[5400,218000],[5500,221000],[5600,225000],[5700,228000],[5800,232000],[5900,237000],[6000,248000],[6300,255000],[6500,262000],[6700,274000],[7000,285000],[7300,294000],[7500,311000],[8000,322000],[8300,329000],[8500,346000],[9000,357000],[9300,367000],[9600,367000]];
+const BASE_IQD = 1530, BASE_TRY = 43;
+
+function lookupIQD(lira: number, usdIqd: number, usdTry: number): number {
+  const t = PRICE_TABLE;
+  let base: number;
+  if (lira <= t[0][0]) { base = t[0][1]; }
+  else if (lira >= t[t.length - 1][0]) {
+    const [l1, d1] = t[t.length - 2], [l2, d2] = t[t.length - 1];
+    base = d2 + (lira - l2) * (d2 - d1) / (l2 - l1);
+  } else {
+    base = t[0][1];
+    for (let i = 0; i < t.length - 1; i++) {
+      const [l1, d1] = t[i], [l2, d2] = t[i + 1];
+      if (lira >= l1 && lira <= l2) { base = d1 + (lira - l1) / (l2 - l1) * (d2 - d1); break; }
+    }
+  }
+  const ratio = (usdIqd / usdTry) / (BASE_IQD / BASE_TRY);
+  return Math.round(base * ratio / 1000) * 1000;
+}
 
 const EMPTY_FORM: OrderFormData = {
   customerName: "",
@@ -390,6 +411,13 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rates, setRates] = useState({ usdIqd: BASE_IQD, usdTry: BASE_TRY });
+
+  useEffect(() => {
+    fetch("/api/settings").then(r => r.ok ? r.json() : null).then(d => {
+      if (d) setRates({ usdIqd: d.usdToIqd || BASE_IQD, usdTry: d.usdToTry || BASE_TRY });
+    }).catch(() => {});
+  }, []);
 
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
@@ -403,7 +431,6 @@ export default function OrdersPage() {
 
   // Per-item loading states
   const [fetchingItemId, setFetchingItemId] = useState<string | null>(null);
-  const [translatingItemId, setTranslatingItemId] = useState<string | null>(null);
   const [fetchingIG, setFetchingIG] = useState(false);
 
   const fetchInstagramName = useCallback(async () => {
@@ -438,6 +465,47 @@ export default function OrdersPage() {
     const t = setTimeout(() => setSearchDebounced(search), 400);
     return () => clearTimeout(t);
   }, [search]);
+
+  useEffect(() => {
+    const raw = form.instagram.trim();
+    if (!raw) return;
+    let handle = raw;
+    if (raw.includes("instagram.com/")) {
+      const match = raw.match(/instagram\.com\/([^/?#]+)/);
+      if (match) handle = match[1];
+    }
+    handle = handle.replace(/^@/, "");
+    if (!handle) return;
+    const t = setTimeout(async () => {
+      setFetchingIG(true);
+      try {
+        const res = await fetch("/api/instagram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: handle }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.displayName) {
+            setForm((f) => ({ ...f, customerName: data.displayName }));
+          }
+        }
+      } catch { /* ignore */ }
+      setFetchingIG(false);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [form.instagram]);
+
+  // Auto-fetch product info when any item's productLink changes
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    productItems.forEach((item) => {
+      if (!item.productLink.trim() || item.fetchedImages.length > 0) return;
+      const t = setTimeout(() => handleFetchProduct(item.id), 900);
+      timers.push(t);
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [productItems.map((i) => i.productLink).join("|")]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -525,16 +593,19 @@ export default function OrdersPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        const fetchedImages: string[] = data.allImages || (data.image ? [data.image] : []);
+        const mainImage: string = data.image || data.allImages?.[0] || "";
+        const fetchedImages: string[] = mainImage ? [mainImage] : [];
+        const firstColor = data.colors?.[0]?.name || "";
+        const rawPrice = data.price || "";
         updateProductItem(itemId, {
           productName: data.name || item.productName,
-          color: data.color || item.color,
-          purchaseCost: data.price || item.purchaseCost,
+          color: firstColor || item.color,
+          purchaseCost: rawPrice ? String(parseFloat(rawPrice)) : item.purchaseCost,
           productType: data.productType || item.productType,
-          images: fetchedImages.length > 0 ? JSON.stringify(fetchedImages) : item.images,
+          images: mainImage ? JSON.stringify(fetchedImages) : item.images,
           fetchedImages,
-          availableColors: data.colors || data.availableColors || [],
-          availableSizes: data.sizes || data.availableSizes || [],
+          availableColors: data.colors || [],
+          availableSizes: data.sizes || [],
         });
       } else {
         alert("فشل في جلب بيانات المنتج");
@@ -547,30 +618,6 @@ export default function OrdersPage() {
   };
 
   // Translate product name — per item
-  const handleTranslate = async (itemId: string) => {
-    const item = productItems.find((i) => i.id === itemId);
-    if (!item || !item.productName) return;
-    setTranslatingItemId(itemId);
-    try {
-      const res = await fetch("/api/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: item.productName, from: "tr", to: "ar" }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.translated) {
-          updateProductItem(itemId, { productName: data.translated });
-        }
-      } else {
-        alert("فشل في الترجمة");
-      }
-    } catch {
-      alert("خطأ في الاتصال");
-    } finally {
-      setTranslatingItemId(null);
-    }
-  };
 
   const handleNewOrder = () => {
     setEditingOrder(null);
@@ -743,7 +790,6 @@ export default function OrdersPage() {
   // -----------------------------------------------------------------------
   const renderProductItemCard = (item: ProductItem, index: number) => {
     const isFetching = fetchingItemId === item.id;
-    const isTranslating = translatingItemId === item.id;
 
     return (
       <div
@@ -770,31 +816,20 @@ export default function OrdersPage() {
           )}
         </div>
 
-        {/* Product Link + Fetch */}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <Input
-              placeholder="الصق رابط المنتج من Trendyol, HepsiBurada, N11, Koton..."
-              value={item.productLink}
-              onChange={(e) => updateProductItem(item.id, { productLink: e.target.value })}
-              dir="ltr"
-              className="text-left"
-            />
-          </div>
-          <Button
-            type="button"
-            onClick={() => handleFetchProduct(item.id)}
-            disabled={!item.productLink || isFetching}
-            variant="secondary"
-            className="shrink-0"
-          >
-            {isFetching ? (
-              <Loader2 className="h-4 w-4 animate-spin me-2" />
-            ) : (
-              <Link2 className="h-4 w-4 me-2" />
-            )}
-            {isFetching ? "جاري الجلب..." : "جلب البيانات"}
-          </Button>
+        {/* Product Link — auto-fetch on input */}
+        <div className="relative">
+          <Input
+            placeholder="الصق رابط المنتج من Trendyol, HepsiBurada, Shule, N11, Koton..."
+            value={item.productLink}
+            onChange={(e) => updateProductItem(item.id, { productLink: e.target.value, fetchedImages: [], images: "" })}
+            dir="ltr"
+            className="text-left pe-10"
+          />
+          {isFetching ? (
+            <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--muted)]" />
+          ) : item.productLink && !isFetching ? (
+            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted)]" />
+          ) : null}
         </div>
 
         {/* Image Gallery */}
@@ -826,96 +861,33 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* Product Type + Name + Translate */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>نوع المنتج</Label>
-            <Select
-              value={item.productType}
-              onChange={(e) => updateProductItem(item.id, { productType: e.target.value })}
-            >
-              {PRODUCT_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>اسم المنتج</Label>
-            <div className="flex gap-1.5">
-              <Input
-                value={item.productName}
-                onChange={(e) => updateProductItem(item.id, { productName: e.target.value })}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => handleTranslate(item.id)}
-                disabled={!item.productName || isTranslating}
-                title="ترجمة إلى العربية"
-                className="shrink-0"
-              >
-                {isTranslating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Languages className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Color Picker */}
+        {/* Row 1: اللون + نوع المنتج */}
+        <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>اللون</Label>
-          {item.availableColors.length > 0 ? (
-            <div className="space-y-2">
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {item.availableColors.map((c, ci) => (
-                  <button
-                    key={ci}
-                    type="button"
-                    title={c.name}
-                    onClick={() => updateProductItem(item.id, { color: c.name })}
-                    className={`w-8 h-8 rounded-full border-2 cursor-pointer transition-all shrink-0 ${
-                      item.color === c.name
-                        ? "border-[var(--accent)] ring-2 ring-[var(--accent)] ring-offset-1"
-                        : "border-[var(--border)] hover:border-[var(--accent)]/50"
-                    }`}
-                    style={
-                      c.image
-                        ? {
-                            backgroundImage: `url(${c.image})`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }
-                        : {}
-                    }
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={item.color}
-                  onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
-                  placeholder="أو اكتب اللون يدوياً"
-                  className="text-sm"
-                />
-                {item.color && (
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">{item.color}</span>
-                )}
-              </div>
-            </div>
-          ) : (
-            <Input
-              value={item.color}
-              onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
-              placeholder="اللون"
-            />
-          )}
+          <Input
+            value={item.color}
+            onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
+            placeholder="اللون"
+          />
         </div>
 
-        {/* Size Picker */}
+        {/* نوع المنتج */}
+        <div className="space-y-2">
+          <Label>نوع المنتج</Label>
+          <Select
+            value={item.productType}
+            onChange={(e) => updateProductItem(item.id, { productType: e.target.value })}
+          >
+            {PRODUCT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </Select>
+        </div>
+        </div>
+
+        {/* Row 2: المقاس + سعر الشراء */}
+        <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>المقاس</Label>
           {item.availableSizes.length > 0 ? (
@@ -952,7 +924,7 @@ export default function OrdersPage() {
           )}
         </div>
 
-        {/* Purchase Cost */}
+        {/* سعر الشراء */}
         <div className="space-y-2">
           <Label>سعر الشراء (ليرة)</Label>
           <Input
@@ -963,6 +935,17 @@ export default function OrdersPage() {
             onChange={(e) => updateProductItem(item.id, { purchaseCost: e.target.value })}
           />
         </div>
+        </div>
+
+        {/* IQD price preview */}
+        {parseFloat(item.purchaseCost) > 0 && (
+          <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)]">
+            <span className="text-xs text-[var(--muted)]">السعر بالدينار العراقي</span>
+            <span className="text-sm font-bold text-green-500">
+              {lookupIQD(parseFloat(item.purchaseCost), rates.usdIqd, rates.usdTry).toLocaleString("en-US")} د.ع
+            </span>
+          </div>
+        )}
       </div>
     );
   };
@@ -1179,33 +1162,18 @@ export default function OrdersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="instagram">انستغرام</Label>
-                  <div className="flex gap-2">
+                  <div className="relative">
                     <Input
                       id="instagram"
                       dir="ltr"
-                      className="flex-1 text-left"
+                      className="text-left"
                       value={form.instagram}
                       onChange={(e) => setField("instagram", e.target.value)}
                       placeholder="اسم المستخدم أو الرابط"
-                      onBlur={() => {
-                        if (form.instagram && !form.customerName) fetchInstagramName();
-                      }}
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={fetchInstagramName}
-                      disabled={!form.instagram.trim() || fetchingIG}
-                      title="جلب الاسم من انستغرام"
-                      className="shrink-0 h-10"
-                    >
-                      {fetchingIG ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "جلب الاسم"
-                      )}
-                    </Button>
+                    {fetchingIG && (
+                      <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--muted)]" />
+                    )}
                   </div>
                 </div>
               </div>

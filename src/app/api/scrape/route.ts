@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Use Edge runtime — 30s timeout even on Vercel Hobby (vs 10s for Node.js)
-export const runtime = "edge";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
@@ -19,27 +17,54 @@ export interface ScrapedProduct {
   productType?: string;
 }
 
+const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const PROXY_URL = "https://trendy-proxy.ibra-315.workers.dev";
+
+// Turkish sites that work with direct fetch (no IP blocking)
+const DIRECT_FETCH_HOSTS = [
+  "shulebags.com", "ticimax.cloud",
+  "trendyol.com", "hepsiburada.com", "n11.com",
+  "koton.com", "lcwaikiki.com", "defacto.com.tr",
+  "boyner.com.tr", "morhipo.com", "markafoni.com",
+  "modanisa.com", "lidyana.com", "fashfed.com",
+  "pttavm.com", "gittigidiyor.com", "ciceksepeti.com",
+];
+
+async function fetchHtml(url: string): Promise<string> {
+  const hostname = new URL(url).hostname.toLowerCase();
+  const useDirect = DIRECT_FETCH_HOSTS.some((h) => hostname.includes(h));
+
+  if (useDirect) {
+    const res = await fetch(url, {
+      headers: { "User-Agent": BROWSER_UA, "Accept": "text/html" },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.text();
+  }
+
+  const proxyRes = await fetch(PROXY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!proxyRes.ok) throw new Error(`Proxy ${proxyRes.status}`);
+  return proxyRes.text();
+}
+
 export async function POST(req: NextRequest) {
-  // Auth is handled by middleware (cookie check)
   try {
     const { url } = await req.json();
     if (!url || typeof url !== "string") {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
-    // Use Cloudflare Worker proxy to bypass IP blocks from Vercel
-    const PROXY_URL = "https://trendy-proxy.ibra-315.workers.dev";
-    const proxyRes = await fetch(PROXY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-
-    if (!proxyRes.ok) {
-      return NextResponse.json({ error: `فشل في جلب الصفحة (${proxyRes.status})` }, { status: 502 });
+    let html: string;
+    try {
+      html = await fetchHtml(url);
+    } catch {
+      return NextResponse.json({ error: "فشل في جلب الصفحة" }, { status: 502 });
     }
 
-    const html = await proxyRes.text();
     const result: ScrapedProduct = { name: "" };
     const hostname = new URL(url).hostname.toLowerCase();
 

@@ -1,16 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
 import {
   ShoppingCart,
   Clock,
   DollarSign,
   AlertCircle,
-  MessageCircle,
   Package,
-  FileText,
-  CreditCard,
 } from "lucide-react";
 import { formatIQD } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
@@ -46,24 +42,6 @@ interface DashboardData {
   }[];
 }
 
-const statusBadge: Record<string, { label: string; color: string }> = {
-  new: { label: "جديد", color: "blue" },
-  in_progress: { label: "قيد التنفيذ", color: "amber" },
-  bought: { label: "تم الشراء", color: "purple" },
-  shipped: { label: "تم الشحن", color: "indigo" },
-  delivered: { label: "تم التسليم", color: "green" },
-  cancelled: { label: "ملغي", color: "red" },
-};
-
-const colorMap: Record<string, string> = {
-  blue: "bg-blue-500/10 text-blue-500",
-  amber: "bg-amber-500/10 text-amber-500",
-  purple: "bg-purple-500/10 text-purple-500",
-  indigo: "bg-indigo-500/10 text-indigo-500",
-  green: "bg-green-500/10 text-green-500",
-  red: "bg-red-500/10 text-red-500",
-  gray: "bg-gray-500/10 text-gray-500",
-};
 
 function SkeletonCard() {
   return (
@@ -139,7 +117,7 @@ export default function DashboardPage() {
     );
   }
 
-  const { stats, openBatch, recentOrders, unpaidDelivered } = data;
+  const { stats, openBatch } = data;
   const batchProgress =
     openBatch && openBatch.totalCount > 0
       ? (openBatch.boughtCount / openBatch.totalCount) * 100
@@ -174,9 +152,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Title */}
-      <h1 className="text-page-title">لوحة التحكم</h1>
-
       {/* Stats Grid */}
       <div className="stagger-children grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {statCards.map((stat) => {
@@ -240,120 +215,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Recent Orders */}
-      <div className="card-glow rounded-xl border border-[var(--border)] bg-[var(--surface)] animate-fade-in-up">
-        <div className="flex items-center gap-2.5 px-4 sm:px-6 py-4 sm:py-5 border-b border-[var(--border)]">
-          <div className="bg-blue-500/10 text-blue-500 p-2 rounded-xl">
-            <FileText className="h-5 w-5" />
-          </div>
-          <h2 className="text-section-title">أحدث الطلبات</h2>
-        </div>
-        <div className="px-4 sm:px-6 py-4 sm:py-5">
-          {recentOrders.length === 0 ? (
-            <p className="text-center text-[var(--muted)] py-8">لا توجد طلبات</p>
-          ) : (
-            <div className="overflow-x-auto -mx-4 sm:-mx-6">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    <th className="text-start px-4 sm:px-6 pb-3 text-[var(--muted)] font-medium text-xs">العميل</th>
-                    <th className="text-start px-4 pb-3 text-[var(--muted)] font-medium text-xs">المنتج</th>
-                    <th className="text-start px-4 pb-3 text-[var(--muted)] font-medium text-xs">الحالة</th>
-                    <th className="text-start px-4 pb-3 text-[var(--muted)] font-medium text-xs">السعر</th>
-                    <th className="text-start px-4 sm:px-6 pb-3 text-[var(--muted)] font-medium text-xs">التاريخ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentOrders.map((order) => {
-                    const badge = statusBadge[order.status] ?? {
-                      label: order.status,
-                      color: "gray",
-                    };
-                    const badgeClass = colorMap[badge.color] ?? colorMap.gray;
-
-                    return (
-                      <tr
-                        key={order.id}
-                        className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-secondary)] transition-colors"
-                      >
-                        <td className="px-4 sm:px-6 py-3 font-medium">{order.customer?.name}</td>
-                        <td className="px-4 py-3">{order.productName}</td>
-                        <td className="px-4 py-3">
-                          <span className={`${badgeClass} rounded-full px-2.5 py-0.5 text-xs font-semibold`}>
-                            {badge.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">{formatIQD(order.sellingPrice)}</td>
-                        <td className="px-4 sm:px-6 py-3 text-[var(--muted)]">
-                          {format(new Date(order.createdAt), "dd MMM yyyy")}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Unpaid Delivered Orders */}
-      {unpaidDelivered.length > 0 && (
-        <div className="card-glow rounded-xl border border-[var(--border)] bg-[var(--surface)] animate-fade-in-up">
-          <div className="flex items-center gap-2.5 px-4 sm:px-6 py-4 sm:py-5 border-b border-[var(--border)]">
-            <div className="bg-red-500/10 text-red-500 p-2 rounded-xl">
-              <CreditCard className="h-5 w-5" />
-            </div>
-            <h2 className="text-section-title">طلبات مسلّمة غير مدفوعة</h2>
-          </div>
-          <div className="px-4 sm:px-6 py-4 sm:py-5">
-            <div className="overflow-x-auto -mx-4 sm:-mx-6">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    <th className="text-start px-4 sm:px-6 pb-3 text-[var(--muted)] font-medium text-xs">العميل</th>
-                    <th className="text-start px-4 pb-3 text-[var(--muted)] font-medium text-xs">المنتج</th>
-                    <th className="text-start px-4 pb-3 text-[var(--muted)] font-medium text-xs">المبلغ المستحق</th>
-                    <th className="text-start px-4 pb-3 text-[var(--muted)] font-medium text-xs">الهاتف</th>
-                    <th className="text-start px-4 sm:px-6 pb-3 text-[var(--muted)] font-medium text-xs">إجراء</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unpaidDelivered.map((order) => {
-                    const amountOwed = order.sellingPrice - order.deposit;
-                    const phone = order.customer?.phone?.replace(/[^0-9]/g, "");
-                    const message = encodeURIComponent(
-                      `مرحباً ${order.customer?.name}، نود تذكيرك بدفع المبلغ المتبقي لطلبك "${order.productName}" بقيمة ${formatIQD(amountOwed)}. نرجو إعلامنا بموعد الدفع المناسب. شكراً لك!`
-                    );
-                    return (
-                      <tr
-                        key={order.id}
-                        className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-secondary)] transition-colors"
-                      >
-                        <td className="px-4 sm:px-6 py-3 font-medium">{order.customer?.name}</td>
-                        <td className="px-4 py-3">{order.productName}</td>
-                        <td className="px-4 py-3 tabular-nums">{formatIQD(amountOwed)}</td>
-                        <td className="px-4 py-3 text-[var(--muted)]">{order.customer?.phone}</td>
-                        <td className="px-4 sm:px-6 py-3">
-                          <a
-                            href={`https://wa.me/${phone}?text=${message}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 bg-green-500/10 text-green-500 rounded-full px-3 py-1 text-xs font-semibold hover:bg-green-500/20 transition-colors"
-                          >
-                            <MessageCircle className="h-3.5 w-3.5" />
-                            واتساب
-                          </a>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

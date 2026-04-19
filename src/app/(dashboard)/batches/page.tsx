@@ -13,24 +13,20 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import {
   Plus,
   Pencil,
   Trash2,
   Eye,
-  ChevronDown,
-  ChevronUp,
   Package,
   Loader2,
+  ChevronDown,
+  ChevronUp,
+  X,
+  ArrowRightLeft,
+  RotateCcw,
+  CheckCircle2,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { formatIQD, formatUSD, formatTRY } from "@/lib/utils";
@@ -50,7 +46,8 @@ interface Order {
   deposit: number;
   status: string;
   paymentStatus: string;
-  customer: { id: string; name: string };
+  notes: string | null;
+  customer: { id: string; name: string; phone?: string };
 }
 
 interface Batch {
@@ -92,21 +89,335 @@ const STATUS_OPTIONS = [
   { value: "completed", label: "مكتملة" },
 ];
 
-function statusBadge(status: string) {
+const ORDER_STATUS_OPTIONS = [
+  { value: "new", label: "جديد" },
+  { value: "in_progress", label: "قيد التنفيذ" },
+  { value: "bought", label: "تم الشراء" },
+  { value: "shipped", label: "تم الشحن" },
+  { value: "delivered", label: "تم التسليم" },
+  { value: "cancelled", label: "ملغي" },
+];
+
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  new: "bg-blue-500/10 text-blue-600",
+  in_progress: "bg-amber-500/10 text-amber-600",
+  bought: "bg-purple-500/10 text-purple-600",
+  shipped: "bg-indigo-500/10 text-indigo-600",
+  delivered: "bg-green-500/10 text-green-600",
+  cancelled: "bg-red-500/10 text-red-600",
+};
+
+function batchStatusBadge(status: string) {
   const map: Record<string, { label: string; className: string }> = {
     open: { label: "مفتوحة", className: "bg-blue-500 text-white border-transparent" },
     shipped: { label: "تم الشحن", className: "bg-amber-500 text-white border-transparent" },
-    in_distribution: {
-      label: "قيد التوزيع",
-      className: "bg-purple-500 text-white border-transparent",
-    },
+    in_distribution: { label: "قيد التوزيع", className: "bg-purple-500 text-white border-transparent" },
     completed: { label: "مكتملة", className: "bg-green-500 text-white border-transparent" },
   };
   const info = map[status] ?? { label: status, className: "" };
   return <Badge className={info.className}>{info.label}</Badge>;
 }
 
-// ---------- Component ----------
+// ---------- Batch Orders Modal ----------
+
+function BatchOrdersModal({
+  batch,
+  batches,
+  onClose,
+  onRefresh,
+  isAdmin,
+}: {
+  batch: Batch;
+  batches: Batch[];
+  onClose: () => void;
+  onRefresh: () => void;
+  isAdmin: boolean;
+}) {
+  const [orders, setOrders] = useState<Order[]>(batch.orders);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [editStatus, setEditStatus] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [movingOrderId, setMovingOrderId] = useState<string | null>(null);
+  const [targetBatchId, setTargetBatchId] = useState("");
+
+  const otherBatches = batches.filter((b) => b.id !== batch.id);
+
+  async function updateOrder(orderId: string, data: Record<string, unknown>) {
+    setLoadingOrderId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updated } : o)));
+      }
+    } catch (err) {
+      console.error("Update order failed", err);
+    }
+    setLoadingOrderId(null);
+  }
+
+  async function deleteOrder(orderId: string) {
+    if (!confirm("هل أنت متأكد من حذف هذا الطلب؟")) return;
+    setLoadingOrderId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
+      if (res.ok) {
+        setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      }
+    } catch (err) {
+      console.error("Delete order failed", err);
+    }
+    setLoadingOrderId(null);
+  }
+
+  async function moveOrder(orderId: string) {
+    if (!targetBatchId) return;
+    await updateOrder(orderId, { batchId: targetBatchId });
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    setMovingOrderId(null);
+    setTargetBatchId("");
+  }
+
+  function startEdit(order: Order) {
+    setEditingOrder(order);
+    setEditStatus(order.status);
+    setEditNotes(order.notes ?? "");
+  }
+
+  async function saveEdit() {
+    if (!editingOrder) return;
+    await updateOrder(editingOrder.id, { status: editStatus, notes: editNotes });
+    setEditingOrder(null);
+  }
+
+  const statusLabel = (s: string) => ORDER_STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--background)]" dir="rtl">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--surface)]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+            <Package size={18} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-[var(--foreground)]">{batch.name}</h2>
+            <p className="text-xs text-[var(--muted)]">{orders.length} طلب</p>
+          </div>
+        </div>
+        <button
+          onClick={() => { onRefresh(); onClose(); }}
+          title="إغلاق"
+          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[var(--surface-secondary)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* Orders List */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3">
+        {orders.length === 0 && (
+          <div className="flex items-center justify-center h-40 text-[var(--muted)]">
+            لا توجد طلبات في هذه الشحنة
+          </div>
+        )}
+
+        {orders.map((order) => {
+          const isExpanded = expandedOrderId === order.id;
+          const isLoading = loadingOrderId === order.id;
+          const isMoving = movingOrderId === order.id;
+          const isEditing = editingOrder?.id === order.id;
+          const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-gray-500/10 text-gray-600";
+
+          return (
+            <div
+              key={order.id}
+              className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden transition-all"
+            >
+              {/* Row header */}
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-right hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
+                onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-[var(--foreground)] truncate">
+                    {order.customer.name}
+                  </p>
+                  <p className="text-xs text-[var(--muted)] truncate mt-0.5">
+                    {order.productName || order.productType}
+                    {order.color ? ` · ${order.color}` : ""}
+                    {order.size ? ` · ${order.size}` : ""}
+                  </p>
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${statusColor}`}>
+                  {statusLabel(order.status)}
+                </span>
+                <div className="text-xs text-[var(--muted)] tabular-nums shrink-0">
+                  {formatIQD(order.sellingPrice)}
+                </div>
+                {isLoading ? (
+                  <Loader2 size={16} className="animate-spin text-[var(--muted)] shrink-0" />
+                ) : isExpanded ? (
+                  <ChevronUp size={16} className="text-[var(--muted)] shrink-0" />
+                ) : (
+                  <ChevronDown size={16} className="text-[var(--muted)] shrink-0" />
+                )}
+              </button>
+
+              {/* Expanded actions */}
+              {isExpanded && (
+                <div className="border-t border-[var(--border)] px-4 py-4 space-y-4 bg-[var(--background)]">
+
+                  {/* Edit mode */}
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-[var(--muted)]">الحالة</label>
+                        <Select
+                          value={editStatus}
+                          onChange={(e) => setEditStatus(e.target.value)}
+                          className="text-sm"
+                        >
+                          {ORDER_STATUS_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-[var(--muted)]">ملاحظات</label>
+                        <textarea
+                          value={editNotes}
+                          onChange={(e) => setEditNotes(e.target.value)}
+                          placeholder="ملاحظات..."
+                          rows={2}
+                          className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] resize-none outline-none focus:border-[var(--accent)] transition-colors"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEdit} disabled={isLoading}>
+                          <CheckCircle2 size={14} className="me-1.5" />
+                          حفظ
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingOrder(null)}>
+                          إلغاء
+                        </Button>
+                      </div>
+                    </div>
+                  ) : isMoving ? (
+                    /* Move to batch */
+                    <div className="space-y-3">
+                      <p className="text-xs font-medium text-[var(--muted)]">نقل إلى شحنة أخرى</p>
+                      <Select
+                        value={targetBatchId}
+                        onChange={(e) => setTargetBatchId(e.target.value)}
+                        className="text-sm"
+                      >
+                        <option value="">اختر الشحنة...</option>
+                        {otherBatches.map((b) => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                      </Select>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => moveOrder(order.id)} disabled={!targetBatchId || isLoading}>
+                          <ArrowRightLeft size={14} className="me-1.5" />
+                          نقل
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setMovingOrderId(null)}>
+                          إلغاء
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Action buttons */
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => startEdit(order)}
+                      >
+                        <Pencil size={13} className="me-1.5" />
+                        تعديل
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateOrder(order.id, { status: "new" })}
+                        disabled={isLoading || order.status === "new"}
+                      >
+                        <RotateCcw size={13} className="me-1.5" />
+                        إعادة للمعلق
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setMovingOrderId(order.id);
+                          setTargetBatchId("");
+                        }}
+                        disabled={otherBatches.length === 0}
+                      >
+                        <ArrowRightLeft size={13} className="me-1.5" />
+                        نقل لشحنة
+                      </Button>
+
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => deleteOrder(order.id)}
+                          disabled={isLoading}
+                        >
+                          <Trash2 size={13} className="me-1.5" />
+                          حذف
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Order details */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-[var(--border)]">
+                    <div className="text-xs">
+                      <p className="text-[var(--muted)]">سعر الشراء</p>
+                      <p className="font-medium">{formatTRY(order.purchaseCost)}</p>
+                    </div>
+                    <div className="text-xs">
+                      <p className="text-[var(--muted)]">سعر البيع</p>
+                      <p className="font-medium">{formatIQD(order.sellingPrice)}</p>
+                    </div>
+                    <div className="text-xs">
+                      <p className="text-[var(--muted)]">الدفعة المقدمة</p>
+                      <p className="font-medium">{formatIQD(order.deposit)}</p>
+                    </div>
+                    <div className="text-xs">
+                      <p className="text-[var(--muted)]">الدفع</p>
+                      <p className="font-medium">{order.paymentStatus === "paid" ? "مدفوع" : "غير مدفوع"}</p>
+                    </div>
+                  </div>
+
+                  {order.notes && (
+                    <p className="text-xs text-[var(--muted)] bg-[var(--surface)] rounded-xl px-3 py-2">
+                      {order.notes}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Main Component ----------
 
 export default function BatchesPage() {
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -116,31 +427,35 @@ export default function BatchesPage() {
   const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
   const [form, setForm] = useState<BatchFormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [viewingBatch, setViewingBatch] = useState<Batch | null>(null);
 
   const isAdmin = useAuthStore((s) => s.isAdmin);
 
-  // Fetch batches + settings
   const fetchData = useCallback(async () => {
     try {
       const [batchRes, settingsRes] = await Promise.all([
         fetch("/api/batches"),
         fetch("/api/settings"),
       ]);
-      if (batchRes.ok) setBatches(await batchRes.json());
+      if (batchRes.ok) {
+        const data = await batchRes.json();
+        setBatches(data);
+        if (viewingBatch) {
+          const updated = data.find((b: Batch) => b.id === viewingBatch.id);
+          if (updated) setViewingBatch(updated);
+        }
+      }
       if (settingsRes.ok) setSettings(await settingsRes.json());
     } catch (err) {
       console.error("Failed to fetch batches", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [viewingBatch]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
-
-  // ---------- Handlers ----------
+  }, []);
 
   function openCreate() {
     setEditingBatch(null);
@@ -170,16 +485,13 @@ export default function BatchesPage() {
         shippingCost: form.shippingCost,
         status: form.status,
       };
-
       const url = editingBatch ? `/api/batches/${editingBatch.id}` : "/api/batches";
       const method = editingBatch ? "PUT" : "POST";
-
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       if (res.ok) {
         setDialogOpen(false);
         fetchData();
@@ -201,20 +513,10 @@ export default function BatchesPage() {
     }
   }
 
-  function toggleExpand(id: string) {
-    setExpandedId((prev) => (prev === id ? null : id));
-  }
-
-  // ---------- Profit calculation ----------
-
   function calcProfit(batch: Batch) {
     if (!settings) return { revenue: 0, purchaseCosts: 0, shippingCosts: 0, profit: 0 };
-
     const revenue = batch.orders.reduce((sum, o) => sum + o.sellingPrice, 0);
-    const purchaseCosts = batch.orders.reduce(
-      (sum, o) => sum + o.purchaseCost * settings.tryToIqd,
-      0
-    );
+    const purchaseCosts = batch.orders.reduce((sum, o) => sum + o.purchaseCost * settings.tryToIqd, 0);
     const shippingCosts = batch.shippingCost * settings.usdToIqd;
     const profit = revenue - purchaseCosts - shippingCosts;
     return { revenue, purchaseCosts, shippingCosts, profit };
@@ -223,8 +525,6 @@ export default function BatchesPage() {
   function boughtCount(batch: Batch) {
     return batch.orders.filter((o) => o.status !== "new" && o.status !== "cancelled").length;
   }
-
-  // ---------- Render ----------
 
   if (loading) {
     return (
@@ -262,19 +562,17 @@ export default function BatchesPage() {
             const { revenue, purchaseCosts, shippingCosts, profit } = calcProfit(batch);
             const bought = boughtCount(batch);
             const total = batch._count.orders;
-            const isExpanded = expandedId === batch.id;
 
             return (
               <Card key={batch.id} className="flex flex-col">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-lg">{batch.name}</CardTitle>
-                    {statusBadge(batch.status)}
+                    {batchStatusBadge(batch.status)}
                   </div>
                 </CardHeader>
 
                 <CardContent className="flex-1 space-y-3 text-sm">
-                  {/* Dates */}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <span className="text-muted-foreground">تاريخ الفتح:</span>{" "}
@@ -282,13 +580,10 @@ export default function BatchesPage() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">تاريخ الإغلاق:</span>{" "}
-                      {batch.closeDate
-                        ? format(new Date(batch.closeDate), "MMM d, yyyy")
-                        : "---"}
+                      {batch.closeDate ? format(new Date(batch.closeDate), "MMM d, yyyy") : "---"}
                     </div>
                   </div>
 
-                  {/* Shipping + Orders */}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <span className="text-muted-foreground">الشحن:</span>{" "}
@@ -299,13 +594,10 @@ export default function BatchesPage() {
                     </div>
                   </div>
 
-                  {/* Progress */}
                   <div>
                     <div className="flex justify-between text-xs text-muted-foreground mb-1">
                       <span>التقدم</span>
-                      <span>
-                        {bought} تم شراؤها / {total} الإجمالي
-                      </span>
+                      <span>{bought} تم شراؤها / {total} الإجمالي</span>
                     </div>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden">
                       <div
@@ -315,7 +607,6 @@ export default function BatchesPage() {
                     </div>
                   </div>
 
-                  {/* Profit breakdown */}
                   {settings && (
                     <div className="rounded-md border p-3 space-y-1 text-xs">
                       <div className="flex justify-between">
@@ -338,72 +629,19 @@ export default function BatchesPage() {
                       </div>
                     </div>
                   )}
-
-                  {/* Expanded orders table */}
-                  {isExpanded && batch.orders.length > 0 && (
-                    <div className="rounded-md border overflow-x-auto mt-2">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>العميل</TableHead>
-                            <TableHead>المنتج</TableHead>
-                            <TableHead>الحالة</TableHead>
-                            <TableHead className="text-start">سعر البيع</TableHead>
-                            <TableHead className="text-start">سعر الشراء</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {batch.orders.map((order) => (
-                            <TableRow key={order.id}>
-                              <TableCell className="font-medium">
-                                {order.customer.name}
-                              </TableCell>
-                              <TableCell>
-                                {order.productName || order.productType}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-xs">
-                                  {order.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-start">
-                                {formatIQD(order.sellingPrice)}
-                              </TableCell>
-                              <TableCell className="text-start">
-                                {formatTRY(order.purchaseCost)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                  {isExpanded && batch.orders.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">
-                      لا توجد طلبات في هذه الشحنة.
-                    </p>
-                  )}
                 </CardContent>
 
                 <CardFooter className="gap-2 flex-wrap">
-                  <Button variant="outline" size="sm" onClick={() => toggleExpand(batch.id)}>
-                    {isExpanded ? (
-                      <ChevronUp className="me-1 h-4 w-4" />
-                    ) : (
-                      <Eye className="me-1 h-4 w-4" />
-                    )}
-                    {isExpanded ? "إخفاء الطلبات" : "عرض الطلبات"}
+                  <Button variant="outline" size="sm" onClick={() => setViewingBatch(batch)}>
+                    <Eye className="me-1 h-4 w-4" />
+                    عرض الطلبات
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => openEdit(batch)}>
                     <Pencil className="me-1 h-4 w-4" />
                     تعديل
                   </Button>
                   {isAdmin() && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(batch.id)}
-                    >
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(batch.id)}>
                       <Trash2 className="me-1 h-4 w-4" />
                       حذف
                     </Button>
@@ -413,6 +651,17 @@ export default function BatchesPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Batch Orders Full-Page Modal */}
+      {viewingBatch && (
+        <BatchOrdersModal
+          batch={viewingBatch}
+          batches={batches}
+          onClose={() => setViewingBatch(null)}
+          onRefresh={fetchData}
+          isAdmin={isAdmin()}
+        />
       )}
 
       {/* Create / Edit Dialog */}

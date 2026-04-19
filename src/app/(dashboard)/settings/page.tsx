@@ -15,6 +15,7 @@ import {
   Search,
   X,
   ChevronLeft,
+  LogOut,
 } from "lucide-react";
 
 interface SettingsData {
@@ -33,7 +34,7 @@ const categories = [
 ];
 
 export default function SettingsPage() {
-  const { isAdmin, logout } = useAuthStore();
+  const { isAdmin, logout, user } = useAuthStore();
   const router = useRouter();
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +178,29 @@ export default function SettingsPage() {
         {/* Desktop Sidebar */}
         <nav className="hidden lg:block w-72 shrink-0">
           <div className="sticky top-28 space-y-3">
+            {/* Profile card */}
+            {user && (
+              <div
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 flex items-center gap-3"
+                style={{ boxShadow: "var(--shadow-sm)" }}
+              >
+                <div className="w-10 h-10 rounded-full bg-[var(--accent)] text-white flex items-center justify-center text-base font-bold shrink-0">
+                  {user.name.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-[var(--foreground)] truncate">{user.name}</p>
+                  <p className="text-[11px] text-[var(--muted)] truncate">{user.role === "admin" ? "مدير" : user.role}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  title="تسجيل الخروج"
+                  className="flex items-center justify-center w-8 h-8 rounded-xl text-[var(--muted)] hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+                >
+                  <LogOut size={16} strokeWidth={1.8} />
+                </button>
+              </div>
+            )}
+
             {/* Search */}
             <div className="relative">
               <Search

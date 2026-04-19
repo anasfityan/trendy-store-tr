@@ -1,10 +1,23 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { AuraBackground } from "./aura-background";
 import { AppNavbar } from "./top-bar";
 import { Dock } from "./dock";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    const isReload = nav?.type === "reload";
+    if (isReload && pathname !== "/") {
+      router.replace("/");
+    }
+  }, []);
+
   return (
     <div className="min-h-dvh bg-ground transition-colors duration-300" dir="rtl">
       <a
@@ -21,7 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         id="main-content"
         className="px-4 sm:px-7 lg:px-10"
         style={{
-          paddingTop: "calc(112px + 20px)",
+          paddingTop: "calc(56px + 20px)",
           paddingBottom: "calc(80px + 32px)",
         }}
       >
