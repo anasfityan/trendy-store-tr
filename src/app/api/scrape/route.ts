@@ -286,6 +286,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Embedded script JSON scan for color/renk keys
+    if (!result.colors?.length) {
+      for (const [, content] of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
+        const m = content.match(/"(?:renk|color|colorName|colour)"\s*:\s*"([^"]{1,60})"/i);
+        if (m?.[1]?.trim()) {
+          result.colors = [{ name: m[1].trim() }];
+          break;
+        }
+      }
+    }
+
     // Generic color extraction
     if (!result.colors?.length) {
       const genericColors = [...html.matchAll(/(?:data-(?:color|variant-color)|class="[^"]*color[^"]*")[^>]*title="([^"]+)"/gi)];
