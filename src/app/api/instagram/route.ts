@@ -64,11 +64,7 @@ export async function POST(req: NextRequest) {
     }
 
     const decoded = decodeHtmlEntities(ogMatch[1]);
-    const displayName = handle;
-
-    if (!displayName) {
-      return NextResponse.json({ error: "لم يتم العثور على الاسم" }, { status: 404 });
-    }
+    const displayName = extractDisplayName(decoded) || handle;
 
     return NextResponse.json({ displayName });
   } catch {

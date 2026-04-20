@@ -487,7 +487,7 @@ export default function OrdersPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.displayName) {
-            setForm((f) => ({ ...f, customerName: data.displayName }));
+            setForm((f) => ({ ...f, customerName: f.customerName || data.displayName }));
           }
         }
       } catch { /* ignore */ }
@@ -603,27 +603,30 @@ export default function OrdersPage() {
       if (res.ok) {
         const data = await res.json();
         const mainImage: string = data.image || data.allImages?.[0] || "";
-        const fetchedImages: string[] = mainImage ? [mainImage] : [];
+        const fetchedImages: string[] = mainImage
+          ? [...new Set([mainImage, ...(data.allImages || [])].filter(Boolean))].slice(0, 10)
+          : [];
         const firstColor = data.colors?.[0]?.name || "";
+        const firstSize = data.sizes?.[0] || "";
         const rawPrice = data.price || "";
         const finalPurchaseCost = rawPrice ? String(parseFloat(rawPrice)) : item.purchaseCost;
+        const lira = parseFloat(finalPurchaseCost) || 0;
+        const converted = lira > 0 ? lookupIQD(lira, rates.usdIqd, rates.usdTry) : 0;
+        const sellingPrice = lira > 0
+          ? String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry)))
+          : item.sellingPrice;
         updateProductItem(itemId, {
           productName: data.name || item.productName,
           color: firstColor || item.color,
+          size: firstSize || item.size,
           purchaseCost: finalPurchaseCost,
+          sellingPrice,
           productType: data.productType || item.productType,
           images: mainImage ? JSON.stringify(fetchedImages) : item.images,
           fetchedImages,
           availableColors: data.colors || [],
           availableSizes: data.sizes || [],
         });
-        if (finalPurchaseCost) {
-          const lira = parseFloat(finalPurchaseCost) || 0;
-          if (lira > 0) {
-            const converted = lookupIQD(lira, rates.usdIqd, rates.usdTry);
-            updateProductItem(itemId, { sellingPrice: String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry))) });
-          }
-        }
       } else {
         alert("فشل في جلب بيانات المنتج");
       }
