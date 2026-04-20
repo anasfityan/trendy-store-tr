@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         for (const item of items) {
           if (item["@type"] !== "Product") continue;
           if (item.name) result.name = item.name;
-          if (item.color) result.colors = [{ name: item.color }];
+          if (item.color) { const c = resolveColor(item.color); if (c) result.colors = [{ name: c }]; }
           if (item.brand?.name) result.brand = item.brand.name;
           if (item.description) result.description = String(item.description).slice(0, 500);
           if (item.image) {
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
               if (Array.isArray(variants)) {
                 for (const v of variants) {
                   // Color
-                  const colorName = v.colorName || v.color || v.attributeValue;
+                  const colorName = resolveColor(v.colorName || v.color || v.attributeValue || "");
                   if (colorName && !colorMap.has(colorName)) {
                     colorMap.set(colorName, {
                       name: colorName,
@@ -187,7 +187,8 @@ export async function POST(req: NextRequest) {
                 const key = (attr.key?.name || attr.name || "").toLowerCase();
                 const val = attr.value?.name || attr.value || "";
                 if (key.includes("renk") || key.includes("color")) {
-                  if (!result.colors?.length) result.colors = [{ name: val }];
+                  const c = resolveColor(val);
+                  if (c && !result.colors?.length) result.colors = [{ name: c }];
                 }
                 if (key.includes("beden") || key.includes("size") || key.includes("numara")) {
                   if (!result.sizes?.length && val) result.sizes = [val];
@@ -199,10 +200,8 @@ export async function POST(req: NextRequest) {
             if (p.otherColors && Array.isArray(p.otherColors)) {
               const colors: { name: string; image?: string }[] = [];
               for (const c of p.otherColors) {
-                colors.push({
-                  name: c.colorName || c.name || "",
-                  image: c.imageUrl ? normalizeUrl(c.imageUrl) : undefined,
-                });
+                const name = resolveColor(c.colorName || c.name || "") || c.colorName || c.name || "";
+                if (name) colors.push({ name, image: c.imageUrl ? normalizeUrl(c.imageUrl) : undefined });
               }
               if (colors.length > 0) result.colors = colors;
             }
@@ -291,8 +290,8 @@ export async function POST(req: NextRequest) {
       for (const [, content] of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
         const m = content.match(/"(?:renk|color|colorName|colour)"\s*:\s*"([^"]{1,60})"/i);
         if (m?.[1]?.trim()) {
-          result.colors = [{ name: m[1].trim() }];
-          break;
+          const c = resolveColor(m[1].trim());
+          if (c) { result.colors = [{ name: c }]; break; }
         }
       }
     }
@@ -382,4 +381,41 @@ function normalizeUrl(u: string): string {
   if (!u) return "";
   if (u.startsWith("//")) return `https:${u}`;
   return u;
+}
+
+// Maps Turkish/English color names to Arabic; returns null for hex/rgb values.
+const COLOR_MAP: Record<string, string> = {
+  // Turkish single-word
+  siyah: "أسود", beyaz: "أبيض", kirmizi: "أحمر", mavi: "أزرق",
+  yesil: "أخضر", sari: "أصفر", pembe: "وردي", mor: "بنفسجي",
+  gri: "رمادي", turuncu: "برتقالي", lacivert: "كحلي", krem: "كريمي",
+  bej: "بيج", altin: "ذهبي", gumus: "فضي", bordo: "بوردو",
+  haki: "خاكي", kahve: "بني", ekru: "كريمي", camel: "جملي",
+  pudra: "وردي فاتح", leopar: "نمري", vizon: "بيج داكن",
+  antrasit: "رمادي داكن", nefti: "أخضر زيتوني", somon: "سلموني",
+  // Turkish multi-word
+  "açık mavi": "أزرق فاتح", "koyu mavi": "أزرق داكن",
+  "açık pembe": "وردي فاتح", "koyu kahve": "بني داكن",
+  "açık gri": "رمادي فاتح", "koyu gri": "رمادي داكن",
+  "açık yeşil": "أخضر فاتح",
+  // English
+  black: "أسود", white: "أبيض", red: "أحمر", blue: "أزرق",
+  green: "أخضر", yellow: "أصفر", pink: "وردي", purple: "بنفسجي",
+  gray: "رمادي", grey: "رمادي", orange: "برتقالي", navy: "كحلي",
+  cream: "كريمي", beige: "بيج", gold: "ذهبي", silver: "فضي",
+  burgundy: "بوردو", khaki: "خاكي", brown: "بني", ecru: "كريمي",
+  "light blue": "أزرق فاتح", "dark blue": "أزرق داكن",
+  "light pink": "وردي فاتح", "dark brown": "بني داكن",
+  "light grey": "رمادي فاتح", "light gray": "رمادي فاتح",
+};
+
+function resolveColor(raw: string): string | null {
+  if (!raw) return null;
+  const t = raw.trim();
+  if (!t) return null;
+  if (/^#[0-9a-f]{3,8}$/i.test(t) || /^rgb/i.test(t)) return null;
+  // Already Arabic — keep as-is
+  if (/[\u0600-\u06ff]/.test(t)) return t;
+  const lower = t.toLowerCase();
+  return COLOR_MAP[lower] ?? t;
 }
