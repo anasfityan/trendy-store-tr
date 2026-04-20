@@ -1194,221 +1194,113 @@ export default function OrdersPage() {
             <DialogClose onClose={() => setDialogOpen(false)} />
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="mt-4 space-y-6">
-            {/* Customer Section */}
-            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "50ms" }}>
-              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
-                العميل
-              </legend>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="customerName">اسم العميل *</Label>
-                  <Input
-                    id="customerName"
-                    required
-                    value={form.customerName}
-                    onChange={(e) => setField("customerName", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="customerPhone">هاتف العميل</Label>
-                  <Input
-                    id="customerPhone"
-                    value={form.customerPhone}
-                    onChange={(e) => setField("customerPhone", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="instagram">انستغرام</Label>
-                  <div className="relative">
-                    <Input
-                      id="instagram"
-                      dir="ltr"
-                      className="text-left"
-                      value={form.instagram}
-                      onChange={(e) => setField("instagram", e.target.value)}
-                      placeholder="اسم المستخدم أو الرابط"
-                    />
-                    {fetchingIG && (
-                      <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[var(--muted)]" />
-                    )}
-                  </div>
+          <form onSubmit={handleSubmit} className="mt-3 space-y-4">
+            {/* Customer */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="customerName" className="text-xs">الاسم *</Label>
+                <Input id="customerName" required value={form.customerName} onChange={(e) => setField("customerName", e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="customerPhone" className="text-xs">الهاتف</Label>
+                <Input id="customerPhone" value={form.customerPhone} onChange={(e) => setField("customerPhone", e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="instagram" className="text-xs">انستغرام</Label>
+                <div className="relative">
+                  <Input id="instagram" dir="ltr" className="h-8 text-sm text-left" value={form.instagram} onChange={(e) => setField("instagram", e.target.value)} />
+                  {fetchingIG && <Loader2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />}
                 </div>
               </div>
-            </fieldset>
+            </div>
 
-            {/* Product Items Section */}
-            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "100ms" }}>
-              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
-                المنتجات
-              </legend>
-
+            {/* Product Items */}
+            <div className="space-y-3">
               {productItems.map((item, index) => renderProductItemCard(item, index))}
-
-              {/* Add Product Button */}
               <button
                 type="button"
                 onClick={addProductItem}
-                className="w-full border-2 border-dashed border-[var(--border)] rounded-xl p-3 text-center text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all"
+                className="w-full border border-dashed border-border rounded-lg p-2 text-center text-xs text-muted-foreground hover:border-accent hover:text-accent transition-all"
               >
-                <Plus className="h-4 w-4 inline-block me-1" />
+                <Plus className="h-3 w-3 inline-block me-1" />
                 إضافة منتج آخر
               </button>
-
-              {/* Multi-item totals */}
               {productItems.length > 1 && (
-                <div className="rounded-lg bg-muted/60 px-4 py-2 text-sm border border-border/50 flex gap-6">
-                  <span>
-                    <span className="text-muted-foreground">إجمالي الشراء: </span>
-                    <span className="font-bold">{formatTRY(totalPurchaseCost)}</span>
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">إجمالي البيع: </span>
-                    <span className="font-bold">{formatIQD(totalSellingPrice)}</span>
-                  </span>
+                <div className="rounded-lg bg-muted/50 px-3 py-1.5 text-xs border border-border/50 flex gap-5">
+                  <span><span className="text-muted-foreground">الشراء: </span><span className="font-semibold">{formatTRY(totalPurchaseCost)}</span></span>
+                  <span><span className="text-muted-foreground">البيع: </span><span className="font-semibold">{formatIQD(totalSellingPrice)}</span></span>
                 </div>
               )}
-            </fieldset>
+            </div>
 
             {/* Location & Batch */}
-            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "150ms" }}>
-              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
-                الشحن
-              </legend>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="governorate">المحافظة</Label>
-                  <Select
-                    id="governorate"
-                    value={form.governorate}
-                    onChange={(e) => setField("governorate", e.target.value)}
-                  >
-                    <option value="">اختر المحافظة</option>
-                    {IRAQI_CITIES.map((city) => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="area">المنطقة</Label>
-                  <Input
-                    id="area"
-                    value={form.area}
-                    onChange={(e) => setField("area", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="batchId">الشحنة</Label>
-                  <Select
-                    id="batchId"
-                    value={form.batchId}
-                    onChange={(e) => setField("batchId", e.target.value)}
-                  >
-                    <option value="">بدون شحنة</option>
-                    {batches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </Select>
-                </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="governorate" className="text-xs">المحافظة</Label>
+                <Select id="governorate" value={form.governorate} onChange={(e) => setField("governorate", e.target.value)} className="h-8 text-sm">
+                  <option value="">—</option>
+                  {IRAQI_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}
+                </Select>
               </div>
-            </fieldset>
+              <div className="space-y-1">
+                <Label htmlFor="area" className="text-xs">المنطقة</Label>
+                <Input id="area" value={form.area} onChange={(e) => setField("area", e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="batchId" className="text-xs">الشحنة</Label>
+                <Select id="batchId" value={form.batchId} onChange={(e) => setField("batchId", e.target.value)} className="h-8 text-sm">
+                  <option value="">—</option>
+                  {batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </Select>
+              </div>
+            </div>
 
-            {/* Pricing */}
-            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "200ms" }}>
-              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
-                الأسعار
-              </legend>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="deliveryCost">كلفة التوصيل (دينار)</Label>
-                  <Select
-                    id="deliveryCost"
-                    value={form.deliveryCost}
-                    onChange={(e) => setField("deliveryCost", e.target.value)}
-                  >
-                    <option value="">اختر كلفة التوصيل</option>
-                    {DELIVERY_COSTS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="deposit">العربون (دينار)</Label>
-                  <Input
-                    id="deposit"
-                    type="number"
-                    step="1"
-                    min="0"
-                    value={form.deposit}
-                    onChange={(e) => setField("deposit", e.target.value)}
-                  />
-                </div>
+            {/* Pricing + Total */}
+            <div className="grid grid-cols-3 gap-3 items-end">
+              <div className="space-y-1">
+                <Label htmlFor="deliveryCost" className="text-xs">توصيل</Label>
+                <Select id="deliveryCost" value={form.deliveryCost} onChange={(e) => setField("deliveryCost", e.target.value)} className="h-8 text-sm">
+                  <option value="">—</option>
+                  {DELIVERY_COSTS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </Select>
               </div>
-              <div className="rounded-lg bg-muted/60 px-4 py-3 text-sm border border-border/50">
-                <span className="text-muted-foreground">السعر النهائي: </span>
-                <span className="font-bold text-lg animate-count-up">{formatIQD(finalPrice)}</span>
-                <span className="me-2 text-muted-foreground text-xs">
-                  (البيع + التوصيل - العربون)
-                </span>
+              <div className="space-y-1">
+                <Label htmlFor="deposit" className="text-xs">عربون</Label>
+                <Input id="deposit" type="number" step="1" min="0" value={form.deposit} onChange={(e) => setField("deposit", e.target.value)} className="h-8 text-sm" />
               </div>
-            </fieldset>
+              <div className="rounded-lg bg-accent text-accent-foreground px-3 py-2 flex flex-col items-center justify-center">
+                <span className="text-xs opacity-75">المتبقي للدفع</span>
+                <span className="text-lg font-bold leading-tight">{formatIQD(finalPrice)}</span>
+              </div>
+            </div>
 
             {/* Status */}
-            <fieldset className="space-y-4 animate-fade-in-up" style={{ animationDelay: "250ms" }}>
-              <legend className="text-sm font-semibold text-muted-foreground tracking-wider">
-                الحالة
-              </legend>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="status">حالة الطلب</Label>
-                  <Select
-                    id="status"
-                    value={form.status}
-                    onChange={(e) => setField("status", e.target.value)}
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="paymentStatus">حالة الدفع</Label>
-                  <Select
-                    id="paymentStatus"
-                    value={form.paymentStatus}
-                    onChange={(e) => setField("paymentStatus", e.target.value)}
-                  >
-                    {PAYMENT_OPTIONS.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </Select>
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="status" className="text-xs">الحالة</Label>
+                <Select id="status" value={form.status} onChange={(e) => setField("status", e.target.value)} className="h-8 text-sm">
+                  {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </Select>
               </div>
-            </fieldset>
+              <div className="space-y-1">
+                <Label htmlFor="paymentStatus" className="text-xs">الدفع</Label>
+                <Select id="paymentStatus" value={form.paymentStatus} onChange={(e) => setField("paymentStatus", e.target.value)} className="h-8 text-sm">
+                  {PAYMENT_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </Select>
+              </div>
+            </div>
 
             {/* Notes */}
-            <div className="space-y-2 animate-fade-in-up" style={{ animationDelay: "300ms" }}>
-              <Label htmlFor="notes">ملاحظات</Label>
-              <Textarea
-                id="notes"
-                rows={3}
-                value={form.notes}
-                onChange={(e) => setField("notes", e.target.value)}
-                placeholder="أي ملاحظات إضافية..."
-              />
+            <div className="space-y-1">
+              <Label htmlFor="notes" className="text-xs">ملاحظات</Label>
+              <Textarea id="notes" rows={2} value={form.notes} onChange={(e) => setField("notes", e.target.value)} className="text-sm resize-none" />
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-2 border-t border-border/50">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
-                إلغاء
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
+            <div className="flex justify-end gap-2 pt-2 border-t border-border/50">
+              <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(false)}>إلغاء</Button>
+              <Button type="submit" size="sm" disabled={saving}>
+                {saving && <Loader2 className="me-2 h-3 w-3 animate-spin" />}
                 {editingOrder ? "حفظ" : "إنشاء"}
               </Button>
             </div>
