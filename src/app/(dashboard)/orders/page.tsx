@@ -427,6 +427,7 @@ export default function OrdersPage() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState({ usdIqd: BASE_IQD, usdTry: BASE_TRY });
+  const [previewImg, setPreviewImg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/settings").then(r => r.ok ? r.json() : null).then(d => {
@@ -1094,11 +1095,13 @@ export default function OrdersPage() {
                       >
                         <TableCell>
                           {imgs.length > 0 ? (
-                            <img
-                              src={imgs[0]}
-                              alt=""
-                              className="h-10 w-10 rounded-md object-cover border border-border"
-                            />
+                            <button type="button" onClick={() => setPreviewImg(imgs[0])} className="block">
+                              <img
+                                src={imgs[0]}
+                                alt=""
+                                className="h-10 w-10 rounded-md object-cover border border-border hover:opacity-80 transition-opacity cursor-zoom-in"
+                              />
+                            </button>
                           ) : (
                             <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
                               <ImageIcon className="h-4 w-4 text-muted-foreground" />
@@ -1301,6 +1304,28 @@ export default function OrdersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Image preview modal */}
+      {previewImg && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setPreviewImg(null)}
+        >
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={previewImg}
+              alt=""
+              className="max-w-sm max-h-[70vh] rounded-xl object-contain shadow-2xl"
+            />
+            <button
+              onClick={() => setPreviewImg(null)}
+              className="absolute -top-2.5 -right-2.5 bg-background border border-border rounded-full p-1 shadow hover:bg-accent transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
