@@ -15,6 +15,7 @@ import {
   X,
   Package,
   ExternalLink,
+  ChevronDown,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -417,6 +418,25 @@ function getOrderItemCount(order: Order): number {
   }
 }
 
+interface SubItem {
+  productType: string;
+  productName?: string;
+  color?: string;
+  size?: string;
+  purchaseCost: string;
+  sellingPrice: string;
+  productLink?: string;
+  images?: string[];
+}
+
+function parseSubItems(items?: string | null): SubItem[] {
+  if (!items) return [];
+  try {
+    const parsed = JSON.parse(items);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
 // ---------------------------------------------------------------------------
 // Page Component
 // ---------------------------------------------------------------------------
@@ -429,6 +449,9 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState({ usdIqd: BASE_IQD, usdTry: BASE_TRY });
   const [previewImg, setPreviewImg] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpand = useCallback((id: string) =>
+    setExpandedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; }), []);
 
   useEffect(() => {
     fetch("/api/settings").then(r => r.ok ? r.json() : null).then(d => {
@@ -1120,37 +1143,46 @@ export default function OrdersPage() {
                     const remaining = order.sellingPrice + order.deliveryCost - order.deposit;
                     const imgs = order.images ? (() => { try { return JSON.parse(order.images!); } catch { return []; } })() : [];
                     const itemCount = getOrderItemCount(order);
+                    const subItems = parseSubItems(order.items);
+                    const isExpanded = expandedIds.has(order.id);
                     return (
+                      <React.Fragment key={order.id}>
                       <TableRow
-                        key={order.id}
                         className="hover:bg-accent/50 transition-colors"
                         style={{ animationDelay: `${idx * 30}ms` }}
                       >
                         <TableCell>
-                          {imgs.length > 0 ? (
-                            <button type="button" onClick={() => setPreviewImg(imgs[0])} className="block">
-                              <img
-                                src={imgs[0]}
-                                alt=""
-                                className="h-10 w-10 rounded-md object-cover border border-border hover:opacity-80 transition-opacity cursor-zoom-in"
-                              />
-                            </button>
-                          ) : (
-                            <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
-                              <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {imgs.length > 0 ? (
+                              <button type="button" onClick={() => setPreviewImg(imgs[0])} className="block shrink-0">
+                                <img
+                                  src={imgs[0]}
+                                  alt=""
+                                  className="h-10 w-10 rounded-md object-cover border border-border hover:opacity-80 transition-opacity cursor-zoom-in"
+                                />
+                              </button>
+                            ) : (
+                              <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            {itemCount > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpand(order.id)}
+                                className="flex flex-col items-center text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                                <span className="text-[10px] font-mono leading-none">+{itemCount - 1}</span>
+                              </button>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap font-medium">
                           {order.customer?.name || "-"}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {PRODUCT_TYPE_LABELS[order.productType] || order.productType}
-                          {itemCount > 1 && (
-                            <Badge variant="secondary" className="ms-2 text-xs">
-                              + {itemCount - 1} منتجات
-                            </Badge>
-                          )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {[order.color, order.size].filter(Boolean).join(" / ") || "-"}
@@ -1263,6 +1295,51 @@ export default function OrdersPage() {
                           </div>
                         </TableCell>
                       </TableRow>
+                      {isExpanded && subItems.map((sub, si) => {
+                        const subImg = sub.images?.[0];
+                        return (
+                          <TableRow key={`${order.id}-sub-${si}`} className="bg-muted/40 border-s-2 border-s-accent/40">
+                            <TableCell>
+                              {subImg ? (
+                                <button type="button" onClick={() => setPreviewImg(subImg)} className="block">
+                                  <img src={subImg} alt="" className="h-10 w-10 rounded-md object-cover border border-border hover:opacity-80 transition-opacity cursor-zoom-in" />
+                                </button>
+                              ) : (
+                                <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell />
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                              {PRODUCT_TYPE_LABELS[sub.productType] || sub.productType}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                              {[sub.color, sub.size].filter(Boolean).join(" / ") || "-"}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                              {formatTRY(parseFloat(sub.purchaseCost) || 0)}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                              {formatIQD(parseFloat(sub.sellingPrice) || 0)}
+                            </TableCell>
+                            <TableCell />
+                            <TableCell />
+                            <TableCell />
+                            <TableCell>
+                              {sub.productLink ? (
+                                <a href={sub.productLink} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors">
+                                  <ExternalLink className="h-3 w-3" />فتح
+                                </a>
+                              ) : <span className="text-muted-foreground text-xs">—</span>}
+                            </TableCell>
+                            <TableCell />
+                            <TableCell />
+                          </TableRow>
+                        );
+                      })}
+                      </React.Fragment>
                     );
                   })}
                 </TableBody>
