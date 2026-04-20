@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Copy, ExternalLink, ImageIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Copy, ExternalLink, ImageIcon, Search } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 
 // ---------------------------------------------------------------------------
@@ -78,10 +78,21 @@ function firstImage(images?: string): string | null {
 
 export default function OrdersPage() {
   const { token } = useAuthStore();
-  const [orders, setOrders]       = useState<Order[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
+  const [orders, setOrders]         = useState<Order[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [search, setSearch]         = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter((o) =>
+      o.customer.name.toLowerCase().includes(q) ||
+      (o.customer.phone ?? "").toLowerCase().includes(q) ||
+      (o.customer.instagram ?? "").toLowerCase().includes(q)
+    );
+  }, [orders, search]);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -128,7 +139,20 @@ export default function OrdersPage() {
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">الطلبات</h1>
-        <span className="text-sm text-muted-foreground">{orders.length} طلب</span>
+        <span className="text-sm text-muted-foreground">
+          {filtered.length !== orders.length ? `${filtered.length} / ` : ""}{orders.length} طلب
+        </span>
+      </div>
+
+      <div className="relative max-w-xs">
+        <Search className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <input
+          type="search"
+          placeholder="بحث بالاسم أو الهاتف أو انستغرام…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full h-8 rounded-md border border-border bg-background pe-9 ps-3 text-sm outline-none focus:ring-2 focus:ring-accent/50"
+        />
       </div>
 
       <div className="rounded-lg border border-border overflow-hidden">
@@ -149,7 +173,7 @@ export default function OrdersPage() {
           </thead>
 
           <tbody className="divide-y divide-border">
-            {orders.map((o) => {
+            {filtered.map((o) => {
               const img = firstImage(o.images);
               return (
                 <tr key={o.id} className="hover:bg-accent/30 transition-colors">
@@ -239,8 +263,10 @@ export default function OrdersPage() {
           </tbody>
         </table>
 
-        {orders.length === 0 && (
-          <p className="py-12 text-center text-sm text-muted-foreground">لا توجد طلبات</p>
+        {filtered.length === 0 && (
+          <p className="py-12 text-center text-sm text-muted-foreground">
+            {search ? "لا توجد نتائج" : "لا توجد طلبات"}
+          </p>
         )}
       </div>
     </div>
