@@ -95,7 +95,6 @@ interface OrderFormData {
   governorate: string;
   area: string;
   batchId: string;
-  sellingPrice: string;
   deliveryCost: string;
   deposit: string;
   status: string;
@@ -111,6 +110,7 @@ interface ProductItem {
   color: string;
   size: string;
   purchaseCost: string;
+  sellingPrice: string;
   images: string;
   availableColors: { name: string; image?: string }[];
   availableSizes: string[];
@@ -208,7 +208,6 @@ const EMPTY_FORM: OrderFormData = {
   governorate: "",
   area: "",
   batchId: "",
-  sellingPrice: "",
   deliveryCost: "",
   deposit: "",
   status: "new",
@@ -229,6 +228,7 @@ function createEmptyItem(): ProductItem {
     color: "",
     size: "",
     purchaseCost: "",
+    sellingPrice: "",
     images: "",
     availableColors: [],
     availableSizes: [],
@@ -548,7 +548,13 @@ export default function OrdersPage() {
 
   const setField = useCallback(
     (field: keyof OrderFormData, value: string) =>
-      setForm((prev) => ({ ...prev, [field]: value })),
+      setForm((prev) => {
+        const next = { ...prev, [field]: value };
+        if (field === "governorate") {
+          next.deliveryCost = value === "بغداد" ? "5000" : value ? "6000" : prev.deliveryCost;
+        }
+        return next;
+      }),
     []
   );
 
@@ -573,12 +579,15 @@ export default function OrdersPage() {
     return productItems.reduce((sum, item) => sum + (parseFloat(item.purchaseCost) || 0), 0);
   }, [productItems]);
 
+  const totalSellingPrice = useMemo(() => {
+    return productItems.reduce((sum, item) => sum + (parseFloat(item.sellingPrice) || 0), 0);
+  }, [productItems]);
+
   const finalPrice = useMemo(() => {
-    const sp = parseFloat(form.sellingPrice) || 0;
     const dc = parseFloat(form.deliveryCost) || 0;
     const dp = parseFloat(form.deposit) || 0;
-    return sp + dc - dp;
-  }, [form.sellingPrice, form.deliveryCost, form.deposit]);
+    return totalSellingPrice + dc - dp;
+  }, [totalSellingPrice, form.deliveryCost, form.deposit]);
 
   // Fetch product info from URL — per item
   const handleFetchProduct = async (itemId: string) => {
@@ -612,7 +621,7 @@ export default function OrdersPage() {
           const lira = parseFloat(finalPurchaseCost) || 0;
           if (lira > 0) {
             const converted = lookupIQD(lira, rates.usdIqd, rates.usdTry);
-            setField("sellingPrice", String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry))));
+            updateProductItem(itemId, { sellingPrice: String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry))) });
           }
         }
       } else {
@@ -647,6 +656,7 @@ export default function OrdersPage() {
       color: order.color || "",
       size: order.size || "",
       purchaseCost: String(order.purchaseCost || ""),
+      sellingPrice: "",
       images: order.images || "",
       availableColors: [],
       availableSizes: [],
@@ -667,6 +677,7 @@ export default function OrdersPage() {
             color: (i.color as string) || "",
             size: (i.size as string) || "",
             purchaseCost: String(i.purchaseCost || ""),
+            sellingPrice: String(i.sellingPrice || ""),
             images: i.images ? JSON.stringify(i.images) : "",
             availableColors: [],
             availableSizes: [],
@@ -684,9 +695,15 @@ export default function OrdersPage() {
     // If there are additional items, we need to subtract their costs from the total to get item1's cost.
     // But the additional items already have their own purchaseCost stored. So item1's cost is total - sum(additional).
     if (additionalItems.length > 0) {
-      const additionalTotal = additionalItems.reduce((s, ai) => s + (parseFloat(ai.purchaseCost) || 0), 0);
-      const item1Cost = (order.purchaseCost || 0) - additionalTotal;
+      const additionalPurchaseTotal = additionalItems.reduce((s, ai) => s + (parseFloat(ai.purchaseCost) || 0), 0);
+      const item1Cost = (order.purchaseCost || 0) - additionalPurchaseTotal;
       firstItem.purchaseCost = String(item1Cost > 0 ? item1Cost : order.purchaseCost || "");
+
+      const additionalSellingTotal = additionalItems.reduce((s, ai) => s + (parseFloat(ai.sellingPrice) || 0), 0);
+      const item1Selling = (order.sellingPrice || 0) - additionalSellingTotal;
+      firstItem.sellingPrice = String(item1Selling > 0 ? item1Selling : order.sellingPrice || "");
+    } else {
+      firstItem.sellingPrice = String(order.sellingPrice || "");
     }
 
     setForm({
@@ -696,7 +713,6 @@ export default function OrdersPage() {
       governorate: order.governorate || "",
       area: order.area || "",
       batchId: order.batchId || "",
-      sellingPrice: String(order.sellingPrice || ""),
       deliveryCost: String(order.deliveryCost || ""),
       deposit: String(order.deposit || ""),
       status: order.status || "new",
@@ -727,7 +743,7 @@ export default function OrdersPage() {
         area: form.area,
         batchId: form.batchId || null,
         purchaseCost: String(totalPurchaseCost),
-        sellingPrice: form.sellingPrice,
+        sellingPrice: String(totalSellingPrice),
         deliveryCost: form.deliveryCost,
         deposit: form.deposit,
         phone: form.customerPhone,
@@ -743,6 +759,7 @@ export default function OrdersPage() {
                 color: i.color,
                 size: i.size,
                 purchaseCost: i.purchaseCost,
+                sellingPrice: i.sellingPrice,
                 productLink: i.productLink,
                 images: i.fetchedImages,
               }))
@@ -963,29 +980,26 @@ export default function OrdersPage() {
                 className="h-7 text-xs flex-1"
                 onChange={(e) => {
                   const val = e.target.value;
-                  updateProductItem(item.id, { purchaseCost: val });
                   const lira = parseFloat(val) || 0;
-                  if (lira > 0) {
-                    const converted = lookupIQD(lira, rates.usdIqd, rates.usdTry);
-                    setField("sellingPrice", String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry))));
-                  } else {
-                    setField("sellingPrice", "");
-                  }
+                  const converted = lira > 0 ? lookupIQD(lira, rates.usdIqd, rates.usdTry) : 0;
+                  updateProductItem(item.id, {
+                    purchaseCost: val,
+                    sellingPrice: lira > 0 ? String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry))) : "",
+                  });
                 }}
               />
             </div>
 
             {/* سعر البيع */}
             <div className="flex items-center gap-2">
-              <Label className="text-xs shrink-0 w-16 text-end" htmlFor="sellingPrice">بيع دينار</Label>
+              <Label className="text-xs shrink-0 w-16 text-end">بيع دينار</Label>
               <Input
-                id="sellingPrice"
                 type="number"
                 step="1"
                 min="0"
-                value={form.sellingPrice}
+                value={item.sellingPrice}
                 className="h-7 text-xs flex-1"
-                onChange={(e) => setField("sellingPrice", e.target.value)}
+                onChange={(e) => updateProductItem(item.id, { sellingPrice: e.target.value })}
               />
             </div>
           </div>
@@ -1241,11 +1255,17 @@ export default function OrdersPage() {
                 إضافة منتج آخر
               </button>
 
-              {/* Total Purchase Cost */}
+              {/* Multi-item totals */}
               {productItems.length > 1 && (
-                <div className="rounded-lg bg-muted/60 px-4 py-2 text-sm border border-border/50">
-                  <span className="text-muted-foreground">إجمالي سعر الشراء: </span>
-                  <span className="font-bold">{formatTRY(totalPurchaseCost)}</span>
+                <div className="rounded-lg bg-muted/60 px-4 py-2 text-sm border border-border/50 flex gap-6">
+                  <span>
+                    <span className="text-muted-foreground">إجمالي الشراء: </span>
+                    <span className="font-bold">{formatTRY(totalPurchaseCost)}</span>
+                  </span>
+                  <span>
+                    <span className="text-muted-foreground">إجمالي البيع: </span>
+                    <span className="font-bold">{formatIQD(totalSellingPrice)}</span>
+                  </span>
                 </div>
               )}
             </fieldset>
