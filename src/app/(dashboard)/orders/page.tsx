@@ -446,6 +446,36 @@ export default function OrdersPage() {
   const [productItems, setProductItems] = useState<ProductItem[]>([createEmptyItem()]);
   const [saving, setSaving] = useState(false);
 
+  // Status dropdown
+  const [statusDropId, setStatusDropId] = useState<string | null>(null);
+  const statusDropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!statusDropId) return;
+    const handler = (e: MouseEvent) => {
+      if (statusDropRef.current && !statusDropRef.current.contains(e.target as Node))
+        setStatusDropId(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [statusDropId]);
+
+  const updateOrderStatus = useCallback(async (orderId: string, prevStatus: string, nextStatus: string) => {
+    setStatusDropId(null);
+    if (prevStatus === nextStatus) return;
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: nextStatus } : o));
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: prevStatus } : o));
+    }
+  }, [token]);
+
   // Per-item loading states
   const [fetchingItemId, setFetchingItemId] = useState<string | null>(null);
   const [fetchingIG, setFetchingIG] = useState(false);
@@ -1135,12 +1165,37 @@ export default function OrdersPage() {
                           {formatIQD(remaining)}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={statusBadgeVariant(order.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}
-                            className="badge-animate"
+                          <div
+                            className="relative inline-block"
+                            ref={statusDropId === order.id ? statusDropRef : undefined}
                           >
-                            {prettyStatus(order.status)}
-                          </Badge>
+                            <button
+                              type="button"
+                              onClick={() => setStatusDropId(statusDropId === order.id ? null : order.id)}
+                              className="cursor-pointer"
+                            >
+                              <Badge
+                                variant={statusBadgeVariant(order.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}
+                                className="badge-animate hover:opacity-80 transition-opacity"
+                              >
+                                {prettyStatus(order.status)}
+                              </Badge>
+                            </button>
+                            {statusDropId === order.id && (
+                              <div className="absolute z-50 top-full mt-1 start-0 bg-background border border-border rounded-lg shadow-xl overflow-hidden min-w-[9rem]">
+                                {STATUS_OPTIONS.map((s) => (
+                                  <button
+                                    key={s.value}
+                                    type="button"
+                                    onClick={() => updateOrderStatus(order.id, order.status, s.value)}
+                                    className={`w-full text-start px-3 py-1.5 text-sm hover:bg-accent transition-colors ${order.status === s.value ? "font-semibold" : ""}`}
+                                  >
+                                    {s.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge
