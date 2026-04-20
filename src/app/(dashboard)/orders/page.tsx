@@ -433,49 +433,23 @@ export default function OrdersPage() {
   const [fetchingItemId, setFetchingItemId] = useState<string | null>(null);
   const [fetchingIG, setFetchingIG] = useState(false);
 
-  const fetchInstagramName = useCallback(async () => {
+  // Extract Instagram username instantly from URL, then try API for display name
+  useEffect(() => {
     const raw = form.instagram.trim();
     if (!raw) return;
-    // Extract username from link or handle
+
     let handle = raw;
     if (raw.includes("instagram.com/")) {
       const match = raw.match(/instagram\.com\/([^/?#]+)/);
       if (match) handle = match[1];
     }
-    handle = handle.replace(/^@/, "");
+    handle = handle.replace(/^@/, "").replace(/\/$/, "");
     if (!handle) return;
-    setFetchingIG(true);
-    try {
-      const res = await fetch("/api/instagram", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: handle }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.displayName) {
-          setForm((f) => ({ ...f, customerName: f.customerName || data.displayName }));
-        }
-      }
-    } catch { /* ignore */ }
-    setFetchingIG(false);
-  }, [form.instagram]);
 
-  useEffect(() => {
-    const t = setTimeout(() => setSearchDebounced(search), 400);
-    return () => clearTimeout(t);
-  }, [search]);
+    // Immediately fill with username so it's always populated
+    setForm((f) => ({ ...f, customerName: f.customerName || handle }));
 
-  useEffect(() => {
-    const raw = form.instagram.trim();
-    if (!raw) return;
-    let handle = raw;
-    if (raw.includes("instagram.com/")) {
-      const match = raw.match(/instagram\.com\/([^/?#]+)/);
-      if (match) handle = match[1];
-    }
-    handle = handle.replace(/^@/, "");
-    if (!handle) return;
+    // Try API in background to upgrade to display name
     const t = setTimeout(async () => {
       setFetchingIG(true);
       try {
@@ -486,26 +460,15 @@ export default function OrdersPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.displayName) {
-            setForm((f) => ({ ...f, customerName: f.customerName || data.displayName }));
+          if (data.displayName && data.displayName !== handle) {
+            setForm((f) => ({ ...f, customerName: f.customerName === handle ? data.displayName : f.customerName }));
           }
         }
       } catch { /* ignore */ }
       setFetchingIG(false);
-    }, 800);
+    }, 1000);
     return () => clearTimeout(t);
   }, [form.instagram]);
-
-  // Auto-fetch product info when any item's productLink changes
-  useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    productItems.forEach((item) => {
-      if (!item.productLink.trim() || item.fetchedImages.length > 0) return;
-      const t = setTimeout(() => handleFetchProduct(item.id), 900);
-      timers.push(t);
-    });
-    return () => timers.forEach(clearTimeout);
-  }, [productItems.map((i) => i.productLink).join("|")]);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -589,55 +552,80 @@ export default function OrdersPage() {
     return totalSellingPrice + dc - dp;
   }, [totalSellingPrice, form.deliveryCost, form.deposit]);
 
-  // Fetch product info from URL — per item
-  const handleFetchProduct = async (itemId: string) => {
-    const item = productItems.find((i) => i.id === itemId);
-    if (!item || !item.productLink) return;
+  const handleFetchProduct = useCallback(async (itemId: string) => {
+    setProductItems((prev) => {
+      const item = prev.find((i) => i.id === itemId);
+      if (!item || !item.productLink) return prev;
+      return prev; // just need item ref, actual fetch below
+    });
+
     setFetchingItemId(itemId);
+    // Read link directly from state snapshot
+    let productLink = "";
+    setProductItems((prev) => {
+      const item = prev.find((i) => i.id === itemId);
+      if (item) productLink = item.productLink;
+      return prev;
+    });
+
+    if (!productLink) { setFetchingItemId(null); return; }
+
     try {
       const res = await fetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: item.productLink }),
+        body: JSON.stringify({ url: productLink }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        const mainImage: string = data.image || data.allImages?.[0] || "";
-        const fetchedImages: string[] = mainImage
-          ? [...new Set([mainImage, ...(data.allImages || [])].filter(Boolean))].slice(0, 10)
-          : [];
-        const firstColor = data.colors?.[0]?.name || "";
-        const firstSize = data.sizes?.[0] || "";
-        const rawPrice = data.price || "";
-        const finalPurchaseCost = rawPrice ? String(parseFloat(rawPrice)) : item.purchaseCost;
-        const lira = parseFloat(finalPurchaseCost) || 0;
-        const converted = lira > 0 ? lookupIQD(lira, rates.usdIqd, rates.usdTry) : 0;
-        const sellingPrice = lira > 0
-          ? String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry)))
-          : item.sellingPrice;
-        updateProductItem(itemId, {
-          productName: data.name || item.productName,
-          color: firstColor || item.color,
-          size: firstSize || item.size,
-          purchaseCost: finalPurchaseCost,
-          sellingPrice,
-          productType: data.productType || item.productType,
-          images: mainImage ? JSON.stringify(fetchedImages) : item.images,
-          fetchedImages,
-          availableColors: data.colors || [],
-          availableSizes: data.sizes || [],
-        });
-      } else {
-        alert("فشل في جلب بيانات المنتج");
-      }
-    } catch {
-      alert("خطأ في الاتصال");
-    } finally {
-      setFetchingItemId(null);
-    }
-  };
+      if (!res.ok) { setFetchingItemId(null); return; }
+      const data = await res.json();
 
-  // Translate product name — per item
+      const mainImage: string = data.image || data.allImages?.[0] || "";
+      const fetchedImages: string[] = mainImage
+        ? [...new Set([mainImage, ...(data.allImages || [])].filter(Boolean))].slice(0, 10)
+        : [];
+      const firstColor = data.colors?.[0]?.name || "";
+      const firstSize = data.sizes?.[0] || "";
+      const rawPrice = data.price || "";
+      const finalPurchaseCost = rawPrice ? String(parseFloat(rawPrice)) : "";
+      const lira = parseFloat(finalPurchaseCost) || 0;
+      const converted = lira > 0 ? lookupIQD(lira, rates.usdIqd, rates.usdTry) : 0;
+      const sellingPrice = lira > 0
+        ? String(converted > 0 ? converted : Math.round(lira * (rates.usdIqd / rates.usdTry)))
+        : "";
+
+      setProductItems((prev) =>
+        prev.map((item) =>
+          item.id !== itemId ? item : {
+            ...item,
+            productName: data.name || item.productName,
+            productType: data.productType || item.productType,
+            color: firstColor || item.color,
+            size: firstSize || item.size,
+            purchaseCost: finalPurchaseCost || item.purchaseCost,
+            sellingPrice: sellingPrice || item.sellingPrice,
+            images: mainImage ? JSON.stringify(fetchedImages) : item.images,
+            fetchedImages,
+            availableColors: data.colors || [],
+            availableSizes: data.sizes || [],
+          }
+        )
+      );
+    } catch { /* silently ignore */ }
+    setFetchingItemId(null);
+  }, [rates.usdIqd, rates.usdTry]);
+
+  // Auto-fetch product info when any item's productLink changes
+  const productLinks = productItems.map((i) => `${i.id}:${i.productLink}`).join("|");
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    productItems.forEach((item) => {
+      if (!item.productLink.trim() || item.fetchedImages.length > 0) return;
+      const t = setTimeout(() => handleFetchProduct(item.id), 800);
+      timers.push(t);
+    });
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productLinks, handleFetchProduct]);
 
   const handleNewOrder = () => {
     setEditingOrder(null);
