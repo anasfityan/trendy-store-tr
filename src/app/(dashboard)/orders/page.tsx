@@ -17,6 +17,7 @@ import {
   Package,
   ExternalLink,
   ChevronDown,
+  Clipboard,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -1031,12 +1032,20 @@ export default function OrdersPage() {
                   value={item.productLink}
                   onChange={(e) => updateProductItem(item.id, { productLink: e.target.value, fetchedImages: [], images: "", selectedImageIdx: 0 })}
                   dir="ltr"
-                  className="h-8 text-xs text-left pe-7"
+                  className="h-8 text-xs text-left pe-7 ps-7"
                 />
                 {isFetching
                   ? <Loader2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />
                   : item.productLink && <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                 }
+                <button
+                  type="button"
+                  onClick={async () => { try { const t = await navigator.clipboard.readText(); updateProductItem(item.id, { productLink: t.trim(), fetchedImages: [], images: "", selectedImageIdx: 0 }); } catch { /* clipboard unavailable */ } }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                  title="لصق"
+                >
+                  <Clipboard className="h-3 w-3" />
+                </button>
               </div>
             </div>
 
@@ -1654,20 +1663,30 @@ export default function OrdersPage() {
 
           <form onSubmit={handleSubmit} className="mt-3 space-y-4">
             {/* Customer */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="customerName" className="text-xs">الاسم *</Label>
-                <Input id="customerName" required value={form.customerName} onChange={(e) => setField("customerName", e.target.value)} className="h-8 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="customerPhone" className="text-xs">الهاتف</Label>
-                <Input id="customerPhone" value={form.customerPhone} onChange={(e) => setField("customerPhone", e.target.value)} className="h-8 text-sm" />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="customerName" className="text-xs">الاسم *</Label>
+                  <Input id="customerName" required value={form.customerName} onChange={(e) => setField("customerName", e.target.value)} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="customerPhone" className="text-xs">الهاتف</Label>
+                  <Input id="customerPhone" value={form.customerPhone} onChange={(e) => setField("customerPhone", e.target.value)} className="h-8 text-sm" />
+                </div>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="instagram" className="text-xs">انستغرام</Label>
                 <div className="relative">
-                  <Input id="instagram" dir="ltr" className="h-8 text-sm text-left" value={form.instagram} onChange={(e) => setField("instagram", e.target.value)} />
+                  <Input id="instagram" dir="ltr" className="h-8 text-sm text-left pr-8" value={form.instagram} onChange={(e) => setField("instagram", e.target.value)} />
                   {fetchingIG && <Loader2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />}
+                  <button
+                    type="button"
+                    onClick={async () => { try { const t = await navigator.clipboard.readText(); setField("instagram", t.trim()); } catch { /* clipboard unavailable */ } }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                    title="لصق"
+                  >
+                    <Clipboard className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
             </div>
