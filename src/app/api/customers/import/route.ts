@@ -5,7 +5,9 @@ import { getSession } from "@/lib/auth";
 interface ImportRow {
   name: string;
   phone?: string;
+  phone2?: string;
   instagram?: string;
+  city?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest) {
     const phones = new Set(existing.map((c) => c.phone).filter(Boolean) as string[]);
     const instas = new Set(existing.map((c) => c.instagram).filter(Boolean) as string[]);
 
-    const toInsert: { name: string; phone: string | null; instagram: string | null }[] = [];
+    const toInsert: { name: string; phone: string | null; phone2: string | null; instagram: string | null; city: string | null }[] = [];
     let skipped = 0;
 
     for (const row of rows) {
@@ -37,7 +39,9 @@ export async function POST(req: NextRequest) {
       if (!name) { skipped++; continue; }
 
       const phone = row.phone?.trim() || null;
+      const phone2 = row.phone2?.trim() || null;
       const instagram = row.instagram?.trim() || null;
+      const city = row.city?.trim() || null;
 
       // Duplicate: same phone OR same instagram as any existing/already-queued customer
       const isDup =
@@ -46,7 +50,7 @@ export async function POST(req: NextRequest) {
 
       if (isDup) { skipped++; continue; }
 
-      toInsert.push({ name, phone, instagram });
+      toInsert.push({ name, phone, phone2, instagram, city });
 
       // Track within-batch duplicates
       if (phone) phones.add(phone);

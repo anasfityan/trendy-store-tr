@@ -216,7 +216,9 @@ export default function SettingsPage() {
       const customers = rows.map((row) => ({
         name: row["fn"] || row["name"] || "",
         phone: row["phone"] || "",
+        phone2: row["phone2"] || "",
         instagram: row["instagram"] || "",
+        city: row["city"] || "",
       }));
       const res = await fetch("/api/customers/import", {
         method: "POST",
