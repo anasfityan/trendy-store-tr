@@ -682,9 +682,10 @@ export default function BatchesPage() {
       ) : (
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {batches.map((batch) => {
-            const { revenue, purchaseCosts, shippingCosts, profit } = calcProfit(batch);
             const bought = boughtCount(batch);
             const total = batch._count.orders;
+            const totalPurchaseTRY = batch.orders.reduce((s, o) => s + o.purchaseCost, 0);
+            const totalSellingIQD  = batch.orders.reduce((s, o) => s + o.sellingPrice, 0);
 
             return (
               <Card key={batch.id} className="flex flex-col">
@@ -730,28 +731,20 @@ export default function BatchesPage() {
                     </div>
                   </div>
 
-                  {settings && (
-                    <div className="rounded-md border p-3 space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">الإيرادات</span>
-                        <span>{formatIQD(revenue)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">تكاليف الشراء</span>
-                        <span>-{formatIQD(purchaseCosts)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">تكلفة الشحن</span>
-                        <span>-{formatIQD(shippingCosts)}</span>
-                      </div>
-                      <div className="flex justify-between font-semibold border-t pt-1">
-                        <span>الربح المتوقع</span>
-                        <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                          {formatIQD(profit)}
-                        </span>
-                      </div>
+                  <div className="rounded-md border p-3 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">تكاليف الشراء</span>
+                      <span className="font-medium">{formatTRY(totalPurchaseTRY)}</span>
                     </div>
-                  )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">تكاليف البيع</span>
+                      <span className="font-medium">{formatIQD(totalSellingIQD)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">تكلفة الشحن</span>
+                      <span className="font-medium">{formatUSD(batch.shippingCost)}</span>
+                    </div>
+                  </div>
                 </CardContent>
 
                 <CardFooter className="gap-2 flex-wrap">
