@@ -28,6 +28,22 @@ interface SettingsData {
   tryToIqd: number;
 }
 
+// ─── Phone normalization ──────────────────────────────────────
+function normalizeIraqiPhone(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  // Already has full country code (964 + 10 digits = 13)
+  if (digits.startsWith("9647") && digits.length === 13) return "+" + digits;
+  if (digits.startsWith("964") && digits.length >= 12) return "+" + digits;
+  // Local mobile: 07XXXXXXXXX (10 digits)
+  if (digits.startsWith("0") && digits.length === 10) return "+964" + digits.slice(1);
+  // Without leading zero: 7XXXXXXXXX (10 digits)
+  if (digits.startsWith("7") && digits.length === 10) return "+964" + digits;
+  // Best effort
+  return "+" + digits;
+}
+
 // ─── CSV helpers ─────────────────────────────────────────────
 function parseCSVLine(line: string): string[] {
   const vals: string[] = [];
@@ -90,6 +106,9 @@ export default function SettingsPage() {
   // CSV import
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Meta export
+  const [exportingMeta, setExportingMeta] = useState(false);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -211,6 +230,37 @@ export default function SettingsPage() {
       setImportMsg({ ok: false, text: "فشل الاستيراد. تحقق من تنسيق الملف وحاول مجدداً." });
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleExportMeta = async () => {
+    setExportingMeta(true);
+    try {
+      const res = await fetch("/api/customers");
+      if (!res.ok) throw new Error("fetch failed");
+      const customers: { name: string; phone?: string | null }[] = await res.json();
+
+      const header = "phone,phone2,fn";
+      const rows = customers.map((c) => {
+        const phone = normalizeIraqiPhone(c.phone);
+        const name = (c.name ?? "").replace(/,/g, " ");
+        return `${phone},,${name}`;
+      });
+      const csv = [header, ...rows].join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "meta_audience.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Meta export error:", err);
+    } finally {
+      setExportingMeta(false);
     }
   };
 
@@ -547,13 +597,23 @@ export default function SettingsPage() {
               <h2 className="text-lg font-bold">النظام والبيانات</h2>
             </div>
 
-            <button
-              onClick={handleExportDatabase}
-              className="flex items-center gap-2 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
-            >
-              <Download size={16} />
-              تصدير قاعدة البيانات
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={handleExportDatabase}
+                className="flex items-center gap-2 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
+              >
+                <Download size={16} />
+                تصدير قاعدة البيانات
+              </button>
+              <button
+                onClick={handleExportMeta}
+                disabled={exportingMeta}
+                className="flex items-center gap-2 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <Download size={16} />
+                {exportingMeta ? "جاري التصدير..." : "تصدير للإعلانات"}
+              </button>
+            </div>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-4 py-2.5 border border-red-400 text-red-600 rounded-xl bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
