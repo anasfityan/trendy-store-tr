@@ -499,6 +499,36 @@ export default function OrdersPage() {
     }
   }, [token]);
 
+  // Payment dropdown
+  const [paymentDropId, setPaymentDropId] = useState<string | null>(null);
+  const paymentDropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!paymentDropId) return;
+    const handler = (e: MouseEvent) => {
+      if (paymentDropRef.current && !paymentDropRef.current.contains(e.target as Node))
+        setPaymentDropId(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [paymentDropId]);
+
+  const updateOrderPayment = useCallback(async (orderId: string, prevStatus: string, nextStatus: string) => {
+    setPaymentDropId(null);
+    if (prevStatus === nextStatus) return;
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: nextStatus } : o));
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ paymentStatus: nextStatus }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: prevStatus } : o));
+    }
+  }, [token]);
+
   // Per-item loading states
   const [fetchingItemId, setFetchingItemId] = useState<string | null>(null);
   const [fetchingIG, setFetchingIG] = useState(false);
@@ -1127,13 +1157,14 @@ export default function OrdersPage() {
                     <TableHead className="whitespace-nowrap text-start">الصورة</TableHead>
                     <TableHead className="whitespace-nowrap text-start">العميل</TableHead>
                     <TableHead className="whitespace-nowrap text-start">المنتج</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">اللون / المقاس</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">اللون</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">المقاس</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">رابط</TableHead>
                     <TableHead className="whitespace-nowrap text-start">سعر الشراء</TableHead>
                     <TableHead className="whitespace-nowrap text-start">سعر البيع</TableHead>
                     <TableHead className="whitespace-nowrap text-start">المتبقي</TableHead>
                     <TableHead className="whitespace-nowrap text-start">الحالة</TableHead>
                     <TableHead className="whitespace-nowrap text-start">الدفع</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">رابط</TableHead>
                     <TableHead className="whitespace-nowrap text-start">التاريخ</TableHead>
                     <TableHead className="whitespace-nowrap text-end">الإجراءات</TableHead>
                   </TableRow>
@@ -1185,7 +1216,25 @@ export default function OrdersPage() {
                           {PRODUCT_TYPE_LABELS[order.productType] || order.productType}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {[order.color, order.size].filter(Boolean).join(" / ") || "-"}
+                          {order.color || "-"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {order.size || "-"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {order.productLink ? (
+                            <a
+                              href={order.productLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              فتح
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {formatTRY(order.purchaseCost)}
@@ -1245,27 +1294,50 @@ export default function OrdersPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={paymentBadgeVariant(order.paymentStatus) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}
-                            className="badge-animate"
+                          <div
+                            className="relative inline-block"
+                            ref={paymentDropId === order.id ? paymentDropRef : undefined}
                           >
-                            {prettyStatus(order.paymentStatus)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {order.productLink ? (
-                            <a
-                              href={order.productLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors"
+                            <button
+                              type="button"
+                              onClick={() => setPaymentDropId(paymentDropId === order.id ? null : order.id)}
+                              className="cursor-pointer"
                             >
-                              <ExternalLink className="h-3 w-3" />
-                              فتح
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
+                              <Badge
+                                variant={paymentBadgeVariant(order.paymentStatus) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}
+                                className="badge-animate hover:opacity-80 transition-opacity"
+                              >
+                                {prettyStatus(order.paymentStatus)}
+                              </Badge>
+                            </button>
+                            {paymentDropId === order.id && (
+                              <div className="absolute z-50 top-full mt-1 start-0 rounded-lg shadow-xl overflow-hidden min-w-[9rem]" style={{ backgroundColor: "#1e1e2e", border: "1px solid #333" }}>
+                                {PAYMENT_OPTIONS.map((s) => {
+                                  const colors: Record<string, string> = {
+                                    unpaid:  "#ef4444",
+                                    partial: "#eab308",
+                                    paid:    "#22c55e",
+                                  };
+                                  const active = order.paymentStatus === s.value;
+                                  return (
+                                    <button
+                                      key={s.value}
+                                      type="button"
+                                      onClick={() => updateOrderPayment(order.id, order.paymentStatus, s.value)}
+                                      style={{
+                                        backgroundColor: active ? colors[s.value] + "33" : "transparent",
+                                        color: colors[s.value] ?? "#e5e7eb",
+                                        borderRight: active ? `3px solid ${colors[s.value]}` : "3px solid transparent",
+                                      }}
+                                      className="w-full text-start px-3 py-2 text-sm font-medium transition-colors hover:brightness-125"
+                                    >
+                                      {s.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                           {format(new Date(order.createdAt), "dd/MM/yyyy")}
@@ -1315,7 +1387,18 @@ export default function OrdersPage() {
                               {PRODUCT_TYPE_LABELS[sub.productType] || sub.productType}
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-muted-foreground">
-                              {[sub.color, sub.size].filter(Boolean).join(" / ") || "-"}
+                              {sub.color || "-"}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                              {sub.size || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {sub.productLink ? (
+                                <a href={sub.productLink} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors">
+                                  <ExternalLink className="h-3 w-3" />فتح
+                                </a>
+                              ) : <span className="text-muted-foreground text-xs">—</span>}
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-muted-foreground">
                               {formatTRY(parseFloat(sub.purchaseCost) || 0)}
@@ -1326,14 +1409,6 @@ export default function OrdersPage() {
                             <TableCell />
                             <TableCell />
                             <TableCell />
-                            <TableCell>
-                              {sub.productLink ? (
-                                <a href={sub.productLink} target="_blank" rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors">
-                                  <ExternalLink className="h-3 w-3" />فتح
-                                </a>
-                              ) : <span className="text-muted-foreground text-xs">—</span>}
-                            </TableCell>
                             <TableCell />
                             <TableCell />
                           </TableRow>
