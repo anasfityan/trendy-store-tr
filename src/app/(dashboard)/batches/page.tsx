@@ -747,20 +747,29 @@ export default function BatchesPage() {
                   </div>
                 </CardContent>
 
-                <CardFooter className="gap-2 flex-wrap">
-                  <Button variant="outline" size="sm" onClick={() => setViewingBatch(batch)}>
-                    <Eye className="me-1 h-4 w-4" />
+                <CardFooter className="pt-3 border-t border-[var(--border)]/40 flex items-center gap-2">
+                  <button
+                    onClick={() => setViewingBatch(batch)}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-sm font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors duration-150 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/50"
+                  >
+                    <Eye size={15} strokeWidth={1.8} />
                     عرض الطلبات
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(batch)}>
-                    <Pencil className="me-1 h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => openEdit(batch)}
+                    className="flex items-center justify-center gap-1.5 h-9 px-4 rounded-xl text-sm font-medium bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 transition-colors duration-150 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/50"
+                  >
+                    <Pencil size={15} strokeWidth={1.8} />
                     تعديل
-                  </Button>
+                  </button>
                   {isAdmin() && (
-                    <Button variant="destructive" size="sm" onClick={() => handleDelete(batch.id)}>
-                      <Trash2 className="me-1 h-4 w-4" />
+                    <button
+                      onClick={() => handleDelete(batch.id)}
+                      className="flex items-center justify-center gap-1.5 h-9 px-4 rounded-xl text-sm font-medium bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-colors duration-150 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/50"
+                    >
+                      <Trash2 size={15} strokeWidth={1.8} />
                       حذف
-                    </Button>
+                    </button>
                   )}
                 </CardFooter>
               </Card>
