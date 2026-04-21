@@ -487,6 +487,11 @@ export default function OrdersPage() {
     setStatusDropId(null);
     if (prevStatus === nextStatus) return;
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: nextStatus } : o));
+    // If current tab filters by a status that no longer includes this order, switch to "all"
+    setActiveTab((tab) => {
+      if (tab !== "all" && tab !== "unpaid" && tab !== nextStatus) return "all";
+      return tab;
+    });
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: "PUT",
@@ -517,6 +522,11 @@ export default function OrdersPage() {
     setPaymentDropId(null);
     if (prevStatus === nextStatus) return;
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: nextStatus } : o));
+    // If on "unpaid" tab and payment is no longer unpaid, switch to "all"
+    setActiveTab((tab) => {
+      if (tab === "unpaid" && nextStatus !== "unpaid") return "all";
+      return tab;
+    });
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: "PUT",
