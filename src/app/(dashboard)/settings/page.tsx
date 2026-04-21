@@ -16,6 +16,7 @@ import {
   X,
   ChevronLeft,
   LogOut,
+  Upload,
 } from "lucide-react";
 
 interface SettingsData {
@@ -25,6 +26,41 @@ interface SettingsData {
   usdToTry: number;
   usdToIqd: number;
   tryToIqd: number;
+}
+
+// ─── CSV helpers ─────────────────────────────────────────────
+function parseCSVLine(line: string): string[] {
+  const vals: string[] = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else { inQ = !inQ; }
+    } else if (c === ',' && !inQ) {
+      vals.push(cur.trim());
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  vals.push(cur.trim());
+  return vals;
+}
+
+function parseCSV(text: string): Array<Record<string, string>> {
+  const lines = text.replace(/^﻿/, "").trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
+  return lines
+    .slice(1)
+    .filter((l) => l.trim())
+    .map((line) => {
+      const vals = parseCSVLine(line);
+      const row: Record<string, string> = {};
+      headers.forEach((h, i) => { row[h] = vals[i] ?? ""; });
+      return row;
+    });
 }
 
 const categories = [
@@ -50,6 +86,10 @@ export default function SettingsPage() {
   const [usdToTry, setUsdToTry] = useState("");
   const [usdToIqd, setUsdToIqd] = useState("");
   const [tryToIqd, setTryToIqd] = useState("");
+
+  // CSV import
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -139,6 +179,39 @@ export default function SettingsPage() {
   const handleLogout = () => {
     logout();
     router.push("/login");
+  };
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length === 0) {
+        setImportMsg({ ok: false, text: "الملف فارغ أو تنسيقه غير صحيح" });
+        return;
+      }
+      const customers = rows.map((row) => ({
+        name: row["fn"] || row["name"] || "",
+        phone: row["phone"] || "",
+        instagram: row["instagram"] || "",
+      }));
+      const res = await fetch("/api/customers/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: customers }),
+      });
+      if (!res.ok) throw new Error("server error");
+      const { imported, skipped } = await res.json();
+      setImportMsg({ ok: true, text: `تم استيراد ${imported} عميل، تم تخطي ${skipped} مكرر` });
+    } catch {
+      setImportMsg({ ok: false, text: "فشل الاستيراد. تحقق من تنسيق الملف وحاول مجدداً." });
+    } finally {
+      setImporting(false);
+    }
   };
 
   const filteredCategories = searchQuery.trim()
@@ -491,6 +564,40 @@ export default function SettingsPage() {
               يتم تنزيل نسخة احتياطية من قاعدة البيانات بصيغة JSON. احفظ هذه
               النسخة في مكان آمن.
             </p>
+
+            {/* ── Import Customers ── */}
+            <div className="border-t border-[var(--border)] pt-5 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--foreground)]">استيراد عملاء</h3>
+                <p className="text-xs text-[var(--muted)] mt-0.5">
+                  ملف CSV يحتوي على أعمدة: <span dir="ltr" className="font-mono">fn, phone, phone2, instagram</span>
+                </p>
+              </div>
+
+              {importMsg && (
+                <div
+                  className="text-sm font-medium rounded-xl px-4 py-2.5"
+                  style={{
+                    background: importMsg.ok ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
+                    color: importMsg.ok ? "#16a34a" : "#dc2626",
+                  }}
+                >
+                  {importMsg.text}
+                </div>
+              )}
+
+              <label className="inline-flex items-center gap-2 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer select-none">
+                <Upload size={15} strokeWidth={1.8} />
+                {importing ? "جاري الاستيراد..." : "استيراد عملاء"}
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="sr-only"
+                  disabled={importing}
+                  onChange={handleImportCSV}
+                />
+              </label>
+            </div>
           </div>
         );
 
