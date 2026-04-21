@@ -89,9 +89,10 @@ export function AppNavbar() {
           <button
             onClick={() => router.push("/orders?new=true")}
             title="طلب جديد"
-            className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-gradient-to-l from-[var(--accent)] to-purple-500 text-white text-sm font-medium shadow-sm hover:opacity-90 hover:shadow-md transition-all duration-200 cursor-pointer"
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity duration-200 cursor-pointer shadow-sm"
+            style={{ background: "#c9a84c", color: "#111111" }}
           >
-            <Plus size={16} strokeWidth={2.5} />
+            <Plus size={15} strokeWidth={2.5} />
             <span className="hidden sm:inline">طلب جديد</span>
           </button>
 
@@ -104,7 +105,7 @@ export function AppNavbar() {
           </button>
           <button
             onClick={openCommandBar}
-            className="hidden sm:flex items-center gap-3 px-4 py-2 rounded-2xl bg-[var(--surface-secondary)]/80 border border-[var(--border)]/40 text-[var(--muted)] text-[14px] hover:border-[var(--muted)] hover:bg-[var(--surface-secondary)] transition-all duration-200 cursor-pointer w-56"
+            className="hidden sm:flex items-center gap-3 px-4 h-9 rounded-2xl bg-[var(--surface-secondary)]/80 border border-[var(--border)]/40 text-[var(--muted)] text-[14px] hover:border-[var(--muted)] hover:bg-[var(--surface-secondary)] transition-all duration-200 cursor-pointer w-56"
           >
             <Search size={16} strokeWidth={1.8} className="shrink-0" />
             <span className="flex-1 text-start">بحث أو أمر...</span>

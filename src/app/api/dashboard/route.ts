@@ -6,6 +6,10 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
   const [
     totalOrders,
     pendingOrders,
@@ -14,6 +18,7 @@ export async function GET() {
     recentOrders,
     unpaidDelivered,
     settings,
+    last7DaysOrders,
   ] = await Promise.all([
     db.order.count(),
     db.order.count({ where: { status: { in: ["new", "in_progress"] } } }),
@@ -36,7 +41,30 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     }),
     db.settings.findUnique({ where: { id: "default" } }),
+    db.order.findMany({
+      where: { createdAt: { gte: sevenDaysAgo } },
+      select: { createdAt: true, sellingPrice: true },
+    }),
   ]);
+
+  const arDays = ["أحد", "اثن", "ثلا", "أرب", "خمس", "جمع", "سبت"];
+  const dailyStats = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    d.setHours(0, 0, 0, 0);
+    const dayOrders = last7DaysOrders.filter((o) => {
+      const od = new Date(o.createdAt);
+      return od.getFullYear() === d.getFullYear() &&
+             od.getMonth() === d.getMonth() &&
+             od.getDate() === d.getDate();
+    });
+    return {
+      date: d.toISOString().slice(0, 10),
+      label: arDays[d.getDay()],
+      count: dayOrders.length,
+      revenue: dayOrders.reduce((s, o) => s + o.sellingPrice, 0),
+    };
+  });
 
   const totalRevenue = allOrders.reduce((sum, o) => sum + o.sellingPrice, 0);
   const outstandingDebts = allOrders
@@ -64,5 +92,6 @@ export async function GET() {
     recentOrders,
     unpaidDelivered,
     settings,
+    dailyStats,
   });
 }
