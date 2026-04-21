@@ -23,7 +23,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
-  X,
+  ArrowRight,
   ArrowRightLeft,
   RotateCcw,
   CheckCircle2,
@@ -212,11 +212,12 @@ function BatchOrdersModal({
           </div>
         </div>
         <button
-          onClick={() => { onRefresh(); onClose(); }}
-          title="إغلاق"
-          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[var(--surface-secondary)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+          onClick={() => { onClose(); onRefresh(); }}
+          title="رجوع"
+          className="flex items-center gap-1.5 px-3 h-9 rounded-xl hover:bg-[var(--surface-secondary)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer text-sm font-medium"
         >
-          <X size={18} />
+          <ArrowRight size={16} />
+          رجوع
         </button>
       </div>
 
@@ -440,10 +441,12 @@ export default function BatchesPage() {
       if (batchRes.ok) {
         const data = await batchRes.json();
         setBatches(data);
-        if (viewingBatch) {
-          const updated = data.find((b: Batch) => b.id === viewingBatch.id);
-          if (updated) setViewingBatch(updated);
-        }
+        // Functional update: reads the latest state, not the captured closure value.
+        // If onClose() already set viewingBatch to null, prev will be null and we skip.
+        setViewingBatch((prev) => {
+          if (!prev) return null;
+          return data.find((b: Batch) => b.id === prev.id) ?? null;
+        });
       }
       if (settingsRes.ok) setSettings(await settingsRes.json());
     } catch (err) {
@@ -451,7 +454,7 @@ export default function BatchesPage() {
     } finally {
       setLoading(false);
     }
-  }, [viewingBatch]);
+  }, []);
 
   useEffect(() => {
     fetchData();
