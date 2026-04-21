@@ -472,7 +472,7 @@ export default function OrdersPage() {
       router.replace("/orders");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   const [activeTab, setActiveTab] = useState("active");
   const [search, setSearch] = useState("");
