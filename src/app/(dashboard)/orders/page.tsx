@@ -446,6 +446,8 @@ export default function OrdersPage() {
   const { token, isAdmin } = useAuthStore();
 
   const [orders, setOrders] = useState<Order[]>([]);
+  const ordersRef = useRef<Order[]>([]);
+  ordersRef.current = orders;
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState({ usdIqd: BASE_IQD, usdTry: BASE_TRY });
@@ -487,7 +489,22 @@ export default function OrdersPage() {
   const updateOrderStatus = useCallback(async (orderId: string, prevStatus: string, nextStatus: string) => {
     setStatusDropId(null);
     if (prevStatus === nextStatus) return;
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: nextStatus } : o));
+
+    // Determine if this order should be removed from the current tab's view
+    const activeTabNow = activeTab;
+    const activeStatuses = ["new", "in_progress"];
+    const shouldRemove =
+      (activeTabNow === "active" && !activeStatuses.includes(nextStatus)) ||
+      (activeTabNow !== "all" && activeTabNow !== "unpaid" && activeTabNow !== "active" && activeTabNow !== nextStatus);
+
+    const savedOrder = ordersRef.current.find((o) => o.id === orderId);
+
+    setOrders((prev) =>
+      shouldRemove
+        ? prev.filter((o) => o.id !== orderId)
+        : prev.map((o) => o.id === orderId ? { ...o, status: nextStatus } : o)
+    );
+
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: "PUT",
@@ -496,9 +513,18 @@ export default function OrdersPage() {
       });
       if (!res.ok) throw new Error();
     } catch {
-      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: prevStatus } : o));
+      // Revert
+      if (shouldRemove && savedOrder) {
+        setOrders((prev) =>
+          [...prev, savedOrder].sort((a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+        );
+      } else {
+        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: prevStatus } : o));
+      }
     }
-  }, [token]);
+  }, [token, activeTab]);
 
   // Payment dropdown
   const [paymentDropId, setPaymentDropId] = useState<string | null>(null);
