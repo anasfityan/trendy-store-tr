@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Sun, Moon, Search, ShoppingBag, ChevronLeft } from "lucide-react";
+import { Sun, Moon, Search, ChevronLeft } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 
 const pageTitles: Record<string, string> = {
@@ -56,17 +56,30 @@ export function AppNavbar() {
     >
       {/* Single Row: Logo + Breadcrumb + Search + Controls */}
       <div className="flex items-center justify-between px-4 sm:px-7 h-14 min-h-[56px]">
-        {/* Right side: Logo + Breadcrumb */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--accent)] to-purple-500 text-white flex items-center justify-center">
-            <ShoppingBag size={17} />
+        {/* Right side: Brand + Breadcrumb */}
+        <div className="flex items-center gap-2.5">
+          <a
+            href="/"
+            className="flex items-center gap-0 group select-none"
+            title="الرئيسية"
+          >
+            <span
+              className="text-sm font-light tracking-widest text-[var(--muted)] group-hover:text-[var(--foreground)] transition-colors duration-200"
+              style={{ letterSpacing: "0.15em" }}
+            >
+              trendy
+            </span>
+            <span
+              className="text-sm font-bold tracking-widest bg-gradient-to-l from-[var(--accent)] to-purple-500 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity duration-200"
+              style={{ letterSpacing: "0.15em" }}
+            >
+              &nbsp;store
+            </span>
+          </a>
+          <div className="hidden sm:flex items-center gap-1.5">
+            <ChevronLeft size={13} strokeWidth={1.5} className="text-[var(--muted)] opacity-40" />
+            <span className="text-sm font-medium text-[var(--foreground)]">{title}</span>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 text-sm text-[var(--muted)]">
-            <span className="font-bold text-base text-[var(--foreground)]">ترندي</span>
-            <ChevronLeft size={14} strokeWidth={1.5} className="opacity-40" />
-            <span className="font-medium text-[var(--foreground)]">{title}</span>
-          </div>
-          <span className="sm:hidden font-bold text-base text-[var(--foreground)]">ترندي</span>
         </div>
 
         {/* Left side: Search + Theme + User + Logout */}
