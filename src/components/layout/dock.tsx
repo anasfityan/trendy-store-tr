@@ -39,10 +39,10 @@ export function Dock() {
 
   return (
     <nav
-      className="fixed z-50 left-1/2 -translate-x-1/2 flex items-center px-2 sm:px-3 py-2 rounded-[2.5rem] bg-card/85 backdrop-blur-3xl border border-[var(--border)]/40"
+      className="fixed z-50 left-1/2 -translate-x-1/2 flex items-center px-2 sm:px-3 py-2 rounded-[2.5rem] bg-card/50 backdrop-blur-2xl border border-[var(--border)]/25"
       style={{
         bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
-        boxShadow: "0 8px 40px rgba(0,0,0,0.45), 0 2px 10px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.05)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.18), 0 1px 6px rgba(0,0,0,0.10), 0 0 0 1px rgba(255,255,255,0.06)",
         maxWidth: "calc(100vw - 32px)",
       }}
     >
