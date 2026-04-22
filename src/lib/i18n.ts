@@ -389,7 +389,7 @@ const translations = {
   },
 } as const;
 
-export type Translations = typeof translations.ar;
+export type Translations = typeof translations.ar | typeof translations.en;
 
 export function useT() {
   const locale = useLocaleStore((s) => s.locale);
