@@ -1027,7 +1027,6 @@ export default function OrdersPage() {
             {/* رابط */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 shrink-0 w-14 justify-end">
-                <span className="text-[11px] text-[var(--muted)] opacity-50">رابط</span>
                 <Link2 size={14} className="text-[var(--muted)] shrink-0" />
               </div>
               <div className="relative flex-1">
@@ -1035,6 +1034,7 @@ export default function OrdersPage() {
                   value={item.productLink}
                   onChange={(e) => updateProductItem(item.id, { productLink: e.target.value, fetchedImages: [], images: "", selectedImageIdx: 0 })}
                   dir="ltr"
+                  placeholder="رابط"
                   className="h-8 text-[13px] text-left pe-7 ps-7"
                 />
                 {isFetching
@@ -1055,12 +1055,12 @@ export default function OrdersPage() {
             {/* اللون */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 shrink-0 w-14 justify-end">
-                <span className="text-[11px] text-[var(--muted)] opacity-50">لون</span>
                 <span className="text-[14px] leading-none text-[var(--muted)]">●</span>
               </div>
               <Input
                 value={item.color}
                 onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
+                placeholder="لون"
                 className="h-8 text-[13px] flex-1"
               />
             </div>
@@ -1068,7 +1068,6 @@ export default function OrdersPage() {
             {/* النوع */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 shrink-0 w-14 justify-end">
-                <span className="text-[11px] text-[var(--muted)] opacity-50">نوع</span>
                 <span className="text-[14px] leading-none text-[var(--muted)]">◈</span>
               </div>
               <Select
@@ -1085,7 +1084,6 @@ export default function OrdersPage() {
             {/* المقاس */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 shrink-0 w-14 justify-end">
-                <span className="text-[11px] text-[var(--muted)] opacity-50">مقاس</span>
                 <span className="text-[14px] leading-none text-[var(--muted)]">⊟</span>
               </div>
               <div className="flex-1 flex items-center gap-1 flex-wrap">
@@ -1106,6 +1104,7 @@ export default function OrdersPage() {
                 <Input
                   value={item.size}
                   onChange={(e) => updateProductItem(item.id, { size: e.target.value })}
+                  placeholder="مقاس"
                   className="h-8 text-[13px] flex-1 min-w-[3rem]"
                 />
               </div>
@@ -1114,7 +1113,6 @@ export default function OrdersPage() {
             {/* شراء ليرة */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 shrink-0 w-14 justify-end">
-                <span className="text-[11px] text-[var(--muted)] opacity-50">شراء</span>
                 <span className="text-[14px] leading-none font-mono text-[var(--muted)]">₺</span>
               </div>
               <Input
@@ -1122,6 +1120,7 @@ export default function OrdersPage() {
                 step="0.01"
                 min="0"
                 value={item.purchaseCost}
+                placeholder="شراء"
                 className="h-8 text-[13px] flex-1"
                 onChange={(e) => {
                   const val = e.target.value;
@@ -1138,7 +1137,6 @@ export default function OrdersPage() {
             {/* بيع دينار */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 shrink-0 w-14 justify-end">
-                <span className="text-[11px] text-[var(--muted)] opacity-50">بيع</span>
                 <span className="text-[14px] leading-none font-mono text-[var(--muted)]">IQ</span>
               </div>
               <Input
@@ -1146,6 +1144,7 @@ export default function OrdersPage() {
                 step="1"
                 min="0"
                 value={item.sellingPrice}
+                placeholder="بيع"
                 className="h-8 text-[13px] flex-1"
                 onChange={(e) => updateProductItem(item.id, { sellingPrice: e.target.value })}
               />
