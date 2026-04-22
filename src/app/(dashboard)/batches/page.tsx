@@ -127,7 +127,7 @@ function buildWhatsAppUrl(order: Order): string {
     `التوصيل: ${formatIQD(order.deliveryCost)}\n` +
     (order.deposit > 0 ? `العربون: ${formatIQD(order.deposit)}\n` : "") +
     `المتبقي: ${formatIQD(remaining)}\n\n` +
-    `الحالة: ${ORDER_STATUS_OPTIONS.find(s => s.value === order.status)?.label || order.status}\n` +
+    `الحالة: ${({ new: "جديد", in_progress: "قيد التنفيذ", bought: "تم الشراء", shipped: "تم الشحن", delivered: "تم التسليم", cancelled: "ملغي" } as Record<string, string>)[order.status] || order.status}\n` +
     `شكراً لك!`
   );
   return `https://wa.me/${phone}?text=${text}`;
