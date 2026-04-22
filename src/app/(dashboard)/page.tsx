@@ -109,12 +109,24 @@ function SkeletonCard() {
 // ─── components ──────────────────────────────────────────────
 function StatCard({ label, value, icon: Icon }: { label: string; value: string; icon: React.ElementType }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 hover:border-[var(--accent)]/40 transition-colors duration-200">
-      <div className="inline-flex w-9 h-9 items-center justify-center rounded-xl mb-4" style={{ background: GOLD_DIM }}>
-        <Icon size={16} style={{ color: GOLD }} />
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-5 hover:border-[var(--accent)]/40 transition-colors duration-200">
+      {/* Mobile layout: compact row */}
+      <div className="flex sm:hidden items-start justify-between gap-1 mb-1">
+        <div className="inline-flex w-6 h-6 items-center justify-center rounded-lg shrink-0" style={{ background: GOLD_DIM }}>
+          <Icon size={12} style={{ color: GOLD }} />
+        </div>
       </div>
-      <p className="text-[22px] font-bold text-[var(--foreground)] tabular-nums leading-none mb-1.5">{value}</p>
-      <p className="text-xs text-[var(--muted)] font-medium">{label}</p>
+      <p className="sm:hidden text-[15px] font-bold text-[var(--foreground)] tabular-nums leading-tight">{value}</p>
+      <p className="sm:hidden text-[10px] text-[var(--muted)] font-medium mt-0.5 leading-tight">{label}</p>
+
+      {/* Desktop layout: original */}
+      <div className="hidden sm:block">
+        <div className="inline-flex w-9 h-9 items-center justify-center rounded-xl mb-4" style={{ background: GOLD_DIM }}>
+          <Icon size={16} style={{ color: GOLD }} />
+        </div>
+        <p className="text-[22px] font-bold text-[var(--foreground)] tabular-nums leading-none mb-1.5">{value}</p>
+        <p className="text-xs text-[var(--muted)] font-medium">{label}</p>
+      </div>
     </div>
   );
 }
