@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import {
   Save,
   Download,
-  RefreshCw,
   Store,
   Percent,
   Database,
@@ -17,7 +16,10 @@ import {
   ChevronLeft,
   LogOut,
   Upload,
+  Languages,
 } from "lucide-react";
+import { useT } from "@/lib/i18n";
+import { useLocaleStore } from "@/store/locale";
 
 interface SettingsData {
   id: string;
@@ -79,15 +81,17 @@ function parseCSV(text: string): Array<Record<string, string>> {
     });
 }
 
-const categories = [
-  { key: "store", label: "هوية المتجر", icon: Store, description: "الاسم والهاتف والشعار" },
-  { key: "financial", label: "المالية والشحن", icon: Percent, description: "العملة وأسعار الصرف" },
-  { key: "system", label: "النظام والبيانات", icon: Database, description: "النسخ الاحتياطي والمعلومات" },
-];
-
 export default function SettingsPage() {
   const { isAdmin, logout, user } = useAuthStore();
   const router = useRouter();
+  const t = useT();
+  const { locale, setLocale } = useLocaleStore();
+
+  const categories = [
+    { key: "store", label: t.settings.categories.store.label, icon: Store, description: t.settings.categories.store.description },
+    { key: "financial", label: t.settings.categories.financial.label, icon: Percent, description: t.settings.categories.financial.description },
+    { key: "system", label: t.settings.categories.system.label, icon: Database, description: t.settings.categories.system.description },
+  ];
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -135,7 +139,7 @@ export default function SettingsPage() {
   if (!isAdmin()) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <p className="text-[var(--muted)]">صلاحية المسؤول مطلوبة.</p>
+        <p className="text-[var(--muted)]">{t.settings.adminRequired}</p>
       </div>
     );
   }
@@ -143,7 +147,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <p className="text-[var(--muted)]">جاري التحميل...</p>
+        <p className="text-[var(--muted)]">{t.settings.loading}</p>
       </div>
     );
   }
@@ -282,10 +286,10 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-[var(--navy)]">
-            مركز التحكم
+            {t.settings.title}
           </h1>
           <p className="text-sm text-[var(--muted)] mt-0.5">
-            إعدادات النظام والتخصيص
+            {t.settings.subtitle}
           </p>
         </div>
         <button
@@ -294,7 +298,7 @@ export default function SettingsPage() {
           className="flex items-center gap-2 px-5 py-2.5 bg-[var(--navy)] text-white text-sm font-medium rounded-xl hover:opacity-90 disabled:opacity-60 transition-colors cursor-pointer"
         >
           <Save size={16} />
-          {saving ? "جاري الحفظ..." : saved ? "تم الحفظ!" : "حفظ الإعدادات"}
+          {saving ? t.settings.saving : saved ? t.settings.saved : t.settings.save}
         </button>
       </div>
 
@@ -314,7 +318,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-[var(--foreground)] truncate">{user.name}</p>
-                  <p className="text-[11px] text-[var(--muted)] truncate">{user.role === "admin" ? "مدير" : user.role}</p>
+                  <p className="text-[11px] text-[var(--muted)] truncate">{user.role === "admin" ? t.settings.roleAdmin : user.role}</p>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -336,7 +340,7 @@ export default function SettingsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 type="search"
-                placeholder="بحث في الإعدادات..."
+                placeholder={t.settings.searchPlaceholder}
                 className="w-full pr-10 pl-4 py-2.5 bg-[var(--background)] border border-[var(--border)] rounded-xl text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] outline-none focus:border-[var(--navy)]/40 focus:bg-[var(--surface)] transition-all"
               />
               {searchQuery && (
@@ -398,7 +402,7 @@ export default function SettingsPage() {
 
               {filteredCategories.length === 0 && (
                 <div className="py-8 text-center text-sm text-[var(--muted)]">
-                  لا توجد نتائج
+                  {t.settings.noResults}
                 </div>
               )}
             </div>
@@ -464,7 +468,7 @@ export default function SettingsPage() {
             className="flex items-center gap-2 text-sm text-[var(--navy)] font-medium mb-4 cursor-pointer hover:opacity-80 transition-colors"
           >
             <ChevronLeft size={16} />
-            {activeCatLabel}
+            {t.settings.back}
           </button>
           <div className="space-y-5 stagger-content">
             {renderContent()}
@@ -493,20 +497,20 @@ export default function SettingsPage() {
               <div className="w-9 h-9 rounded-xl bg-[var(--navy)]/10 flex items-center justify-center">
                 <Store size={18} className="text-[var(--navy)]" />
               </div>
-              <h2 className="text-lg font-bold">هوية المتجر</h2>
+              <h2 className="text-lg font-bold">{t.settings.store.title}</h2>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="storeName">اسم المتجر</Label>
+              <Label htmlFor="storeName">{t.settings.store.storeName}</Label>
               <Input
                 id="storeName"
                 value={storeName}
                 onChange={(e) => setStoreName(e.target.value)}
-                placeholder="متجر ترندي"
+                placeholder={t.settings.store.storeNamePlaceholder}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="logo">رابط الشعار</Label>
+              <Label htmlFor="logo">{t.settings.store.logoUrl}</Label>
               <Input
                 id="logo"
                 value={logo}
@@ -519,7 +523,7 @@ export default function SettingsPage() {
                 <div className="mt-2">
                   <img
                     src={logo}
-                    alt="معاينة الشعار"
+                    alt={t.settings.store.logoPreviewAlt}
                     className="h-16 w-16 object-contain rounded-xl border border-[var(--border)]"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = "none";
@@ -541,12 +545,12 @@ export default function SettingsPage() {
               <div className="w-9 h-9 rounded-xl bg-[var(--navy)]/10 flex items-center justify-center">
                 <Percent size={18} className="text-[var(--navy)]" />
               </div>
-              <h2 className="text-lg font-bold">المالية وأسعار الصرف</h2>
+              <h2 className="text-lg font-bold">{t.settings.financial.title}</h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="usdToTry">١ دولار = X ليرة تركية</Label>
+                <Label htmlFor="usdToTry">{t.settings.financial.usdToTry}</Label>
                 <Input
                   id="usdToTry"
                   type="number"
@@ -557,7 +561,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="usdToIqd">١ دولار = X دينار عراقي</Label>
+                <Label htmlFor="usdToIqd">{t.settings.financial.usdToIqd}</Label>
                 <Input
                   id="usdToIqd"
                   type="number"
@@ -568,7 +572,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tryToIqd">١ ليرة = X دينار عراقي</Label>
+                <Label htmlFor="tryToIqd">{t.settings.financial.tryToIqd}</Label>
                 <Input
                   id="tryToIqd"
                   type="number"
@@ -580,8 +584,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <p className="text-xs text-[var(--muted)]">
-              تُستخدم هذه الأسعار لتحويل تكاليف المنتجات بالليرة التركية
-              وتكاليف الشحن بالدولار إلى الدينار العراقي في التقارير المالية.
+              {t.settings.financial.note}
             </p>
           </div>
         );
@@ -596,7 +599,37 @@ export default function SettingsPage() {
               <div className="w-9 h-9 rounded-xl bg-[var(--navy)]/10 flex items-center justify-center">
                 <Database size={18} className="text-[var(--navy)]" />
               </div>
-              <h2 className="text-lg font-bold">النظام والبيانات</h2>
+              <h2 className="text-lg font-bold">{t.settings.system.title}</h2>
+            </div>
+
+            {/* ── Language ── */}
+            <div className="border border-[var(--border)] rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Languages size={16} className="text-[var(--navy)]" />
+                <span className="text-sm font-semibold text-[var(--foreground)]">{t.settings.system.language}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setLocale("ar")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
+                    locale === "ar"
+                      ? "bg-[var(--navy)] text-white border-[var(--navy)]"
+                      : "bg-transparent text-[var(--foreground)] border-[var(--border)] hover:border-[var(--navy)]/50"
+                  }`}
+                >
+                  {t.settings.system.languageAr}
+                </button>
+                <button
+                  onClick={() => setLocale("en")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
+                    locale === "en"
+                      ? "bg-[var(--navy)] text-white border-[var(--navy)]"
+                      : "bg-transparent text-[var(--foreground)] border-[var(--border)] hover:border-[var(--navy)]/50"
+                  }`}
+                >
+                  {t.settings.system.languageEn}
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -605,7 +638,7 @@ export default function SettingsPage() {
                 className="flex items-center gap-2 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
               >
                 <Download size={16} />
-                تصدير قاعدة البيانات
+                {t.settings.system.exportDatabase}
               </button>
               <button
                 onClick={handleExportMeta}
@@ -613,26 +646,25 @@ export default function SettingsPage() {
                 className="flex items-center gap-2 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer disabled:opacity-60"
               >
                 <Download size={16} />
-                {exportingMeta ? "جاري التصدير..." : "تصدير للإعلانات"}
+                {exportingMeta ? t.settings.system.exporting : t.settings.system.exportMeta}
               </button>
             </div>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-4 py-2.5 border border-red-400 text-red-600 rounded-xl bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
             >
-              تسجيل خروج
+              {t.settings.system.logout}
             </button>
             <p className="text-sm text-[var(--muted)]">
-              يتم تنزيل نسخة احتياطية من قاعدة البيانات بصيغة JSON. احفظ هذه
-              النسخة في مكان آمن.
+              {t.settings.system.backupNote}
             </p>
 
             {/* ── Import Customers ── */}
             <div className="border-t border-[var(--border)] pt-5 space-y-3">
               <div>
-                <h3 className="text-sm font-semibold text-[var(--foreground)]">استيراد عملاء</h3>
+                <h3 className="text-sm font-semibold text-[var(--foreground)]">{t.settings.system.importTitle}</h3>
                 <p className="text-xs text-[var(--muted)] mt-0.5">
-                  ملف CSV يحتوي على أعمدة: <span dir="ltr" className="font-mono">fn, phone, phone2, instagram</span>
+                  {t.settings.system.importNote} <span dir="ltr" className="font-mono">fn, phone, phone2, instagram</span>
                 </p>
               </div>
 
@@ -650,7 +682,7 @@ export default function SettingsPage() {
 
               <label className="inline-flex items-center gap-2 px-4 py-2.5 border border-[var(--border)] rounded-xl text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer select-none">
                 <Upload size={15} strokeWidth={1.8} />
-                {importing ? "جاري الاستيراد..." : "استيراد عملاء"}
+                {importing ? t.settings.system.importing : t.settings.system.importBtn}
                 <input
                   type="file"
                   accept=".csv,text/csv"

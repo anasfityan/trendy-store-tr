@@ -5,30 +5,24 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Sun, Moon, Search, ChevronLeft, Plus } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
-
-const pageTitles: Record<string, string> = {
-  "/": "الرئيسية",
-  "/orders": "الطلبات",
-  "/batches": "الشحنات",
-  "/customers": "العملاء",
-  "/finance": "المالية",
-  "/settings": "الإعدادات",
-};
-
-function getPageTitle(pathname: string): string {
-  if (pageTitles[pathname]) return pageTitles[pathname];
-  for (const [path, title] of Object.entries(pageTitles)) {
-    if (path !== "/" && pathname.startsWith(path)) return title;
-  }
-  return "الرئيسية";
-}
+import { useT } from "@/lib/i18n";
 
 export function AppNavbar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user } = useAuthStore();
-  const title = getPageTitle(pathname);
+  const t = useT();
   const [mounted, setMounted] = useState(false);
+
+  function getPageTitle(p: string): string {
+    if (t.pageTitles[p]) return t.pageTitles[p];
+    for (const [path, title] of Object.entries(t.pageTitles)) {
+      if (path !== "/" && p.startsWith(path)) return title;
+    }
+    return t.pageTitles["/"];
+  }
+
+  const title = getPageTitle(pathname);
 
   useEffect(() => setMounted(true), []);
 
@@ -88,12 +82,12 @@ export function AppNavbar() {
           {/* Add new order button */}
           <button
             onClick={() => router.push("/orders?new=true")}
-            title="طلب جديد"
+            title={t.topbar.newOrder}
             className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity duration-200 cursor-pointer shadow-sm"
             style={{ background: "#c9a84c", color: "#111111" }}
           >
             <Plus size={15} strokeWidth={2.5} />
-            <span className="hidden sm:inline">طلب جديد</span>
+            <span className="hidden sm:inline">{t.topbar.newOrder}</span>
           </button>
 
           {/* Search — icon on mobile, full bar on desktop */}
@@ -108,7 +102,7 @@ export function AppNavbar() {
             className="hidden sm:flex items-center gap-3 px-4 h-9 rounded-2xl bg-[var(--surface-secondary)]/80 border border-[var(--border)]/40 text-[var(--muted)] text-[14px] hover:border-[var(--muted)] hover:bg-[var(--surface-secondary)] transition-all duration-200 cursor-pointer w-56"
           >
             <Search size={16} strokeWidth={1.8} className="shrink-0" />
-            <span className="flex-1 text-start">بحث أو أمر...</span>
+            <span className="flex-1 text-start">{t.topbar.search}</span>
             <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-medium bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[var(--muted)] font-mono">⌘K</kbd>
           </button>
 
@@ -117,7 +111,7 @@ export function AppNavbar() {
             <button
               onClick={() => setTheme(isDark ? "light" : "dark")}
               className="relative flex items-center justify-center w-9 h-9 rounded-xl text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--surface-secondary)] transition-colors duration-200 cursor-pointer overflow-hidden"
-              title={isDark ? "الوضع الفاتح" : "الوضع الداكن"}
+              title={isDark ? t.topbar.lightMode : t.topbar.darkMode}
             >
               <Sun
                 size={17}

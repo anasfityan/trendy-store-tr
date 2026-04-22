@@ -3,6 +3,7 @@ import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/theme-provider";
 import { AuthGuard } from "@/components/auth-guard";
+import { LocaleProvider } from "@/components/locale-provider";
 
 const ibmPlex = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
@@ -31,7 +32,9 @@ export default function RootLayout({
     >
       <body className="min-h-full antialiased">
         <Providers>
-          <AuthGuard>{children}</AuthGuard>
+          <LocaleProvider>
+            <AuthGuard>{children}</AuthGuard>
+          </LocaleProvider>
         </Providers>
       </body>
     </html>

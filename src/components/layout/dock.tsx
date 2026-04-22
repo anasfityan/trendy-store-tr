@@ -11,19 +11,21 @@ import {
   Settings,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
-
-const navItems = [
-  { href: "/", label: "الرئيسية", icon: LayoutDashboard, adminOnly: false },
-  { href: "/orders", label: "الطلبات", icon: ShoppingCart, adminOnly: false },
-  { href: "/batches", label: "الشحنات", icon: Package, adminOnly: false },
-  { href: "/finance", label: "المالية", icon: DollarSign, adminOnly: true },
-  { href: "/customers", label: "العملاء", icon: Users, adminOnly: true },
-  { href: "/settings", label: "النظام", icon: Settings, adminOnly: true },
-];
+import { useT } from "@/lib/i18n";
 
 export function Dock() {
   const pathname = usePathname();
   const isAdmin = useAuthStore((s) => s.isAdmin);
+  const t = useT();
+
+  const navItems = [
+    { href: "/", label: t.nav.home, icon: LayoutDashboard, adminOnly: false },
+    { href: "/orders", label: t.nav.orders, icon: ShoppingCart, adminOnly: false },
+    { href: "/batches", label: t.nav.batches, icon: Package, adminOnly: false },
+    { href: "/finance", label: t.nav.finance, icon: DollarSign, adminOnly: true },
+    { href: "/customers", label: t.nav.customers, icon: Users, adminOnly: true },
+    { href: "/settings", label: t.nav.settings, icon: Settings, adminOnly: true },
+  ];
 
   const filteredItems = navItems.filter((item) => {
     if (item.adminOnly && !isAdmin()) return false;
