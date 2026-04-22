@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth";
 import { formatIQD, formatTRY } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -126,16 +127,6 @@ interface ProductItem {
 // Constants
 // ---------------------------------------------------------------------------
 
-const STATUS_TABS = [
-  { label: "النشطة", value: "active" },
-  { label: "الكل", value: "all" },
-  { label: "جديد", value: "new" },
-  { label: "قيد التنفيذ", value: "in_progress" },
-  { label: "تم الشراء", value: "bought" },
-  { label: "تم الشحن", value: "shipped" },
-  { label: "تم التسليم", value: "delivered" },
-  { label: "غير مدفوع", value: "unpaid" },
-] as const;
 
 const PRODUCT_TYPES = [
   { label: "حقيبة", value: "Bag" },
@@ -446,6 +437,18 @@ function parseSubItems(items?: string | null): SubItem[] {
 
 export default function OrdersPage() {
   const { token, isAdmin } = useAuthStore();
+  const t = useT();
+
+  const STATUS_TABS = [
+    { label: t.orders.tabs.active, value: "active" },
+    { label: t.orders.tabs.all, value: "all" },
+    { label: t.orders.tabs.new, value: "new" },
+    { label: t.orders.tabs.in_progress, value: "in_progress" },
+    { label: t.orders.tabs.bought, value: "bought" },
+    { label: t.orders.tabs.shipped, value: "shipped" },
+    { label: t.orders.tabs.delivered, value: "delivered" },
+    { label: t.orders.tabs.unpaid, value: "unpaid" },
+  ];
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -1161,7 +1164,7 @@ export default function OrdersPage() {
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Page header */}
-      <h1 className="text-2xl font-bold tracking-tight">الطلبات</h1>
+      <h1 className="text-2xl font-bold tracking-tight">{t.orders.title}</h1>
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap gap-2">
@@ -1182,7 +1185,7 @@ export default function OrdersPage() {
       <div className="relative w-full md:max-w-sm">
         <Search className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="البحث في الطلبات..."
+          placeholder={t.orders.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pe-9"
