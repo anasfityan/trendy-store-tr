@@ -128,27 +128,6 @@ interface ProductItem {
 // ---------------------------------------------------------------------------
 
 
-const PRODUCT_TYPES = [
-  { label: "حقيبة", value: "Bag" },
-  { label: "حذاء", value: "Shoe" },
-  { label: "ملابس", value: "Clothing" },
-  { label: "إكسسوار", value: "Accessory" },
-  { label: "أخرى", value: "Other" },
-];
-
-const STATUS_OPTIONS = [
-  { label: "جديد", value: "new" },
-  { label: "قيد التنفيذ", value: "in_progress" },
-  { label: "تم الشراء", value: "bought" },
-  { label: "تم الشحن", value: "shipped" },
-  { label: "تم التسليم", value: "delivered" },
-];
-
-const PAYMENT_OPTIONS = [
-  { label: "غير مدفوع", value: "unpaid" },
-  { label: "دفع جزئي", value: "partial" },
-  { label: "مدفوع", value: "paid" },
-];
 
 const IRAQI_CITIES = [
   "بغداد",
@@ -449,6 +428,33 @@ export default function OrdersPage() {
     { label: t.orders.tabs.delivered, value: "delivered" },
     { label: t.orders.tabs.unpaid, value: "unpaid" },
   ];
+
+  const STATUS_LABELS: Record<string, string> = { ...t.orders.status };
+  const PRODUCT_TYPE_LABELS: Record<string, string> = { ...t.orders.productTypes };
+  const prettyStatus = (status: string) => STATUS_LABELS[status] || status;
+
+  const PRODUCT_TYPES = [
+    { label: t.orders.productTypes.Bag, value: "Bag" },
+    { label: t.orders.productTypes.Shoe, value: "Shoe" },
+    { label: t.orders.productTypes.Clothing, value: "Clothing" },
+    { label: t.orders.productTypes.Accessory, value: "Accessory" },
+    { label: t.orders.productTypes.Other, value: "Other" },
+  ];
+
+  const STATUS_OPTIONS = [
+    { label: t.orders.status.new, value: "new" },
+    { label: t.orders.status.in_progress, value: "in_progress" },
+    { label: t.orders.status.bought, value: "bought" },
+    { label: t.orders.status.shipped, value: "shipped" },
+    { label: t.orders.status.delivered, value: "delivered" },
+  ];
+
+  const PAYMENT_OPTIONS = [
+    { label: t.orders.status.unpaid, value: "unpaid" },
+    { label: t.orders.status.partial, value: "partial" },
+    { label: t.orders.status.paid, value: "paid" },
+  ];
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -921,17 +927,17 @@ export default function OrdersPage() {
         fetchOrders();
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.error || "فشل في حفظ الطلب");
+        alert(err?.error || t.orders.alerts.saveFailed);
       }
     } catch {
-      alert("خطأ في الشبكة");
+      alert(t.orders.alerts.networkError);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (order: Order) => {
-    if (!confirm(`هل تريد حذف طلب "${order.customer?.name}"؟`)) return;
+    if (!confirm(t.orders.alerts.deleteConfirm(order.customer?.name || ""))) return;
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
         method: "DELETE",
@@ -940,10 +946,10 @@ export default function OrdersPage() {
       if (res.ok) fetchOrders();
       else {
         const err = await res.json().catch(() => null);
-        alert(err?.error || "فشل في حذف الطلب");
+        alert(err?.error || t.orders.alerts.deleteFailed);
       }
     } catch {
-      alert("خطأ في الشبكة");
+      alert(t.orders.alerts.networkError);
     }
   };
 
@@ -962,7 +968,7 @@ export default function OrdersPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <Package className="h-4 w-4" />
-            <span>المنتج {index + 1}</span>
+            <span>{t.orders.dialog.productItem(index + 1)}</span>
           </div>
           {productItems.length > 1 && (
             <Button
@@ -973,7 +979,7 @@ export default function OrdersPage() {
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-4 w-4 me-1" />
-              حذف المنتج
+              {t.orders.dialog.deleteProduct}
             </Button>
           )}
         </div>
@@ -988,7 +994,7 @@ export default function OrdersPage() {
                 <div className="relative group flex-1 min-h-0">
                   <img
                     src={item.fetchedImages[item.selectedImageIdx ?? 0]}
-                    alt="صورة المنتج"
+                    alt={t.orders.dialog.productImage}
                     className="w-full h-full rounded-lg object-cover border border-border"
                   />
                   <button
@@ -1037,7 +1043,7 @@ export default function OrdersPage() {
                   value={item.productLink}
                   onChange={(e) => updateProductItem(item.id, { productLink: e.target.value, fetchedImages: [], images: "", selectedImageIdx: 0 })}
                   dir="ltr"
-                  placeholder="رابط"
+                  placeholder={t.orders.fields.link}
                   className="h-8 text-[13px] text-left pe-7 ps-7"
                 />
                 {isFetching
@@ -1048,7 +1054,7 @@ export default function OrdersPage() {
                   type="button"
                   onClick={async () => { try { const t = await navigator.clipboard.readText(); updateProductItem(item.id, { productLink: t.trim(), fetchedImages: [], images: "", selectedImageIdx: 0 }); } catch { /* clipboard unavailable */ } }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                  title="لصق"
+                  title={t.orders.tooltips.paste}
                 >
                   <Clipboard className="h-3 w-3" />
                 </button>
@@ -1063,7 +1069,7 @@ export default function OrdersPage() {
               <Input
                 value={item.color}
                 onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
-                placeholder="لون"
+                placeholder={t.orders.fields.color}
                 className="h-8 text-[13px] flex-1"
               />
             </div>
@@ -1107,7 +1113,7 @@ export default function OrdersPage() {
                 <Input
                   value={item.size}
                   onChange={(e) => updateProductItem(item.id, { size: e.target.value })}
-                  placeholder="مقاس"
+                  placeholder={t.orders.fields.size}
                   className="h-8 text-[13px] flex-1 min-w-[3rem]"
                 />
               </div>
@@ -1123,7 +1129,7 @@ export default function OrdersPage() {
                 step="0.01"
                 min="0"
                 value={item.purchaseCost}
-                placeholder="شراء"
+                placeholder={t.orders.fields.buy}
                 className="h-8 text-[13px] flex-1"
                 onChange={(e) => {
                   const val = e.target.value;
@@ -1147,7 +1153,7 @@ export default function OrdersPage() {
                 step="1"
                 min="0"
                 value={item.sellingPrice}
-                placeholder="بيع"
+                placeholder={t.orders.fields.sell}
                 className="h-8 text-[13px] flex-1"
                 onChange={(e) => updateProductItem(item.id, { sellingPrice: e.target.value })}
               />
@@ -1196,7 +1202,7 @@ export default function OrdersPage() {
       <Card className="card-hover overflow-hidden hidden md:block">
         <CardHeader>
           <CardTitle className="text-lg">
-            الطلبات{" "}
+            {t.orders.title}{" "}
             <span className="text-muted-foreground font-normal text-sm">
               ({orders.length})
             </span>
@@ -1209,26 +1215,26 @@ export default function OrdersPage() {
             </div>
           ) : orders.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground animate-fade-in-up">
-              لا توجد طلبات
+              {t.orders.noOrders}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="whitespace-nowrap text-start">الصورة</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">العميل</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">المنتج</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">اللون</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">المقاس</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">رابط</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">سعر الشراء</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">سعر البيع</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">المتبقي</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">الحالة</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">الدفع</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">التاريخ</TableHead>
-                    <TableHead className="whitespace-nowrap text-end">الإجراءات</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.image}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.customer}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.product}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.color}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.size}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.link}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.buyPrice}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.sellPrice}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.remaining}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.status}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.payment}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.date}</TableHead>
+                    <TableHead className="whitespace-nowrap text-end">{t.orders.table.actions}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1292,7 +1298,7 @@ export default function OrdersPage() {
                               className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors"
                             >
                               <ExternalLink className="h-3 w-3" />
-                              فتح
+                              {t.orders.openLink}
                             </a>
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
@@ -1406,11 +1412,11 @@ export default function OrdersPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(order)} title="تعديل">
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(order)} title={t.orders.tooltips.edit}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             {isAdmin() && (
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(order)} title="حذف">
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(order)} title={t.orders.tooltips.delete}>
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             )}
@@ -1419,11 +1425,11 @@ export default function OrdersPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-                              title="واتساب"
+                              title={t.orders.tooltips.whatsapp}
                             >
                               <MessageCircle className="h-4 w-4 text-green-600" />
                             </a>
-                            <Button variant="ghost" size="icon" onClick={() => openInvoice(order)} title="فاتورة">
+                            <Button variant="ghost" size="icon" onClick={() => openInvoice(order)} title={t.orders.tooltips.invoice}>
                               <FileText className="h-4 w-4" />
                             </Button>
                           </div>
@@ -1458,7 +1464,7 @@ export default function OrdersPage() {
                               {sub.productLink ? (
                                 <a href={sub.productLink} target="_blank" rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors">
-                                  <ExternalLink className="h-3 w-3" />فتح
+                                  <ExternalLink className="h-3 w-3" />{t.orders.openLink}
                                 </a>
                               ) : <span className="text-muted-foreground text-xs">—</span>}
                             </TableCell>
@@ -1494,7 +1500,7 @@ export default function OrdersPage() {
           </div>
         ) : orders.length === 0 ? (
           <div className="py-16 text-center text-muted-foreground animate-fade-in-up">
-            لا توجد طلبات
+            {t.orders.noOrders}
           </div>
         ) : (
           <div className="space-y-3 pb-32">
@@ -1584,38 +1590,38 @@ export default function OrdersPage() {
                       <div className="mt-1.5 space-y-[5px]">
                         <div className="flex items-center gap-1.5">
                           <Package size={14} className="text-[var(--muted)] shrink-0" />
-                          <span className="text-[11px] text-[var(--muted)] opacity-50">نوع</span>
+                          <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.type}</span>
                           <span className="text-[13px] text-[var(--foreground)]">{PRODUCT_TYPE_LABELS[order.productType] || order.productType}</span>
                         </div>
                         {order.color && (
                           <div className="flex items-center gap-1.5">
                             <span className="shrink-0 h-[14px] w-[14px] rounded-full border border-[var(--border)]" style={{ background: order.color }} />
-                            <span className="text-[11px] text-[var(--muted)] opacity-50">لون</span>
+                            <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.color}</span>
                             <span className="text-[13px] text-[var(--foreground)]">{order.color}</span>
                           </div>
                         )}
                         {order.size && (
                           <div className="flex items-center gap-1.5">
                             <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none text-[var(--muted)]">SZ</span>
-                            <span className="text-[11px] text-[var(--muted)] opacity-50">مقاس</span>
+                            <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.size}</span>
                             <span className="text-[13px] text-[var(--foreground)]">{order.size}</span>
                           </div>
                         )}
                         {order.productLink && (
                           <div className="flex items-center gap-1.5">
                             <ExternalLink size={14} className="text-[var(--muted)] shrink-0" />
-                            <span className="text-[11px] text-[var(--muted)] opacity-50">رابط</span>
-                            <a href={order.productLink} target="_blank" rel="noopener noreferrer" className="text-[13px] text-blue-500 hover:underline">فتح</a>
+                            <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.link}</span>
+                            <a href={order.productLink} target="_blank" rel="noopener noreferrer" className="text-[13px] text-blue-500 hover:underline">{t.orders.openLink}</a>
                           </div>
                         )}
                         <div className="flex items-center gap-1.5">
                           <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none text-[var(--muted)]">₺</span>
-                          <span className="text-[11px] text-[var(--muted)] opacity-50">شراء</span>
+                          <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.buy}</span>
                           <span className="text-[13px] text-[var(--foreground)]">{formatTRY(order.purchaseCost)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none" style={{ color: "#c9a84c" }}>IQ</span>
-                          <span className="text-[11px] text-[var(--muted)] opacity-50">بيع</span>
+                          <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.sell}</span>
                           <span className="text-[13px]" style={{ color: "#c9a84c" }}>{formatIQD(order.sellingPrice)}</span>
                         </div>
                       </div>
@@ -1633,7 +1639,7 @@ export default function OrdersPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
-                        title="واتساب"
+                        title={t.orders.tooltips.whatsapp}
                       >
                         <MessageCircle className="h-4 w-4 text-green-600" />
                       </a>
@@ -1641,7 +1647,7 @@ export default function OrdersPage() {
                         type="button"
                         onClick={() => handleEdit(order)}
                         className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
-                        title="تعديل"
+                        title={t.orders.tooltips.edit}
                       >
                         <Pencil className="h-4 w-4 text-[var(--muted)]" />
                       </button>
@@ -1650,7 +1656,7 @@ export default function OrdersPage() {
                           type="button"
                           onClick={() => handleDelete(order)}
                           className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-red-500/10 transition-colors"
-                          title="حذف"
+                          title={t.orders.tooltips.delete}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </button>
@@ -1664,7 +1670,7 @@ export default function OrdersPage() {
                         className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-secondary)] transition-colors text-[var(--foreground)]"
                       >
                         <ExternalLink className="h-3 w-3" />
-                        فتح
+                        {t.orders.openLink}
                       </a>
                     ) : null}
                   </div>
@@ -1680,7 +1686,7 @@ export default function OrdersPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingOrder ? "تعديل الطلب" : "طلب جديد"}
+              {editingOrder ? t.orders.dialog.editOrder : t.orders.dialog.newOrder}
             </DialogTitle>
             <DialogClose onClose={() => setDialogOpen(false)} />
           </DialogHeader>
@@ -1690,16 +1696,16 @@ export default function OrdersPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="customerName" className="text-xs">الاسم *</Label>
+                  <Label htmlFor="customerName" className="text-xs">{t.orders.dialog.nameRequired}</Label>
                   <Input id="customerName" required value={form.customerName} onChange={(e) => setField("customerName", e.target.value)} className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="customerPhone" className="text-xs">الهاتف</Label>
+                  <Label htmlFor="customerPhone" className="text-xs">{t.orders.dialog.phone}</Label>
                   <Input id="customerPhone" value={form.customerPhone} onChange={(e) => setField("customerPhone", e.target.value)} className="h-8 text-sm" />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="instagram" className="text-xs">انستغرام</Label>
+                <Label htmlFor="instagram" className="text-xs">{t.orders.dialog.instagram}</Label>
                 <div className="relative">
                   <Input id="instagram" dir="ltr" className="h-8 text-sm text-left pr-8" value={form.instagram} onChange={(e) => setField("instagram", e.target.value)} />
                   {fetchingIG && <Loader2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />}
@@ -1707,7 +1713,7 @@ export default function OrdersPage() {
                     type="button"
                     onClick={async () => { try { const t = await navigator.clipboard.readText(); setField("instagram", t.trim()); } catch { /* clipboard unavailable */ } }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                    title="لصق"
+                    title={t.orders.tooltips.paste}
                   >
                     <Clipboard className="h-3.5 w-3.5" />
                   </button>
@@ -1724,12 +1730,12 @@ export default function OrdersPage() {
                 className="w-full border border-dashed border-border rounded-lg p-2 text-center text-xs text-muted-foreground hover:border-accent hover:text-accent transition-all"
               >
                 <Plus className="h-3 w-3 inline-block me-1" />
-                إضافة منتج آخر
+                {t.orders.dialog.addProduct}
               </button>
               {productItems.length > 1 && (
                 <div className="rounded-lg bg-muted/50 px-3 py-1.5 text-xs border border-border/50 flex gap-5">
-                  <span><span className="text-muted-foreground">الشراء: </span><span className="font-semibold">{formatTRY(totalPurchaseCost)}</span></span>
-                  <span><span className="text-muted-foreground">البيع: </span><span className="font-semibold">{formatIQD(totalSellingPrice)}</span></span>
+                  <span><span className="text-muted-foreground">{t.orders.dialog.totalBuy}</span><span className="font-semibold">{formatTRY(totalPurchaseCost)}</span></span>
+                  <span><span className="text-muted-foreground">{t.orders.dialog.totalSell}</span><span className="font-semibold">{formatIQD(totalSellingPrice)}</span></span>
                 </div>
               )}
             </div>
@@ -1737,18 +1743,18 @@ export default function OrdersPage() {
             {/* Location & Batch */}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="governorate" className="text-xs">المحافظة</Label>
+                <Label htmlFor="governorate" className="text-xs">{t.orders.dialog.governorate}</Label>
                 <Select id="governorate" value={form.governorate} onChange={(e) => setField("governorate", e.target.value)} className="h-8 text-sm">
                   <option value="">—</option>
                   {IRAQI_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="area" className="text-xs">المنطقة</Label>
+                <Label htmlFor="area" className="text-xs">{t.orders.dialog.area}</Label>
                 <Input id="area" value={form.area} onChange={(e) => setField("area", e.target.value)} className="h-8 text-sm" style={{ height: "2rem" }} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="batchId" className="text-xs">الشحنة</Label>
+                <Label htmlFor="batchId" className="text-xs">{t.orders.dialog.batch}</Label>
                 <Select id="batchId" value={form.batchId} onChange={(e) => setField("batchId", e.target.value)} className="h-8 text-sm">
                   <option value="">—</option>
                   {batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -1759,19 +1765,19 @@ export default function OrdersPage() {
             {/* Pricing + Total */}
             <div className="grid grid-cols-3 gap-3 items-end">
               <div className="space-y-1">
-                <Label htmlFor="deliveryCost" className="text-xs">توصيل</Label>
+                <Label htmlFor="deliveryCost" className="text-xs">{t.orders.dialog.delivery}</Label>
                 <Select id="deliveryCost" value={form.deliveryCost} onChange={(e) => setField("deliveryCost", e.target.value)} className="h-8 text-sm">
                   <option value="">—</option>
                   {DELIVERY_COSTS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="deposit" className="text-xs">عربون</Label>
+                <Label htmlFor="deposit" className="text-xs">{t.orders.dialog.deposit}</Label>
                 <Input id="deposit" type="number" step="1" min="0" value={form.deposit} onChange={(e) => setField("deposit", e.target.value)} className="h-8 text-sm" style={{ height: "2rem" }} />
               </div>
               <div className="rounded-xl flex flex-col items-center justify-center gap-1 py-3"
                 style={{ background: "#f0fdf4", border: "1px solid #86efac", color: "#166534", minHeight: "4rem" }}>
-                <span className="text-[10px] font-medium opacity-60">السعر الكلي</span>
+                <span className="text-[10px] font-medium opacity-60">{t.orders.dialog.totalPrice}</span>
                 <span className="text-sm font-bold">{formatIQD(finalPrice)}</span>
               </div>
             </div>
@@ -1779,13 +1785,13 @@ export default function OrdersPage() {
             {/* Status */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="status" className="text-xs">الحالة</Label>
+                <Label htmlFor="status" className="text-xs">{t.orders.dialog.orderStatus}</Label>
                 <Select id="status" value={form.status} onChange={(e) => setField("status", e.target.value)} className="h-8 text-sm">
                   {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="paymentStatus" className="text-xs">الدفع</Label>
+                <Label htmlFor="paymentStatus" className="text-xs">{t.orders.dialog.paymentStatus}</Label>
                 <Select id="paymentStatus" value={form.paymentStatus} onChange={(e) => setField("paymentStatus", e.target.value)} className="h-8 text-sm">
                   {PAYMENT_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </Select>
@@ -1794,16 +1800,16 @@ export default function OrdersPage() {
 
             {/* Notes */}
             <div className="space-y-1">
-              <Label htmlFor="notes" className="text-xs">ملاحظات</Label>
+              <Label htmlFor="notes" className="text-xs">{t.orders.dialog.notes}</Label>
               <Textarea id="notes" rows={2} value={form.notes} onChange={(e) => setField("notes", e.target.value)} className="text-sm resize-none" />
             </div>
 
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-2 border-t border-border/50">
-              <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(false)}>إلغاء</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(false)}>{t.orders.dialog.cancel}</Button>
               <Button type="submit" size="sm" disabled={saving}>
                 {saving && <Loader2 className="me-2 h-3 w-3 animate-spin" />}
-                {editingOrder ? "حفظ" : "إنشاء"}
+                {editingOrder ? t.orders.dialog.save : t.orders.dialog.create}
               </Button>
             </div>
           </form>
