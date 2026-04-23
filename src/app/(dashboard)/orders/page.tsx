@@ -1410,8 +1410,8 @@ export default function OrdersPage() {
                   style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   {/* ── Main card body ── */}
-                  <div className="p-3.5 space-y-3">
-                    <div className="flex gap-3">
+                  <div className="p-3 space-y-2">
+                    <div className="flex gap-2.5">
                       {/* Image */}
                       <div className="shrink-0 self-start">
                         {imgs.length > 0 ? (
@@ -1419,12 +1419,12 @@ export default function OrdersPage() {
                             <img
                               src={imgs[0]}
                               alt=""
-                              className="h-16 w-16 rounded-xl object-cover border border-[var(--border)] cursor-zoom-in"
+                              className="h-14 w-14 rounded-xl object-cover border border-[var(--border)] cursor-zoom-in"
                             />
                           </button>
                         ) : (
-                          <div className="h-16 w-16 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] flex items-center justify-center">
-                            <ImageIcon className="h-5 w-5 text-[var(--muted)]" />
+                          <div className="h-14 w-14 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] flex items-center justify-center">
+                            <ImageIcon className="h-4 w-4 text-[var(--muted)]" />
                           </div>
                         )}
                       </div>
@@ -1483,40 +1483,20 @@ export default function OrdersPage() {
                         </div>
 
                         {/* Product details */}
-                        <div className="mt-1.5 space-y-[5px]">
-                          <div className="flex items-center gap-1.5">
-                            <Package size={14} className="text-[var(--muted)] shrink-0" />
-                            <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.type}</span>
-                            <span className="text-[13px] text-[var(--foreground)]">{PRODUCT_TYPE_LABELS[order.productType] || order.productType}</span>
+                        <div className="mt-1 space-y-[3px]">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[12px] text-[var(--foreground)] font-medium">{PRODUCT_TYPE_LABELS[order.productType] || order.productType}</span>
+                            {order.color && <span className="text-[11px] text-[var(--muted)]">· {order.color}</span>}
+                            {order.size && <span className="text-[11px] text-[var(--muted)]">· {order.size}</span>}
                           </div>
-                          {order.color && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="shrink-0 h-[14px] w-[14px] rounded-full border border-[var(--border)]" style={{ background: order.color }} />
-                              <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.color}</span>
-                              <span className="text-[13px] text-[var(--foreground)]">{order.color}</span>
-                            </div>
-                          )}
-                          {order.size && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none text-[var(--muted)]">SZ</span>
-                              <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.size}</span>
-                              <span className="text-[13px] text-[var(--foreground)]">{order.size}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1.5">
-                            <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none text-[var(--muted)]">₺</span>
-                            <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.buy}</span>
-                            <span className="text-[13px] text-[var(--foreground)]">{formatTRY(order.purchaseCost)}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[11px] text-[var(--muted)]">₺{order.purchaseCost.toLocaleString()}</span>
+                            <span className="text-[12px] font-semibold" style={{ color: "#c9a84c" }}>{formatIQD(order.sellingPrice)}</span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none" style={{ color: "#c9a84c" }}>IQ</span>
-                            <span className="text-[11px] text-[var(--muted)] opacity-50">{t.orders.cardLabels.sell}</span>
-                            <span className="text-[13px]" style={{ color: "#c9a84c" }}>{formatIQD(order.sellingPrice)}</span>
-                          </div>
+                          <span className="block text-[10px] text-[var(--muted)] opacity-50">
+                            {format(new Date(order.createdAt), "dd/MM/yyyy")}
+                          </span>
                         </div>
-                        <span className="mt-1 block text-[11px] text-[var(--muted)] opacity-50">
-                          {format(new Date(order.createdAt), "dd/MM/yyyy")}
-                        </span>
                       </div>
                     </div>
 
@@ -1540,7 +1520,7 @@ export default function OrdersPage() {
                     )}
 
                     {/* Actions row */}
-                    <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]/40">
+                    <div className="flex items-center justify-between pt-1.5 border-t border-[var(--border)]/40">
                       <div className="flex items-center gap-0.5">
                         <a
                           href={buildWhatsAppUrl(order)}
@@ -1598,7 +1578,7 @@ export default function OrdersPage() {
                     return (
                       <div
                         key={`${order.id}-m-sub-${si}`}
-                        className="border-t border-[var(--border)]/60 px-3.5 py-3 flex gap-3 items-start"
+                        className="border-t border-[var(--border)]/60 px-3 py-2.5 flex gap-2.5 items-center"
                         style={{ background: "var(--surface-secondary)" }}
                       >
                         {/* Sub-item image */}
@@ -1608,44 +1588,26 @@ export default function OrdersPage() {
                               <img
                                 src={subImg}
                                 alt=""
-                                className="h-14 w-14 rounded-xl object-cover border border-[var(--border)] cursor-zoom-in"
+                                className="h-11 w-11 rounded-xl object-cover border border-[var(--border)] cursor-zoom-in"
                               />
                             </button>
                           ) : (
-                            <div className="h-14 w-14 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
-                              <ImageIcon className="h-4 w-4 text-[var(--muted)]" />
+                            <div className="h-11 w-11 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
+                              <ImageIcon className="h-3.5 w-3.5 text-[var(--muted)]" />
                             </div>
                           )}
                         </div>
 
                         {/* Sub-item info */}
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <Package size={12} className="text-[var(--muted)] shrink-0" />
-                            <span className="text-[12px] font-medium text-[var(--foreground)]">
-                              {PRODUCT_TYPE_LABELS[sub.productType] || sub.productType}
-                            </span>
-                            {sub.color && (
-                              <span className="text-[11px] text-[var(--muted)]">· {sub.color}</span>
-                            )}
-                            {sub.size && (
-                              <span className="text-[11px] text-[var(--muted)]">· {sub.size}</span>
-                            )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[12px] font-medium text-[var(--foreground)]">{PRODUCT_TYPE_LABELS[sub.productType] || sub.productType}</span>
+                            {sub.color && <span className="text-[11px] text-[var(--muted)]">· {sub.color}</span>}
+                            {sub.size && <span className="text-[11px] text-[var(--muted)]">· {sub.size}</span>}
                           </div>
-                          {sub.productName && (
-                            <p className="text-[11px] text-[var(--muted)] truncate">{sub.productName}</p>
-                          )}
-                          <div className="flex items-center gap-3">
-                            {sub.purchaseCost && (
-                              <span className="text-[11px] text-[var(--muted)]">
-                                ₺{parseFloat(sub.purchaseCost).toLocaleString()}
-                              </span>
-                            )}
-                            {sub.sellingPrice && (
-                              <span className="text-[11px] font-semibold" style={{ color: "#c9a84c" }}>
-                                {formatIQD(parseFloat(sub.sellingPrice))}
-                              </span>
-                            )}
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {sub.purchaseCost && <span className="text-[11px] text-[var(--muted)]">₺{parseFloat(sub.purchaseCost).toLocaleString()}</span>}
+                            {sub.sellingPrice && <span className="text-[11px] font-semibold" style={{ color: "#c9a84c" }}>{formatIQD(parseFloat(sub.sellingPrice))}</span>}
                           </div>
                         </div>
 
