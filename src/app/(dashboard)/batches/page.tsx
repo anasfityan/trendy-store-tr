@@ -546,6 +546,7 @@ export default function BatchesPage() {
   const [form, setForm] = useState<BatchFormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [viewingBatch, setViewingBatch] = useState<Batch | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const t = useT();
@@ -676,6 +677,46 @@ export default function BatchesPage() {
         </Button>
       </div>
 
+      {/* Status filter tabs */}
+      {batches.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap" dir="rtl">
+          {[
+            { value: "all", label: "الكل", color: "#6b7280" },
+            { value: "open", label: t.batches.status.open, color: "#3b82f6" },
+            { value: "shipped", label: t.batches.status.shipped, color: "#f97316" },
+            { value: "in_distribution", label: t.batches.status.in_distribution, color: "#a855f7" },
+            { value: "completed", label: t.batches.status.completed, color: "#22c55e" },
+          ].map(({ value, label, color }) => {
+            const count = value === "all" ? batches.length : batches.filter((b) => b.status === value).length;
+            const active = statusFilter === value;
+            return (
+              <button
+                key={value}
+                onClick={() => setStatusFilter(value)}
+                className="flex items-center gap-1.5 px-3 h-8 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer"
+                style={{
+                  background: active ? `${color}22` : "var(--surface)",
+                  color: active ? color : "var(--muted)",
+                  border: `1px solid ${active ? color + "55" : "var(--border)"}`,
+                  boxShadow: active ? `0 0 0 1px ${color}33` : "none",
+                }}
+              >
+                {label}
+                <span
+                  className="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                  style={{
+                    background: active ? `${color}33` : "var(--background)",
+                    color: active ? color : "var(--muted)",
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Batches Grid */}
       {batches.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
@@ -684,7 +725,7 @@ export default function BatchesPage() {
         </div>
       ) : (
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-          {batches.map((batch) => {
+          {(statusFilter === "all" ? batches : batches.filter((b) => b.status === statusFilter)).map((batch) => {
             const bought = boughtCount(batch);
             const total = batch._count.orders;
             const pct = total > 0 ? Math.round((bought / total) * 100) : 0;
