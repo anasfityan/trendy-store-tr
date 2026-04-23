@@ -1406,7 +1406,7 @@ export default function OrdersPage() {
               return (
                 <div
                   key={order.id}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden animate-fade-in-up"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl animate-fade-in-up"
                   style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   {/* ── Main card body ── */}
@@ -1452,7 +1452,7 @@ export default function OrdersPage() {
                             </button>
                             {statusDropId === order.id && (
                               <div
-                                className="absolute z-50 top-full mt-1 end-0 rounded-lg shadow-xl overflow-hidden min-w-[9rem]"
+                                className="absolute z-[200] top-full mt-1 end-0 rounded-lg shadow-xl overflow-hidden min-w-[9rem]"
                                 style={{ backgroundColor: "#1e1e2e", border: "1px solid #333" }}
                               >
                                 {STATUS_OPTIONS.map((s) => {
@@ -1575,10 +1575,11 @@ export default function OrdersPage() {
                   {/* ── Expanded sub-items ── */}
                   {isExpanded && subItems.map((sub, si) => {
                     const subImg = sub.images?.[0];
+                    const isLast = si === subItems.length - 1;
                     return (
                       <div
                         key={`${order.id}-m-sub-${si}`}
-                        className="border-t border-[var(--border)]/60 px-3 py-2.5 flex gap-2.5 items-center"
+                        className={`border-t border-[var(--border)]/60 px-3 py-2.5 flex gap-2.5 items-center${isLast ? " rounded-b-2xl" : ""}`}
                         style={{ background: "var(--surface-secondary)" }}
                       >
                         {/* Sub-item image */}
@@ -1771,18 +1772,24 @@ export default function OrdersPage() {
       {/* Image preview modal */}
       {previewImg && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          className="fixed inset-0 z-[300] flex items-center justify-center"
+          style={{ backdropFilter: "blur(6px)", background: "rgba(0,0,0,0.75)" }}
           onClick={() => setPreviewImg(null)}
         >
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative mx-4"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "min(420px, 92vw)" }}
+          >
             <img
               src={previewImg}
               alt=""
-              className="max-w-sm max-h-[70vh] rounded-xl object-contain shadow-2xl"
+              className="w-full rounded-2xl object-contain shadow-2xl"
+              style={{ maxHeight: "72dvh" }}
             />
             <button
               onClick={() => setPreviewImg(null)}
-              className="absolute -top-2.5 -right-2.5 bg-background border border-border rounded-full p-1 shadow hover:bg-accent transition-colors"
+              className="absolute -top-3 -right-3 flex items-center justify-center w-7 h-7 bg-[var(--surface)] border border-[var(--border)] rounded-full shadow-lg hover:bg-[var(--surface-secondary)] transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>

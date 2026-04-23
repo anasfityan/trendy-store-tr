@@ -282,7 +282,6 @@ export function AppNavbar() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  onBlur={() => { if (!search) setSearchOpen(false); }}
                   dir="rtl"
                   autoFocus
                   className="h-9 pe-8 ps-3 text-xs rounded-xl outline-none"
@@ -291,18 +290,17 @@ export function AppNavbar() {
                     border: "1px solid var(--accent)",
                     color: "var(--foreground)",
                     width: "160px",
-                    transition: "width 0.2s",
                   }}
                 />
-                {search && (
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => { setSearch(""); setSearchOpen(false); }}
-                    className="absolute start-2 text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
+                {/* X always visible when open */}
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => { setSearch(""); setSearchOpen(false); }}
+                  className="absolute start-2 flex items-center justify-center w-5 h-5 rounded-full transition-colors cursor-pointer"
+                  style={{ background: search ? "var(--muted)" : "var(--border)", color: "var(--surface)" }}
+                >
+                  <X size={10} strokeWidth={2.5} />
+                </button>
               </>
             ) : (
               <button
