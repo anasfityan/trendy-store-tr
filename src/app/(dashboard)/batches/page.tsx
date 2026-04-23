@@ -34,6 +34,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
+import { useBatchFilterStore } from "@/store/batch-filter";
 import { formatIQD, formatUSD, formatTRY } from "@/lib/utils";
 import { format } from "date-fns";
 import { useT, type Translations } from "@/lib/i18n";
@@ -553,12 +554,10 @@ export default function BatchesPage() {
   const [form, setForm] = useState<BatchFormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [viewingBatch, setViewingBatch] = useState<Batch | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [filterDropOpen, setFilterDropOpen] = useState(false);
   const [statusDropBatchId, setStatusDropBatchId] = useState<string | null>(null);
-  const filterDropRef = useRef<HTMLDivElement>(null);
   const statusDropRef = useRef<HTMLDivElement>(null);
 
+  const { statusFilter, setCounts } = useBatchFilterStore();
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const t = useT();
 
@@ -578,8 +577,9 @@ export default function BatchesPage() {
       if (batchRes.ok) {
         const data = await batchRes.json();
         setBatches(data);
-        // Functional update: reads the latest state, not the captured closure value.
-        // If onClose() already set viewingBatch to null, prev will be null and we skip.
+        const cnt: Record<string, number> = { all: data.length };
+        for (const b of data) cnt[b.status] = (cnt[b.status] ?? 0) + 1;
+        setCounts(cnt);
         setViewingBatch((prev) => {
           if (!prev) return null;
           return data.find((b: Batch) => b.id === prev.id) ?? null;
@@ -599,15 +599,18 @@ export default function BatchesPage() {
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (filterDropRef.current && !filterDropRef.current.contains(e.target as Node)) {
-        setFilterDropOpen(false);
-      }
       if (statusDropRef.current && !statusDropRef.current.contains(e.target as Node)) {
         setStatusDropBatchId(null);
       }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleNewBatch() { openCreate(); }
+    window.addEventListener("trendy:open-new-batch", handleNewBatch);
+    return () => window.removeEventListener("trendy:open-new-batch", handleNewBatch);
   }, []);
 
   async function quickUpdateStatus(batchId: string, newStatus: string) {
@@ -705,95 +708,7 @@ export default function BatchesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">{t.batches.title}</h1>
-          <p className="text-muted-foreground">{t.batches.subtitle}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Filter dropdown */}
-          {(() => {
-            const filterOptions = [
-              { value: "all", label: "الكل", color: "#6b7280" },
-              { value: "open", label: t.batches.status.open, color: "#3b82f6" },
-              { value: "shipped", label: t.batches.status.shipped, color: "#f97316" },
-              { value: "in_distribution", label: t.batches.status.in_distribution, color: "#a855f7" },
-              { value: "completed", label: t.batches.status.completed, color: "#22c55e" },
-            ];
-            const active = filterOptions.find((o) => o.value === statusFilter)!;
-            const activeCount = statusFilter === "all" ? batches.length : batches.filter((b) => b.status === statusFilter).length;
-            return (
-              <div className="relative" ref={filterDropRef}>
-                <button
-                  onClick={() => setFilterDropOpen((o) => !o)}
-                  className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-                  style={{
-                    background: filterDropOpen ? "var(--surface-secondary)" : "var(--surface)",
-                    border: "1px solid var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ background: active.color }}
-                  />
-                  {active.label}
-                  <span
-                    className="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
-                    style={{ background: active.color + "22", color: active.color }}
-                  >
-                    {activeCount}
-                  </span>
-                  <ChevronDown
-                    size={12}
-                    className="text-[var(--muted)]"
-                    style={{ transform: filterDropOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
-                  />
-                </button>
-                {filterDropOpen && (
-                  <div
-                    className="absolute left-0 top-full mt-1.5 z-30 min-w-[170px] rounded-xl shadow-xl overflow-hidden py-1"
-                    style={{ background: "#1e1e2e", border: "1px solid #333" }}
-                    dir="rtl"
-                  >
-                    {filterOptions.map(({ value, label, color }) => {
-                      const cnt = value === "all" ? batches.length : batches.filter((b) => b.status === value).length;
-                      const isActive = statusFilter === value;
-                      return (
-                        <button
-                          key={value}
-                          onClick={() => { setStatusFilter(value); setFilterDropOpen(false); }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors text-right"
-                          style={{
-                            background: isActive ? color + "22" : "transparent",
-                            color: isActive ? color : "#ccc",
-                          }}
-                        >
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                          <span className="flex-1">{label}</span>
-                          <span
-                            className="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
-                            style={{ background: color + "22", color }}
-                          >
-                            {cnt}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          <Button onClick={openCreate} size="sm">
-            <Plus className="me-1.5 h-3.5 w-3.5" />
-            {t.batches.newBatch}
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
 
       {/* Batches Grid */}
       {batches.length === 0 ? (
