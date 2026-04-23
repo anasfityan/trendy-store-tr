@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -111,6 +111,13 @@ const PRODUCT_TYPE_LABELS: Record<string, string> = {
 
 const PAYMENT_LABELS: Record<string, string> = {
   paid: "مدفوع", partial: "دفع جزئي", unpaid: "غير مدفوع",
+};
+
+const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  open:            { bg: "rgba(59,130,246,0.15)",  text: "#60a5fa", border: "rgba(59,130,246,0.3)" },
+  shipped:         { bg: "rgba(249,115,22,0.15)",  text: "#fb923c", border: "rgba(249,115,22,0.3)" },
+  in_distribution: { bg: "rgba(168,85,247,0.15)",  text: "#c084fc", border: "rgba(168,85,247,0.3)" },
+  completed:       { bg: "rgba(34,197,94,0.15)",   text: "#4ade80", border: "rgba(34,197,94,0.3)" },
 };
 
 function buildWhatsAppUrl(order: Order): string {
@@ -547,6 +554,10 @@ export default function BatchesPage() {
   const [saving, setSaving] = useState(false);
   const [viewingBatch, setViewingBatch] = useState<Batch | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [filterDropOpen, setFilterDropOpen] = useState(false);
+  const [statusDropBatchId, setStatusDropBatchId] = useState<string | null>(null);
+  const filterDropRef = useRef<HTMLDivElement>(null);
+  const statusDropRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const t = useT();
@@ -585,6 +596,36 @@ export default function BatchesPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (filterDropRef.current && !filterDropRef.current.contains(e.target as Node)) {
+        setFilterDropOpen(false);
+      }
+      if (statusDropRef.current && !statusDropRef.current.contains(e.target as Node)) {
+        setStatusDropBatchId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  async function quickUpdateStatus(batchId: string, newStatus: string) {
+    setStatusDropBatchId(null);
+    try {
+      const res = await fetch(`/api/batches/${batchId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setBatches((prev) => prev.map((b) => (b.id === batchId ? { ...b, ...updated } : b)));
+      }
+    } catch (err) {
+      console.error("Quick status update failed", err);
+    }
+  }
 
   function openCreate() {
     setEditingBatch(null);
@@ -666,56 +707,93 @@ export default function BatchesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">{t.batches.title}</h1>
           <p className="text-muted-foreground">{t.batches.subtitle}</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="me-2 h-4 w-4" />
-          {t.batches.newBatch}
-        </Button>
-      </div>
-
-      {/* Status filter tabs */}
-      {batches.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap" dir="rtl">
-          {[
-            { value: "all", label: "الكل", color: "#6b7280" },
-            { value: "open", label: t.batches.status.open, color: "#3b82f6" },
-            { value: "shipped", label: t.batches.status.shipped, color: "#f97316" },
-            { value: "in_distribution", label: t.batches.status.in_distribution, color: "#a855f7" },
-            { value: "completed", label: t.batches.status.completed, color: "#22c55e" },
-          ].map(({ value, label, color }) => {
-            const count = value === "all" ? batches.length : batches.filter((b) => b.status === value).length;
-            const active = statusFilter === value;
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Filter dropdown */}
+          {(() => {
+            const filterOptions = [
+              { value: "all", label: "الكل", color: "#6b7280" },
+              { value: "open", label: t.batches.status.open, color: "#3b82f6" },
+              { value: "shipped", label: t.batches.status.shipped, color: "#f97316" },
+              { value: "in_distribution", label: t.batches.status.in_distribution, color: "#a855f7" },
+              { value: "completed", label: t.batches.status.completed, color: "#22c55e" },
+            ];
+            const active = filterOptions.find((o) => o.value === statusFilter)!;
+            const activeCount = statusFilter === "all" ? batches.length : batches.filter((b) => b.status === statusFilter).length;
             return (
-              <button
-                key={value}
-                onClick={() => setStatusFilter(value)}
-                className="flex items-center gap-1.5 px-3 h-8 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer"
-                style={{
-                  background: active ? `${color}22` : "var(--surface)",
-                  color: active ? color : "var(--muted)",
-                  border: `1px solid ${active ? color + "55" : "var(--border)"}`,
-                  boxShadow: active ? `0 0 0 1px ${color}33` : "none",
-                }}
-              >
-                {label}
-                <span
-                  className="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+              <div className="relative" ref={filterDropRef}>
+                <button
+                  onClick={() => setFilterDropOpen((o) => !o)}
+                  className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                   style={{
-                    background: active ? `${color}33` : "var(--background)",
-                    color: active ? color : "var(--muted)",
+                    background: filterDropOpen ? "var(--surface-secondary)" : "var(--surface)",
+                    border: "1px solid var(--border)",
+                    color: "var(--foreground)",
                   }}
                 >
-                  {count}
-                </span>
-              </button>
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ background: active.color }}
+                  />
+                  {active.label}
+                  <span
+                    className="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                    style={{ background: active.color + "22", color: active.color }}
+                  >
+                    {activeCount}
+                  </span>
+                  <ChevronDown
+                    size={12}
+                    className="text-[var(--muted)]"
+                    style={{ transform: filterDropOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                  />
+                </button>
+                {filterDropOpen && (
+                  <div
+                    className="absolute left-0 top-full mt-1.5 z-30 min-w-[170px] rounded-xl shadow-xl overflow-hidden py-1"
+                    style={{ background: "#1e1e2e", border: "1px solid #333" }}
+                    dir="rtl"
+                  >
+                    {filterOptions.map(({ value, label, color }) => {
+                      const cnt = value === "all" ? batches.length : batches.filter((b) => b.status === value).length;
+                      const isActive = statusFilter === value;
+                      return (
+                        <button
+                          key={value}
+                          onClick={() => { setStatusFilter(value); setFilterDropOpen(false); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors text-right"
+                          style={{
+                            background: isActive ? color + "22" : "transparent",
+                            color: isActive ? color : "#ccc",
+                          }}
+                        >
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                          <span className="flex-1">{label}</span>
+                          <span
+                            className="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                            style={{ background: color + "22", color }}
+                          >
+                            {cnt}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
-          })}
+          })()}
+
+          <Button onClick={openCreate} size="sm">
+            <Plus className="me-1.5 h-3.5 w-3.5" />
+            {t.batches.newBatch}
+          </Button>
         </div>
-      )}
+      </div>
 
       {/* Batches Grid */}
       {batches.length === 0 ? (
@@ -731,13 +809,7 @@ export default function BatchesPage() {
             const pct = total > 0 ? Math.round((bought / total) * 100) : 0;
             const totalPurchaseTRY = batch.orders.reduce((s, o) => s + o.purchaseCost, 0);
             const totalSellingIQD  = batch.orders.reduce((s, o) => s + o.sellingPrice, 0);
-            const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-              open:            { bg: "rgba(59,130,246,0.15)",  text: "#60a5fa", border: "rgba(59,130,246,0.3)" },
-              shipped:         { bg: "rgba(249,115,22,0.15)",  text: "#fb923c", border: "rgba(249,115,22,0.3)" },
-              in_distribution: { bg: "rgba(168,85,247,0.15)",  text: "#c084fc", border: "rgba(168,85,247,0.3)" },
-              completed:       { bg: "rgba(34,197,94,0.15)",   text: "#4ade80", border: "rgba(34,197,94,0.3)" },
-            };
-            const sc = statusColors[batch.status] ?? statusColors.open;
+            const sc = STATUS_COLORS[batch.status] ?? STATUS_COLORS.open;
             const barColor = pct === 100 ? "#22c55e" : pct > 50 ? "#3b82f6" : "#f97316";
 
             return (
@@ -760,12 +832,40 @@ export default function BatchesPage() {
                       )}
                     </p>
                   </div>
-                  <span
-                    className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                    style={{ background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}
-                  >
-                    {batchStatusBadge(batch.status, t).props.children}
-                  </span>
+                  <div className="relative shrink-0" ref={statusDropBatchId === batch.id ? statusDropRef : undefined}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setStatusDropBatchId(statusDropBatchId === batch.id ? null : batch.id); }}
+                      className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full cursor-pointer transition-all hover:brightness-125"
+                      style={{ background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}
+                    >
+                      {batchStatusBadge(batch.status, t).props.children}
+                      <ChevronDown size={9} style={{ transform: statusDropBatchId === batch.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+                    </button>
+                    {statusDropBatchId === batch.id && (
+                      <div
+                        className="absolute right-0 top-full mt-1.5 z-30 min-w-[140px] rounded-xl shadow-xl overflow-hidden py-1"
+                        style={{ background: "#1e1e2e", border: "1px solid #333" }}
+                        dir="rtl"
+                      >
+                        {STATUS_OPTIONS.map((opt) => {
+                          const oc = STATUS_COLORS[opt.value] ?? STATUS_COLORS.open;
+                          const isCurrent = batch.status === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              onClick={() => quickUpdateStatus(batch.id, opt.value)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors text-right"
+                              style={{ background: isCurrent ? oc.bg : "transparent", color: isCurrent ? oc.text : "#ccc" }}
+                            >
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: oc.text }} />
+                              {opt.label}
+                              {isCurrent && <span className="mr-auto text-[10px] opacity-60">✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* ── Body ── */}
