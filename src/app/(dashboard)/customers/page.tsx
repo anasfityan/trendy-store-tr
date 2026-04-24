@@ -7,8 +7,6 @@ import { formatIQD } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -16,20 +14,11 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import {
-  Plus,
   Pencil,
   Trash2,
-  ArrowLeft,
+  ArrowRight,
   Loader2,
 } from "lucide-react";
 
@@ -37,6 +26,14 @@ function parsePhones(phone: string | null): string[] {
   if (!phone) return [];
   return phone.split(/[,/\n|،]+/).map((p) => p.trim()).filter(Boolean);
 }
+
+const PRODUCT_TYPE_LABELS: Record<string, string> = {
+  Bag: "حقيبة",
+  Shoe: "حذاء",
+  Clothing: "ملابس",
+  Accessory: "إكسسوار",
+  Other: "أخرى",
+};
 
 interface Customer {
   id: string;
@@ -54,7 +51,8 @@ interface Customer {
 
 interface Order {
   id: string;
-  productName: string;
+  productType: string;
+  productName: string | null;
   sellingPrice: number;
   deposit: number;
   status: string;
@@ -77,26 +75,36 @@ const IRAQI_CITIES = [
   "ذي قار", "القادسية", "المثنى", "ميسان", "واسط", "صلاح الدين",
 ];
 
-const emptyForm: CustomerForm = {
-  name: "",
-  instagram: "",
-  phone: "",
-  city: "",
-  area: "",
-};
+const emptyForm: CustomerForm = { name: "", instagram: "", phone: "", city: "", area: "" };
 
 const statusLabels: Record<string, string> = {
   new: "جديد",
-  preparing: "قيد التحضير",
+  in_progress: "قيد التنفيذ",
+  bought: "تم الشراء",
   shipped: "تم الشحن",
-  delivered: "تم التوصيل",
+  delivered: "تم التسليم",
   cancelled: "ملغي",
+};
+
+const statusColors: Record<string, string> = {
+  new: "bg-blue-500/10 text-blue-500",
+  in_progress: "bg-amber-500/10 text-amber-500",
+  bought: "bg-purple-500/10 text-purple-500",
+  shipped: "bg-indigo-500/10 text-indigo-400",
+  delivered: "bg-green-500/10 text-green-500",
+  cancelled: "bg-red-500/10 text-red-500",
 };
 
 const paymentLabels: Record<string, string> = {
   unpaid: "غير مدفوع",
-  partial: "دفع جزئي",
+  partial: "جزئي",
   paid: "مدفوع",
+};
+
+const paymentColors: Record<string, string> = {
+  paid: "bg-green-500/10 text-green-500",
+  partial: "bg-amber-500/10 text-amber-500",
+  unpaid: "bg-red-500/10 text-red-500",
 };
 
 export default function CustomersPage() {
@@ -104,12 +112,22 @@ export default function CustomersPage() {
   const { search, setCount } = useCustomerFilterStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CustomerForm>(emptyForm);
   const [fetchingIG, setFetchingIG] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Order history view
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const fetchInstagramName = async () => {
     const handle = form.instagram.replace(/^@/, "").trim();
@@ -123,26 +141,11 @@ export default function CustomersPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.displayName) {
-          setForm((f) => ({ ...f, name: f.name || data.displayName }));
-        }
+        if (data.displayName) setForm((f) => ({ ...f, name: f.name || data.displayName }));
       }
     } catch { /* ignore */ }
     setFetchingIG(false);
   };
-  const [saving, setSaving] = useState(false);
-
-  // Delete confirmation
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(
-    null
-  );
-  const [deleting, setDeleting] = useState(false);
-
-  // Order history view
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null
-  );
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -159,9 +162,7 @@ export default function CustomersPage() {
     }
   }, [setCount]);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
+  useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
   useEffect(() => {
     function handleNewCustomer() { handleOpenCreate(); }
@@ -183,27 +184,15 @@ export default function CustomersPage() {
     return (
       c.name.toLowerCase().includes(q) ||
       c.instagram?.toLowerCase().includes(q) ||
-      c.phone?.toLowerCase().includes(q) ||
-      c.city?.toLowerCase().includes(q) ||
-      c.area?.toLowerCase().includes(q)
+      c.phone?.toLowerCase().includes(q)
     );
   });
 
-  const handleOpenCreate = () => {
-    setEditingId(null);
-    setForm(emptyForm);
-    setDialogOpen(true);
-  };
+  const handleOpenCreate = () => { setEditingId(null); setForm(emptyForm); setDialogOpen(true); };
 
   const handleOpenEdit = (customer: Customer) => {
     setEditingId(customer.id);
-    setForm({
-      name: customer.name,
-      instagram: customer.instagram || "",
-      phone: customer.phone || "",
-      city: customer.city || "",
-      area: customer.area || "",
-    });
+    setForm({ name: customer.name, instagram: customer.instagram || "", phone: customer.phone || "", city: customer.city || "", area: customer.area || "" });
     setDialogOpen(true);
   };
 
@@ -211,207 +200,148 @@ export default function CustomersPage() {
     if (!form.name.trim()) return;
     setSaving(true);
     try {
-      const url = editingId
-        ? `/api/customers/${editingId}`
-        : "/api/customers";
-      const method = editingId ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      if (res.ok) {
-        setDialogOpen(false);
-        fetchCustomers();
-      }
-    } catch (err) {
-      console.error("Save customer error:", err);
-    } finally {
-      setSaving(false);
-    }
+      const url = editingId ? `/api/customers/${editingId}` : "/api/customers";
+      const res = await fetch(url, { method: editingId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      if (res.ok) { setDialogOpen(false); fetchCustomers(); }
+    } catch (err) { console.error("Save customer error:", err); }
+    finally { setSaving(false); }
   };
 
-  const handleDeleteClick = (customer: Customer) => {
-    setDeletingCustomer(customer);
-    setDeleteDialogOpen(true);
-  };
+  const handleDeleteClick = (customer: Customer) => { setDeletingCustomer(customer); setDeleteDialogOpen(true); };
 
   const handleConfirmDelete = async () => {
     if (!deletingCustomer) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/customers/${deletingCustomer.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setDeleteDialogOpen(false);
-        setDeletingCustomer(null);
-        fetchCustomers();
-      } else {
-        const data = await res.json();
-        alert(data.error || "لا يمكن حذف عميل لديه طلبات");
-      }
-    } catch (err) {
-      console.error("Delete error:", err);
-    } finally {
-      setDeleting(false);
-    }
+      const res = await fetch(`/api/customers/${deletingCustomer.id}`, { method: "DELETE" });
+      if (res.ok) { setDeleteDialogOpen(false); setDeletingCustomer(null); fetchCustomers(); }
+      else { const data = await res.json(); alert(data.error || "لا يمكن حذف عميل لديه طلبات"); }
+    } catch (err) { console.error("Delete error:", err); }
+    finally { setDeleting(false); }
   };
 
   const handleRowClick = async (customer: Customer) => {
+    setDetailLoading(true);
+    setSelectedCustomer({ ...customer, orders: [] });
     try {
       const res = await fetch(`/api/customers/${customer.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSelectedCustomer(data);
-      }
-    } catch (err) {
-      console.error("Fetch customer detail error:", err);
-    }
+      if (res.ok) setSelectedCustomer(await res.json());
+    } catch (err) { console.error("Fetch customer detail error:", err); }
+    finally { setDetailLoading(false); }
   };
 
-  // Order history view
+  // ── Customer detail view ───────────────────────────────────────────────────
   if (selectedCustomer) {
+    const phones = parsePhones(selectedCustomer.phone);
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
+      <div className="space-y-3" dir="rtl">
+        {/* Compact header */}
+        <div className="flex items-center gap-3">
+          <button
             onClick={() => setSelectedCustomer(null)}
+            className="flex items-center justify-center w-8 h-8 rounded-xl hover:bg-[var(--surface-secondary)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer shrink-0"
           >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              {selectedCustomer.name}
-              {selectedCustomer.isVIP && (
-                <Badge variant="warning">
-                  <span className="me-1">&#11088;</span>VIP
-                </Badge>
-              )}
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              {selectedCustomer.phone && <span>{selectedCustomer.phone}</span>}
+            <ArrowRight size={16} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-base font-bold text-[var(--foreground)] truncate">
+                {selectedCustomer.name}
+              </span>
               {selectedCustomer.instagram && (
-                <span className="me-3">@{selectedCustomer.instagram}</span>
+                <span className="text-[12px] text-[var(--muted)]">@{selectedCustomer.instagram}</span>
               )}
-              {selectedCustomer.city && (
-                <span className="me-3">
-                  {selectedCustomer.city}
-                  {selectedCustomer.area && `، ${selectedCustomer.area}`}
+              {selectedCustomer.isVIP && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "rgba(201,168,76,0.15)", color: "#c9a84c" }}>
+                  ⭐ VIP
                 </span>
               )}
-            </p>
+            </div>
+            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+              {phones.map((ph, i) => (
+                <span key={i} className="text-[11px] text-[var(--muted)] font-mono tabular-nums">{ph}</span>
+              ))}
+              {selectedCustomer.city && (
+                <span className="text-[11px] text-[var(--muted)]">
+                  {selectedCustomer.city}{selectedCustomer.area && ` · ${selectedCustomer.area}`}
+                </span>
+              )}
+            </div>
+          </div>
+          {/* Compact stats */}
+          <div className="flex items-stretch gap-2 shrink-0">
+            <div className="text-center px-3 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <p className="text-[10px] text-[var(--muted)] leading-none mb-1">الطلبات</p>
+              <p className="text-sm font-bold text-[var(--foreground)]">{selectedCustomer.totalOrders}</p>
+            </div>
+            <div className="text-center px-3 py-1.5 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+              <p className="text-[10px] text-[var(--muted)] leading-none mb-1">الإجمالي</p>
+              <p className="text-sm font-bold" style={{ color: "#c9a84c" }}>{formatIQD(selectedCustomer.ltv)}</p>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                إجمالي الطلبات
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {selectedCustomer.totalOrders}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                القيمة الإجمالية
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {formatIQD(selectedCustomer.ltv)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                الحالة
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {selectedCustomer.isVIP ? "VIP" : "عادي"}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Orders list */}
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--background)]">
+            <span className="text-[12px] font-semibold" style={{ color: "#c9a84c" }}>سجل الطلبات</span>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>سجل الطلبات</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {selectedCustomer.orders && selectedCustomer.orders.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>المنتج</TableHead>
-                    <TableHead>الدفعة</TableHead>
-                    <TableHead>السعر</TableHead>
-                    <TableHead>العربون</TableHead>
-                    <TableHead>الحالة</TableHead>
-                    <TableHead>الدفع</TableHead>
-                    <TableHead>التاريخ</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedCustomer.orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">
-                        {order.productName}
-                      </TableCell>
-                      <TableCell>{order.batch?.name || "-"}</TableCell>
-                      <TableCell>{formatIQD(order.sellingPrice)}</TableCell>
-                      <TableCell>{formatIQD(order.deposit)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{statusLabels[order.status] || order.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            order.paymentStatus === "paid"
-                              ? "success"
-                              : order.paymentStatus === "partial"
-                              ? "warning"
-                              : "destructive"
-                          }
-                        >
-                          {paymentLabels[order.paymentStatus] || order.paymentStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">
-                لا توجد طلبات بعد.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          {detailLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-[var(--muted)]" />
+            </div>
+          ) : !selectedCustomer.orders || selectedCustomer.orders.length === 0 ? (
+            <p className="text-center text-[var(--muted)] text-sm py-10">لا توجد طلبات بعد.</p>
+          ) : (
+            <div className="divide-y divide-[var(--border)]">
+              {/* Column labels — desktop */}
+              <div className="hidden sm:grid px-4 py-1.5 bg-[var(--background)]"
+                style={{ gridTemplateColumns: "80px 1fr 90px 70px 80px" }} dir="ltr">
+                {["النوع", "الدفعة", "الحالة", "الدفع", "السعر"].map((h) => (
+                  <span key={h} className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide text-right">{h}</span>
+                ))}
+              </div>
+              {selectedCustomer.orders.map((order) => (
+                <div
+                  key={order.id}
+                  className="flex sm:grid items-center gap-2 px-4 py-2.5"
+                  style={{ gridTemplateColumns: "80px 1fr 90px 70px 80px" }}
+                  dir="ltr"
+                >
+                  {/* Type */}
+                  <span className="text-[12px] font-semibold text-[var(--foreground)] shrink-0 w-[72px] sm:w-auto">
+                    {PRODUCT_TYPE_LABELS[order.productType] || order.productType}
+                  </span>
+                  {/* Batch */}
+                  <span className="text-[11px] text-[var(--muted)] truncate flex-1 sm:flex-none">
+                    {order.batch?.name || "—"}
+                  </span>
+                  {/* Status */}
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${statusColors[order.status] || "bg-gray-500/10 text-gray-400"}`}>
+                    {statusLabels[order.status] || order.status}
+                  </span>
+                  {/* Payment */}
+                  <span className={`hidden sm:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${paymentColors[order.paymentStatus] || "bg-gray-500/10 text-gray-400"}`}>
+                    {paymentLabels[order.paymentStatus] || order.paymentStatus}
+                  </span>
+                  {/* Price */}
+                  <span className="text-[12px] font-bold tabular-nums shrink-0" style={{ color: "#c9a84c" }}>
+                    {formatIQD(order.sellingPrice)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
+  // ── Main list ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
-      {/* Compact customer list */}
-      <div
-        className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden"
-      >
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
         {/* Column headers — desktop only */}
         <div
           className="hidden sm:grid px-3 py-2 border-b border-[var(--border)] bg-[var(--background)]"
@@ -445,7 +375,6 @@ export default function CustomersPage() {
                   dir="ltr"
                   onClick={() => handleRowClick(customer)}
                 >
-                  {/* LEFT: instagram handle / name */}
                   <div className="w-[110px] sm:w-[140px] shrink-0">
                     <p className="text-[13px] font-semibold text-[var(--foreground)] truncate">
                       {customer.instagram ? `@${customer.instagram}` : customer.name}
@@ -454,35 +383,25 @@ export default function CustomersPage() {
                       <p className="text-[11px] text-[var(--muted)] truncate">{customer.name}</p>
                     )}
                   </div>
-
-                  {/* CENTER: city + area */}
                   <div className="flex-1 text-center">
                     {customer.city ? (
                       <>
                         <p className="text-[12px] font-medium text-[var(--foreground)]">{customer.city}</p>
-                        {customer.area && (
-                          <p className="text-[11px] text-[var(--muted)]">{customer.area}</p>
-                        )}
+                        {customer.area && <p className="text-[11px] text-[var(--muted)]">{customer.area}</p>}
                       </>
                     ) : (
                       <span className="text-[11px] text-[var(--muted)]">—</span>
                     )}
                   </div>
-
-                  {/* RIGHT: phone(s) */}
                   <div className="w-[108px] sm:w-[130px] shrink-0 text-right">
                     {phones.length > 0 ? (
                       phones.map((ph, i) => (
-                        <p key={i} className="text-[11px] sm:text-[12px] font-mono text-[var(--foreground)] tabular-nums leading-tight">
-                          {ph}
-                        </p>
+                        <p key={i} className="text-[11px] sm:text-[12px] font-mono text-[var(--foreground)] tabular-nums leading-tight">{ph}</p>
                       ))
                     ) : (
                       <span className="text-[11px] text-[var(--muted)]">—</span>
                     )}
                   </div>
-
-                  {/* Desktop action buttons (hover reveal) */}
                   <div
                     className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 w-16 justify-end"
                     onClick={(e) => e.stopPropagation()}
@@ -512,19 +431,12 @@ export default function CustomersPage() {
         <DialogContent>
           <DialogClose onClose={() => setDialogOpen(false)} />
           <DialogHeader>
-            <DialogTitle>
-              {editingId ? "تعديل العميل" : "عميل جديد"}
-            </DialogTitle>
+            <DialogTitle>{editingId ? "تعديل العميل" : "عميل جديد"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label htmlFor="name">الاسم *</Label>
-              <Input
-                id="name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="اسم العميل"
-              />
+              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="اسم العميل" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="instagram">انستغرام</Label>
@@ -532,72 +444,36 @@ export default function CustomersPage() {
                 <Input
                   id="instagram"
                   value={form.instagram}
-                  onChange={(e) =>
-                    setForm({ ...form, instagram: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, instagram: e.target.value })}
                   placeholder="اسم المستخدم (بدون @)"
                   className="flex-1"
-                  onBlur={() => {
-                    if (form.instagram && !form.name) fetchInstagramName();
-                  }}
+                  onBlur={() => { if (form.instagram && !form.name) fetchInstagramName(); }}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchInstagramName}
-                  disabled={!form.instagram.trim() || fetchingIG}
-                  title="جلب الاسم من انستغرام"
-                  className="shrink-0 h-10"
-                >
-                  {fetchingIG ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "جلب الاسم"
-                  )}
+                <Button type="button" variant="outline" size="sm" onClick={fetchInstagramName}
+                  disabled={!form.instagram.trim() || fetchingIG} className="shrink-0 h-10">
+                  {fetchingIG ? <Loader2 className="h-4 w-4 animate-spin" /> : "جلب الاسم"}
                 </Button>
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">الهاتف</Label>
-              <Input
-                id="phone"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="رقم الهاتف"
-              />
+              <Input id="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="رقم الهاتف" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="city">المدينة</Label>
-                <Select
-                  id="city"
-                  value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                >
+                <Select id="city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })}>
                   <option value="">اختر المدينة</option>
-                  {IRAQI_CITIES.map((city) => (
-                    <option key={city} value={city}>{city}</option>
-                  ))}
+                  {IRAQI_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="area">المنطقة</Label>
-                <Input
-                  id="area"
-                  value={form.area}
-                  onChange={(e) => setForm({ ...form, area: e.target.value })}
-                  placeholder="المنطقة"
-                />
+                <Input id="area" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} placeholder="المنطقة" />
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
-                إلغاء
-              </Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button>
               <Button onClick={handleSave} disabled={saving || !form.name.trim()}>
                 {saving ? "جاري الحفظ..." : editingId ? "تحديث" : "إنشاء"}
               </Button>
@@ -610,31 +486,15 @@ export default function CustomersPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogClose onClose={() => setDeleteDialogOpen(false)} />
-          <DialogHeader>
-            <DialogTitle>حذف العميل</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>حذف العميل</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-4">
-            <p>
-              هل أنت متأكد من حذف{" "}
-              <strong>{deletingCustomer?.name}</strong>؟ لا يمكن التراجع عن هذا الإجراء.
-            </p>
+            <p>هل أنت متأكد من حذف <strong>{deletingCustomer?.name}</strong>؟ لا يمكن التراجع عن هذا الإجراء.</p>
             {deletingCustomer && deletingCustomer.totalOrders > 0 && (
-              <p className="text-sm text-destructive">
-                هذا العميل لديه {deletingCustomer.totalOrders} طلب ولا يمكن حذفه.
-              </p>
+              <p className="text-sm text-destructive">هذا العميل لديه {deletingCustomer.totalOrders} طلب ولا يمكن حذفه.</p>
             )}
             <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setDeleteDialogOpen(false)}
-              >
-                إلغاء
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-              >
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>إلغاء</Button>
+              <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>
                 {deleting ? "جاري الحذف..." : "حذف"}
               </Button>
             </div>
