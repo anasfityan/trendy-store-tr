@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/store/auth";
-import { useT } from "@/lib/i18n";
+import { useCustomerFilterStore } from "@/store/customer-filter";
 import { formatIQD } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,14 +26,17 @@ import {
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import {
-  Search,
   Plus,
   Pencil,
   Trash2,
   ArrowLeft,
-  Users,
   Loader2,
 } from "lucide-react";
+
+function parsePhones(phone: string | null): string[] {
+  if (!phone) return [];
+  return phone.split(/[,/\n|،]+/).map((p) => p.trim()).filter(Boolean);
+}
 
 interface Customer {
   id: string;
@@ -82,15 +85,25 @@ const emptyForm: CustomerForm = {
   area: "",
 };
 
+const statusLabels: Record<string, string> = {
+  new: "جديد",
+  preparing: "قيد التحضير",
+  shipped: "تم الشحن",
+  delivered: "تم التوصيل",
+  cancelled: "ملغي",
+};
+
+const paymentLabels: Record<string, string> = {
+  unpaid: "غير مدفوع",
+  partial: "دفع جزئي",
+  paid: "مدفوع",
+};
+
 export default function CustomersPage() {
   const { isAdmin } = useAuthStore();
-  const t = useT();
-  const statusLabels: Record<string, string> = { ...t.orders.status };
-  const paymentLabels: Record<string, string> = { ...t.orders.status };
-
+  const { search, setCount } = useCustomerFilterStore();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -137,22 +150,29 @@ export default function CustomersPage() {
       if (res.ok) {
         const data = await res.json();
         setCustomers(data);
+        setCount(data.length);
       }
     } catch (err) {
       console.error("Failed to fetch customers:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setCount]);
 
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
 
+  useEffect(() => {
+    function handleNewCustomer() { handleOpenCreate(); }
+    window.addEventListener("trendy:open-new-customer", handleNewCustomer);
+    return () => window.removeEventListener("trendy:open-new-customer", handleNewCustomer);
+  }, []);
+
   if (!isAdmin()) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <p className="text-muted-foreground">{t.settings.adminRequired}</p>
+        <p className="text-muted-foreground">صلاحية المسؤول مطلوبة.</p>
       </div>
     );
   }
@@ -229,7 +249,7 @@ export default function CustomersPage() {
         fetchCustomers();
       } else {
         const data = await res.json();
-        alert(data.error || t.customers.deleteDialog.cannotDelete);
+        alert(data.error || "لا يمكن حذف عميل لديه طلبات");
       }
     } catch (err) {
       console.error("Delete error:", err);
@@ -290,7 +310,7 @@ export default function CustomersPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t.customers.detail.totalOrders}
+                إجمالي الطلبات
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -302,7 +322,7 @@ export default function CustomersPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t.customers.detail.ltv}
+                القيمة الإجمالية
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -314,12 +334,12 @@ export default function CustomersPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {t.customers.detail.status}
+                الحالة
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {selectedCustomer.isVIP ? "VIP" : t.customers.detail.regular}
+                {selectedCustomer.isVIP ? "VIP" : "عادي"}
               </p>
             </CardContent>
           </Card>
@@ -327,20 +347,20 @@ export default function CustomersPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{t.customers.detail.orderHistory}</CardTitle>
+            <CardTitle>سجل الطلبات</CardTitle>
           </CardHeader>
           <CardContent>
             {selectedCustomer.orders && selectedCustomer.orders.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t.customers.detail.colProduct}</TableHead>
-                    <TableHead>{t.customers.detail.colBatch}</TableHead>
-                    <TableHead>{t.customers.detail.colPrice}</TableHead>
-                    <TableHead>{t.customers.detail.colDeposit}</TableHead>
-                    <TableHead>{t.customers.detail.colStatus}</TableHead>
-                    <TableHead>{t.customers.detail.colPayment}</TableHead>
-                    <TableHead>{t.customers.detail.colDate}</TableHead>
+                    <TableHead>المنتج</TableHead>
+                    <TableHead>الدفعة</TableHead>
+                    <TableHead>السعر</TableHead>
+                    <TableHead>العربون</TableHead>
+                    <TableHead>الحالة</TableHead>
+                    <TableHead>الدفع</TableHead>
+                    <TableHead>التاريخ</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -377,7 +397,7 @@ export default function CustomersPage() {
               </Table>
             ) : (
               <p className="text-muted-foreground text-center py-8">
-                {t.customers.detail.noOrders}
+                لا توجد طلبات بعد.
               </p>
             )}
           </CardContent>
@@ -387,122 +407,105 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="h-6 w-6" />
-            {t.customers.title}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {t.customers.subtitle(customers.length)}
-          </p>
+    <div className="space-y-3">
+      {/* Compact customer list */}
+      <div
+        className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden"
+      >
+        {/* Column headers — desktop only */}
+        <div
+          className="hidden sm:grid px-3 py-2 border-b border-[var(--border)] bg-[var(--background)]"
+          style={{ gridTemplateColumns: "140px 1fr 130px 68px" }}
+          dir="ltr"
+        >
+          <span className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide">المستخدم</span>
+          <span className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide text-center">المحافظة</span>
+          <span className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide text-right">الهاتف</span>
+          <span className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide text-right"></span>
         </div>
-        <Button onClick={handleOpenCreate}>
-          <Plus className="h-4 w-4 me-2" />
-          {t.customers.newCustomer}
-        </Button>
-      </div>
 
-      {/* Search bar */}
-      <div className="relative">
-        <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={t.customers.searchPlaceholder}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="ps-10"
-        />
-      </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--muted)]" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex items-center justify-center py-16">
+            <p className="text-sm text-[var(--muted)]">
+              {search ? "لا يوجد عملاء مطابقين." : "لا يوجد عملاء بعد."}
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[var(--border)]">
+            {filtered.map((customer) => {
+              const phones = parsePhones(customer.phone);
+              return (
+                <div
+                  key={customer.id}
+                  className="flex items-center gap-2 px-3 py-2.5 hover:bg-[var(--surface-secondary)] cursor-pointer group transition-colors"
+                  dir="ltr"
+                  onClick={() => handleRowClick(customer)}
+                >
+                  {/* LEFT: instagram handle / name */}
+                  <div className="w-[110px] sm:w-[140px] shrink-0">
+                    <p className="text-[13px] font-semibold text-[var(--foreground)] truncate">
+                      {customer.instagram ? `@${customer.instagram}` : customer.name}
+                    </p>
+                    {customer.instagram && (
+                      <p className="text-[11px] text-[var(--muted)] truncate">{customer.name}</p>
+                    )}
+                  </div>
 
-      {/* Customer table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">{t.customers.loading}</p>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">
-                {search ? t.customers.noResults : t.customers.empty}
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t.customers.table.name}</TableHead>
-                  <TableHead>{t.customers.table.instagram}</TableHead>
-                  <TableHead>{t.customers.table.phone}</TableHead>
-                  <TableHead>{t.customers.table.cityArea}</TableHead>
-                  <TableHead className="text-center">{t.customers.table.orders}</TableHead>
-                  <TableHead className="text-start">{t.customers.table.ltv}</TableHead>
-                  <TableHead className="text-center">{t.customers.table.vip}</TableHead>
-                  <TableHead className="text-start">{t.customers.table.actions}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((customer) => (
-                  <TableRow
-                    key={customer.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleRowClick(customer)}
+                  {/* CENTER: city + area */}
+                  <div className="flex-1 text-center">
+                    {customer.city ? (
+                      <>
+                        <p className="text-[12px] font-medium text-[var(--foreground)]">{customer.city}</p>
+                        {customer.area && (
+                          <p className="text-[11px] text-[var(--muted)]">{customer.area}</p>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-[11px] text-[var(--muted)]">—</span>
+                    )}
+                  </div>
+
+                  {/* RIGHT: phone(s) */}
+                  <div className="w-[108px] sm:w-[130px] shrink-0 text-right">
+                    {phones.length > 0 ? (
+                      phones.map((ph, i) => (
+                        <p key={i} className="text-[11px] sm:text-[12px] font-mono text-[var(--foreground)] tabular-nums leading-tight">
+                          {ph}
+                        </p>
+                      ))
+                    ) : (
+                      <span className="text-[11px] text-[var(--muted)]">—</span>
+                    )}
+                  </div>
+
+                  {/* Desktop action buttons (hover reveal) */}
+                  <div
+                    className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 w-16 justify-end"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <TableCell className="font-medium">
-                      {customer.name}
-                    </TableCell>
-                    <TableCell>
-                      {customer.instagram ? `@${customer.instagram}` : "-"}
-                    </TableCell>
-                    <TableCell>{customer.phone || "-"}</TableCell>
-                    <TableCell>
-                      {customer.city || "-"}
-                      {customer.area && `، ${customer.area}`}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {customer.totalOrders}
-                    </TableCell>
-                    <TableCell className="text-start">
-                      {formatIQD(customer.ltv)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {customer.isVIP ? (
-                        <Badge variant="warning">
-                          <span className="me-1">&#11088;</span>VIP
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-start">
-                      <div
-                        className="flex items-center justify-end gap-1"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenEdit(customer)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteClick(customer)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                    <button
+                      onClick={() => handleOpenEdit(customer)}
+                      className="p-1.5 rounded-lg hover:bg-[var(--background)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(customer)}
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-[var(--muted)] hover:text-red-500 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -510,21 +513,21 @@ export default function CustomersPage() {
           <DialogClose onClose={() => setDialogOpen(false)} />
           <DialogHeader>
             <DialogTitle>
-              {editingId ? t.customers.dialog.editTitle : t.customers.dialog.newTitle}
+              {editingId ? "تعديل العميل" : "عميل جديد"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">{t.customers.dialog.nameLabel}</Label>
+              <Label htmlFor="name">الاسم *</Label>
               <Input
                 id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder={t.customers.dialog.namePlaceholder}
+                placeholder="اسم العميل"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="instagram">{t.customers.dialog.instagramLabel}</Label>
+              <Label htmlFor="instagram">انستغرام</Label>
               <div className="flex gap-2">
                 <Input
                   id="instagram"
@@ -532,7 +535,7 @@ export default function CustomersPage() {
                   onChange={(e) =>
                     setForm({ ...form, instagram: e.target.value })
                   }
-                  placeholder={t.customers.dialog.instagramPlaceholder}
+                  placeholder="اسم المستخدم (بدون @)"
                   className="flex-1"
                   onBlur={() => {
                     if (form.instagram && !form.name) fetchInstagramName();
@@ -544,47 +547,47 @@ export default function CustomersPage() {
                   size="sm"
                   onClick={fetchInstagramName}
                   disabled={!form.instagram.trim() || fetchingIG}
-                  title={t.customers.dialog.fetchNameTitle}
+                  title="جلب الاسم من انستغرام"
                   className="shrink-0 h-10"
                 >
                   {fetchingIG ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    t.customers.dialog.fetchName
+                    "جلب الاسم"
                   )}
                 </Button>
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">{t.customers.dialog.phoneLabel}</Label>
+              <Label htmlFor="phone">الهاتف</Label>
               <Input
                 id="phone"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder={t.customers.dialog.phonePlaceholder}
+                placeholder="رقم الهاتف"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="city">{t.customers.dialog.cityLabel}</Label>
+                <Label htmlFor="city">المدينة</Label>
                 <Select
                   id="city"
                   value={form.city}
                   onChange={(e) => setForm({ ...form, city: e.target.value })}
                 >
-                  <option value="">{t.customers.dialog.cityPlaceholder}</option>
+                  <option value="">اختر المدينة</option>
                   {IRAQI_CITIES.map((city) => (
                     <option key={city} value={city}>{city}</option>
                   ))}
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="area">{t.customers.dialog.areaLabel}</Label>
+                <Label htmlFor="area">المنطقة</Label>
                 <Input
                   id="area"
                   value={form.area}
                   onChange={(e) => setForm({ ...form, area: e.target.value })}
-                  placeholder={t.customers.dialog.areaPlaceholder}
+                  placeholder="المنطقة"
                 />
               </div>
             </div>
@@ -593,14 +596,10 @@ export default function CustomersPage() {
                 variant="outline"
                 onClick={() => setDialogOpen(false)}
               >
-                {t.customers.dialog.cancel}
+                إلغاء
               </Button>
               <Button onClick={handleSave} disabled={saving || !form.name.trim()}>
-                {saving
-                  ? t.customers.dialog.saving
-                  : editingId
-                  ? t.customers.dialog.update
-                  : t.customers.dialog.create}
+                {saving ? "جاري الحفظ..." : editingId ? "تحديث" : "إنشاء"}
               </Button>
             </div>
           </div>
@@ -612,17 +611,16 @@ export default function CustomersPage() {
         <DialogContent>
           <DialogClose onClose={() => setDeleteDialogOpen(false)} />
           <DialogHeader>
-            <DialogTitle>{t.customers.deleteDialog.title}</DialogTitle>
+            <DialogTitle>حذف العميل</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <p>
-              {deletingCustomer
-                ? t.customers.deleteDialog.confirm(deletingCustomer.name)
-                : ""}
+              هل أنت متأكد من حذف{" "}
+              <strong>{deletingCustomer?.name}</strong>؟ لا يمكن التراجع عن هذا الإجراء.
             </p>
             {deletingCustomer && deletingCustomer.totalOrders > 0 && (
               <p className="text-sm text-destructive">
-                {t.customers.deleteDialog.hasOrders(deletingCustomer.totalOrders)}
+                هذا العميل لديه {deletingCustomer.totalOrders} طلب ولا يمكن حذفه.
               </p>
             )}
             <div className="flex justify-end gap-2">
@@ -630,14 +628,14 @@ export default function CustomersPage() {
                 variant="outline"
                 onClick={() => setDeleteDialogOpen(false)}
               >
-                {t.customers.deleteDialog.cancel}
+                إلغاء
               </Button>
               <Button
                 variant="destructive"
                 onClick={handleConfirmDelete}
                 disabled={deleting}
               >
-                {deleting ? t.customers.deleteDialog.deleting : t.customers.deleteDialog.delete}
+                {deleting ? "جاري الحذف..." : "حذف"}
               </Button>
             </div>
           </div>
