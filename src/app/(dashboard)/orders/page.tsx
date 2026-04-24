@@ -44,6 +44,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth";
+import { useOrderFilterStore } from "@/store/order-filter";
 import { formatIQD, formatTRY } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -484,8 +485,7 @@ export default function OrdersPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const [activeTab, setActiveTab] = useState("active");
-  const [search, setSearch] = useState("");
+  const { activeTab, setActiveTab, search, setSearch } = useOrderFilterStore();
   const [searchDebounced, setSearchDebounced] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -1168,44 +1168,12 @@ export default function OrdersPage() {
   // Render
   // -----------------------------------------------------------------------
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      {/* Page header */}
-      <h1 className="text-2xl font-bold tracking-tight">الطلبات</h1>
-
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_TABS.map((tab) => (
-          <Button
-            key={tab.value}
-            variant={activeTab === tab.value ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveTab(tab.value)}
-            className="transition-all duration-200"
-          >
-            {tab.label}
-          </Button>
-        ))}
-      </div>
-
-      {/* Search */}
-      <div className="relative w-full md:max-w-sm">
-        <Search className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="البحث في الطلبات..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pe-9"
-        />
-      </div>
-
+    <div className="space-y-3 animate-fade-in-up">
       {/* Orders Table — desktop only */}
       <Card className="card-hover overflow-hidden hidden md:block">
-        <CardHeader>
-          <CardTitle className="text-lg">
-            الطلبات{" "}
-            <span className="text-muted-foreground font-normal text-sm">
-              ({orders.length})
-            </span>
+        <CardHeader className="py-3 px-4">
+          <CardTitle className="text-sm font-semibold" style={{ color: "#c9a84c" }}>
+            {orders.length} طلب
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -1514,7 +1482,7 @@ export default function OrdersPage() {
             لا توجد طلبات
           </div>
         ) : (
-          <div className="space-y-3 pb-32">
+          <div className="space-y-2 pb-32">
             {orders.map((order, idx) => {
               const imgs = order.images ? (() => { try { return JSON.parse(order.images!); } catch { return []; } })() : [];
               const itemCount = getOrderItemCount(order);
@@ -1523,31 +1491,31 @@ export default function OrdersPage() {
               return (
                 <div
                   key={order.id}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-3.5 space-y-3 animate-fade-in-up"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-3 animate-fade-in-up"
                   style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   {/* Image + info */}
-                  <div className="flex gap-3">
+                  <div className="flex gap-2.5">
                     <div className="shrink-0 self-start">
                       {imgs.length > 0 ? (
                         <button type="button" onClick={() => setPreviewImg(imgs[0])}>
                           <img
                             src={imgs[0]}
                             alt=""
-                            className="h-16 w-16 rounded-xl object-cover border border-[var(--border)] cursor-zoom-in"
+                            className="h-12 w-12 rounded-xl object-cover border border-[var(--border)] cursor-zoom-in"
                           />
                         </button>
                       ) : (
-                        <div className="h-16 w-16 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] flex items-center justify-center">
-                          <ImageIcon className="h-5 w-5 text-[var(--muted)]" />
+                        <div className="h-12 w-12 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] flex items-center justify-center">
+                          <ImageIcon className="h-4 w-4 text-[var(--muted)]" />
                         </div>
                       )}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       {/* Name + tappable status badge */}
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold text-sm leading-snug truncate text-[var(--foreground)]">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-[13px] leading-snug truncate text-[var(--foreground)]">
                           {order.customer?.name || "-"}
                         </p>
                         <div
@@ -1600,48 +1568,23 @@ export default function OrdersPage() {
                         </div>
                       </div>
 
-                      {/* Product details */}
-                      <div className="mt-1.5 space-y-[5px]">
-                        <div className="flex items-center gap-1.5">
-                          <Package size={14} className="text-[var(--muted)] shrink-0" />
-                          <span className="text-[11px] text-[var(--muted)] opacity-50">نوع</span>
-                          <span className="text-[13px] text-[var(--foreground)]">{PRODUCT_TYPE_LABELS[order.productType] || order.productType}</span>
-                        </div>
-                        {order.color && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="shrink-0 h-[14px] w-[14px] rounded-full border border-[var(--border)]" style={{ background: order.color }} />
-                            <span className="text-[11px] text-[var(--muted)] opacity-50">لون</span>
-                            <span className="text-[13px] text-[var(--foreground)]">{order.color}</span>
-                          </div>
-                        )}
-                        {order.size && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none text-[var(--muted)]">SZ</span>
-                            <span className="text-[11px] text-[var(--muted)] opacity-50">مقاس</span>
-                            <span className="text-[13px] text-[var(--foreground)]">{order.size}</span>
-                          </div>
-                        )}
+                      {/* Product details — compact row */}
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="text-[12px] text-[var(--foreground)]">{PRODUCT_TYPE_LABELS[order.productType] || order.productType}</span>
+                        {order.color && <span className="text-[11px] text-[var(--muted)]">· {order.color}</span>}
+                        {order.size  && <span className="text-[11px] text-[var(--muted)]">· {order.size}</span>}
                         {order.productLink && (
-                          <div className="flex items-center gap-1.5">
-                            <ExternalLink size={14} className="text-[var(--muted)] shrink-0" />
-                            <span className="text-[11px] text-[var(--muted)] opacity-50">رابط</span>
-                            <a href={order.productLink} target="_blank" rel="noopener noreferrer" className="text-[13px] text-blue-500 hover:underline">فتح</a>
-                          </div>
+                          <a href={order.productLink} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-0.5 text-[10px] text-blue-500 hover:underline">
+                            <ExternalLink size={10} />فتح
+                          </a>
                         )}
-                        <div className="flex items-center gap-1.5">
-                          <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none text-[var(--muted)]">₺</span>
-                          <span className="text-[11px] text-[var(--muted)] opacity-50">شراء</span>
-                          <span className="text-[13px] text-[var(--foreground)]">{formatTRY(order.purchaseCost)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none" style={{ color: "#c9a84c" }}>IQ</span>
-                          <span className="text-[11px] text-[var(--muted)] opacity-50">بيع</span>
-                          <span className="text-[13px]" style={{ color: "#c9a84c" }}>{formatIQD(order.sellingPrice)}</span>
-                        </div>
                       </div>
-                      <span className="mt-1 block text-[11px] text-[var(--muted)] opacity-50">
-                        {format(new Date(order.createdAt), "dd/MM/yyyy")}
-                      </span>
+                      <div className="mt-1 flex items-center gap-3">
+                        <span className="text-[11px] text-[var(--muted)] tabular-nums">{formatTRY(order.purchaseCost)}</span>
+                        <span className="text-[12px] font-bold tabular-nums" style={{ color: "#c9a84c" }}>{formatIQD(order.sellingPrice)}</span>
+                        <span className="text-[10px] text-[var(--muted)] opacity-60 ms-auto">{format(new Date(order.createdAt), "dd/MM/yyyy")}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1682,7 +1625,7 @@ export default function OrdersPage() {
                   )}
 
                   {/* Actions row */}
-                  <div className="flex items-center justify-between pt-2.5 border-t border-[var(--border)]/40">
+                  <div className="flex items-center justify-between pt-2 mt-2 border-t border-[var(--border)]/40">
                     <div className="flex items-center gap-0.5">
                       <a
                         href={buildWhatsAppUrl(order)}
