@@ -191,6 +191,15 @@ function batchStatusBadge(status: string, t: Translations) {
   return <Badge className={info.className}>{info.label}</Badge>;
 }
 
+// ---------- Helpers ----------
+
+function parseOrderImages(order: Order): string[] {
+  const imgs: string[] = [];
+  try { const p = JSON.parse(order.images ?? ""); if (Array.isArray(p)) imgs.push(...p); } catch { if (order.images) imgs.push(order.images); }
+  try { const subs = JSON.parse(order.items ?? ""); if (Array.isArray(subs)) subs.forEach((s: { images?: string[] }) => { if (Array.isArray(s.images)) imgs.push(...s.images); }); } catch { /* ignore */ }
+  return imgs;
+}
+
 // ---------- Batch Orders Modal ----------
 
 function BatchOrdersModal({
@@ -252,9 +261,7 @@ function BatchOrdersModal({
     setLoadingOrderId(orderId);
     try {
       const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
-      if (res.ok) {
-        setOrders((prev) => prev.filter((o) => o.id !== orderId));
-      }
+      if (res.ok) setOrders((prev) => prev.filter((o) => o.id !== orderId));
     } catch (err) {
       console.error("Delete order failed", err);
     }
@@ -283,6 +290,11 @@ function BatchOrdersModal({
 
   const statusLabel = (s: string) => ORDER_STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;
 
+  const btnBase = "flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-semibold shrink-0 transition-colors cursor-pointer";
+  const btnDefault = `${btnBase} bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--surface-secondary)] text-[var(--foreground)]`;
+  const btnGreen  = `${btnBase} bg-green-500/10 border border-green-500/20 text-green-600 hover:bg-green-500/15`;
+  const btnRed    = `${btnBase} bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/15`;
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[var(--background)]" dir="rtl">
       {/* Header */}
@@ -307,234 +319,215 @@ function BatchOrdersModal({
       </div>
 
       {/* Orders List */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
         {orders.length === 0 && (
           <div className="flex items-center justify-center h-40 text-[var(--muted)]">
             {t.batches.modal.empty}
           </div>
         )}
 
-        {orders.map((order) => {
-          const isExpanded = expandedOrderId === order.id;
-          const isLoading = loadingOrderId === order.id;
-          const isMoving = movingOrderId === order.id;
-          const isEditing = editingOrder?.id === order.id;
-          const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-gray-500/10 text-gray-600";
+        <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+          {orders.map((order) => {
+            const isExpanded = expandedOrderId === order.id;
+            const isLoading  = loadingOrderId === order.id;
+            const isMoving   = movingOrderId === order.id;
+            const isEditing  = editingOrder?.id === order.id;
+            const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-gray-500/10 text-gray-600";
+            const allImgs    = parseOrderImages(order);
+            const showSize   = order.productType !== "Bag";
+            const total      = order.sellingPrice + order.deliveryCost;
 
-          return (
-            <div
-              key={order.id}
-              className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden transition-all"
-            >
-              {/* Row header */}
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3.5 text-right hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
-                onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+            return (
+              <div
+                key={order.id}
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden transition-all"
               >
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-[var(--foreground)] truncate">
-                    {order.customer.name}
-                  </p>
-                  <p className="text-xs text-[var(--muted)] truncate mt-0.5">
-                    {order.productName || order.productType}
-                    {order.color ? ` · ${order.color}` : ""}
-                    {order.size ? ` · ${order.size}` : ""}
-                  </p>
-                </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${statusColor}`}>
-                  {statusLabel(order.status)}
-                </span>
-                <div className="text-xs text-[var(--muted)] tabular-nums shrink-0">
-                  {formatIQD(order.sellingPrice)}
-                </div>
-                {isLoading ? (
-                  <Loader2 size={16} className="animate-spin text-[var(--muted)] shrink-0" />
-                ) : isExpanded ? (
-                  <ChevronUp size={16} className="text-[var(--muted)] shrink-0" />
-                ) : (
-                  <ChevronDown size={16} className="text-[var(--muted)] shrink-0" />
-                )}
-              </button>
+                {/* ── Collapsed header ── */}
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3 text-right hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
+                  onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                >
+                  {/* Thumbnail */}
+                  {allImgs[0] ? (
+                    <img src={allImgs[0]} alt="" className="h-10 w-10 rounded-xl object-cover shrink-0 border border-[var(--border)]" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-xl bg-[var(--background)] border border-[var(--border)] flex items-center justify-center shrink-0">
+                      <ImageIcon size={14} className="text-[var(--muted)]" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-[var(--foreground)] truncate">
+                      {order.customer.name}
+                    </p>
+                    <p className="text-[11px] text-[var(--muted)] truncate mt-0.5">
+                      {PRODUCT_TYPE_LABELS[order.productType] || order.productType}
+                      {order.color ? ` · ${order.color}` : ""}
+                      {order.size && showSize ? ` · ${order.size}` : ""}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${statusColor}`}>
+                    {statusLabel(order.status)}
+                  </span>
+                  {isLoading ? (
+                    <Loader2 size={15} className="animate-spin text-[var(--muted)] shrink-0" />
+                  ) : isExpanded ? (
+                    <ChevronUp size={15} className="text-[var(--muted)] shrink-0" />
+                  ) : (
+                    <ChevronDown size={15} className="text-[var(--muted)] shrink-0" />
+                  )}
+                </button>
 
-              {/* Expanded actions */}
-              {isExpanded && (
-                <div className="border-t border-[var(--border)] px-4 py-4 space-y-4 bg-[var(--background)]">
-
-                  {/* Edit mode */}
-                  {isEditing ? (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-[var(--muted)]">{t.batches.modal.statusLabel}</label>
-                        <Select
-                          value={editStatus}
-                          onChange={(e) => setEditStatus(e.target.value)}
-                          className="text-sm"
-                        >
-                          {ORDER_STATUS_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                {/* ── Expanded content ── */}
+                {isExpanded && (
+                  <div className="border-t border-[var(--border)] bg-[var(--background)]">
+                    {isEditing ? (
+                      <div className="p-4 space-y-3">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-[var(--muted)]">{t.batches.modal.statusLabel}</label>
+                          <Select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="text-sm">
+                            {ORDER_STATUS_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-[var(--muted)]">{t.batches.modal.notes}</label>
+                          <textarea
+                            value={editNotes}
+                            onChange={(e) => setEditNotes(e.target.value)}
+                            placeholder={t.batches.modal.notesPlaceholder}
+                            rows={2}
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] resize-none outline-none focus:border-[var(--accent)] transition-colors"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={saveEdit} disabled={isLoading}>
+                            <CheckCircle2 size={14} className="me-1.5" />{t.batches.modal.save}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingOrder(null)}>
+                            {t.batches.modal.cancel}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : isMoving ? (
+                      <div className="p-4 space-y-3">
+                        <p className="text-xs font-medium text-[var(--muted)]">{t.batches.modal.moveTo}</p>
+                        <Select value={targetBatchId} onChange={(e) => setTargetBatchId(e.target.value)} className="text-sm">
+                          <option value="">{t.batches.modal.selectBatch}</option>
+                          {otherBatches.map((b) => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
                           ))}
                         </Select>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => moveOrder(order.id)} disabled={!targetBatchId || isLoading}>
+                            <ArrowRightLeft size={14} className="me-1.5" />{t.batches.modal.move}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setMovingOrderId(null)}>
+                            {t.batches.modal.cancel}
+                          </Button>
+                        </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-[var(--muted)]">{t.batches.modal.notes}</label>
-                        <textarea
-                          value={editNotes}
-                          onChange={(e) => setEditNotes(e.target.value)}
-                          placeholder={t.batches.modal.notesPlaceholder}
-                          rows={2}
-                          className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] resize-none outline-none focus:border-[var(--accent)] transition-colors"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveEdit} disabled={isLoading}>
-                          <CheckCircle2 size={14} className="me-1.5" />
-                          {t.batches.modal.save}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingOrder(null)}>
-                          {t.batches.modal.cancel}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : isMoving ? (
-                    /* Move to batch */
-                    <div className="space-y-3">
-                      <p className="text-xs font-medium text-[var(--muted)]">{t.batches.modal.moveTo}</p>
-                      <Select
-                        value={targetBatchId}
-                        onChange={(e) => setTargetBatchId(e.target.value)}
-                        className="text-sm"
-                      >
-                        <option value="">{t.batches.modal.selectBatch}</option>
-                        {otherBatches.map((b) => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                      </Select>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => moveOrder(order.id)} disabled={!targetBatchId || isLoading}>
-                          <ArrowRightLeft size={14} className="me-1.5" />
-                          {t.batches.modal.move}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setMovingOrderId(null)}>
-                          {t.batches.modal.cancel}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Action buttons */
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => startEdit(order)}>
-                        <Pencil size={13} className="me-1.5" />
-                        {t.batches.modal.edit}
-                      </Button>
+                    ) : (
+                      <div className="p-3 space-y-3">
 
-                      <a
-                        href={buildWhatsAppUrl(order)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md border border-[var(--border)] text-xs font-medium hover:bg-[var(--surface-secondary)] transition-colors text-green-600"
-                      >
-                        <MessageCircle size={13} />
-                        {t.batches.modal.whatsapp}
-                      </a>
+                        {/* Images */}
+                        {allImgs.length > 0 && (
+                          <div className="flex gap-2 overflow-x-auto pb-1">
+                            {allImgs.map((img, i) => (
+                              <button key={i} type="button" onClick={() => setPreviewImg(img)} className="shrink-0">
+                                <img
+                                  src={img} alt=""
+                                  className="h-20 w-20 rounded-xl object-cover border border-[var(--border)] hover:opacity-80 transition-opacity cursor-zoom-in"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        )}
 
-                      <Button size="sm" variant="outline" onClick={() => openInvoice(order)}>
-                        <FileText size={13} className="me-1.5" />
-                        {t.batches.modal.print}
-                      </Button>
+                        {/* Info chips: color · size · total */}
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          {order.color && (
+                            <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)]">
+                              اللون · <strong>{order.color}</strong>
+                            </span>
+                          )}
+                          {order.size && showSize && (
+                            <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)]">
+                              المقاس · <strong>{order.size}</strong>
+                            </span>
+                          )}
+                          <span className="text-[11px] px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 font-bold ms-auto">
+                            {formatIQD(total)}
+                          </span>
+                        </div>
 
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateOrder(order.id, { status: "new" })}
-                        disabled={isLoading || order.status === "new"}
-                      >
-                        <RotateCcw size={13} className="me-1.5" />
-                        {t.batches.modal.resetPending}
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setMovingOrderId(order.id);
-                          setTargetBatchId("");
-                        }}
-                        disabled={otherBatches.length === 0}
-                      >
-                        <ArrowRightLeft size={13} className="me-1.5" />
-                        {t.batches.modal.moveToBatch}
-                      </Button>
-
-                      {isAdmin && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => deleteOrder(order.id)}
-                          disabled={isLoading}
-                        >
-                          <Trash2 size={13} className="me-1.5" />
-                          {t.batches.modal.delete}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Images */}
-                  {(() => {
-                    const allImgs: string[] = [];
-                    try { const p = JSON.parse(order.images ?? ""); if (Array.isArray(p)) allImgs.push(...p); } catch { if (order.images) allImgs.push(order.images); }
-                    try { const subs = JSON.parse(order.items ?? ""); if (Array.isArray(subs)) subs.forEach((s: {images?: string[]}) => { if (Array.isArray(s.images)) allImgs.push(...s.images); }); } catch { /* ignore */ }
-                    if (allImgs.length === 0) return null;
-                    return (
-                      <div className="flex gap-2 flex-wrap pt-1 border-t border-[var(--border)]">
-                        {allImgs.map((img, i) => (
-                          <button key={i} type="button" onClick={() => setPreviewImg(img)} className="shrink-0">
-                            <img src={img} alt="" className="h-16 w-16 rounded-xl object-cover border border-[var(--border)] hover:opacity-80 transition-opacity cursor-zoom-in" />
+                        {/* Action buttons — compact single row */}
+                        <div className="flex gap-1 overflow-x-auto pb-0.5">
+                          <button onClick={() => startEdit(order)} className={btnDefault}>
+                            <Pencil size={11} />{t.batches.modal.edit}
                           </button>
-                        ))}
+                          <a
+                            href={buildWhatsAppUrl(order)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={btnGreen}
+                          >
+                            <MessageCircle size={11} />{t.batches.modal.whatsapp}
+                          </a>
+                          <button onClick={() => openInvoice(order)} className={btnDefault}>
+                            <FileText size={11} />{t.batches.modal.print}
+                          </button>
+                          <button
+                            onClick={() => updateOrder(order.id, { status: "new" })}
+                            disabled={isLoading || order.status === "new"}
+                            className={`${btnDefault} disabled:opacity-40`}
+                          >
+                            <RotateCcw size={11} />{t.batches.modal.resetPending}
+                          </button>
+                          <button
+                            onClick={() => { setMovingOrderId(order.id); setTargetBatchId(""); }}
+                            disabled={otherBatches.length === 0}
+                            className={`${btnDefault} disabled:opacity-40`}
+                          >
+                            <ArrowRightLeft size={11} />{t.batches.modal.moveToBatch}
+                          </button>
+                          {isAdmin && (
+                            <button onClick={() => deleteOrder(order.id)} disabled={isLoading} className={btnRed}>
+                              <Trash2 size={11} />{t.batches.modal.delete}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Notes */}
+                        {order.notes && (
+                          <p className="text-xs text-[var(--muted)] bg-[var(--surface)] rounded-xl px-3 py-2">
+                            {order.notes}
+                          </p>
+                        )}
                       </div>
-                    );
-                  })()}
-
-                  {/* Order details */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-[var(--border)]">
-                    <div className="text-xs">
-                      <p className="text-[var(--muted)]">{t.batches.modal.buyPrice}</p>
-                      <p className="font-medium">{formatTRY(order.purchaseCost)}</p>
-                    </div>
-                    <div className="text-xs">
-                      <p className="text-[var(--muted)]">{t.batches.modal.sellPrice}</p>
-                      <p className="font-medium">{formatIQD(order.sellingPrice)}</p>
-                    </div>
-                    <div className="text-xs">
-                      <p className="text-[var(--muted)]">{t.batches.modal.deposit}</p>
-                      <p className="font-medium">{formatIQD(order.deposit)}</p>
-                    </div>
-                    <div className="text-xs">
-                      <p className="text-[var(--muted)]">{t.batches.modal.payment}</p>
-                      <p className="font-medium">{order.paymentStatus === "paid" ? t.batches.modal.paid : t.batches.modal.unpaid}</p>
-                    </div>
+                    )}
                   </div>
-
-                  {order.notes && (
-                    <p className="text-xs text-[var(--muted)] bg-[var(--surface)] rounded-xl px-3 py-2">
-                      {order.notes}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Image preview */}
       {previewImg && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6" onClick={() => setPreviewImg(null)}>
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <img src={previewImg} alt="" className="max-w-sm max-h-[70vh] rounded-xl object-contain shadow-2xl" />
-            <button onClick={() => setPreviewImg(null)} className="absolute -top-2.5 -right-2.5 bg-[var(--background)] border border-[var(--border)] rounded-full p-1 shadow hover:bg-[var(--surface-secondary)] transition-colors">
-              <X size={14} />
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-6"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+          onClick={() => setPreviewImg(null)}
+        >
+          <div className="relative mx-4" style={{ maxWidth: "min(420px, 92vw)" }} onClick={(e) => e.stopPropagation()}>
+            <img src={previewImg} alt="" className="w-full rounded-2xl object-contain shadow-2xl" style={{ maxHeight: "72dvh" }} />
+            <button
+              onClick={() => setPreviewImg(null)}
+              className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-[var(--background)] border border-[var(--border)] flex items-center justify-center shadow hover:bg-[var(--surface-secondary)] transition-colors"
+            >
+              <X size={13} />
             </button>
           </div>
         </div>
