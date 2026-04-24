@@ -6,10 +6,8 @@ import { useTheme } from "next-themes";
 import {
   Sun, Moon, Search, ChevronLeft, Plus, ChevronDown, Package, X, Users,
 } from "lucide-react";
-import { useAuthStore } from "@/store/auth";
 import { useT } from "@/lib/i18n";
 import { useBatchFilterStore } from "@/store/batch-filter";
-import { useOrderFilterStore } from "@/store/order-filter";
 import { useCustomerFilterStore } from "@/store/customer-filter";
 
 function getGreeting(): string {
@@ -47,7 +45,6 @@ const HEADER_CLS =
 export function AppNavbar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const { user } = useAuthStore();
   const t = useT();
   const [mounted, setMounted] = useState(false);
   const [greeting, setGreeting] = useState("");
@@ -58,7 +55,6 @@ export function AppNavbar() {
   const router = useRouter();
 
   const { statusFilter, counts, setStatusFilter } = useBatchFilterStore();
-  const { activeTab, search: orderSearch, setActiveTab, setSearch: setOrderSearch } = useOrderFilterStore();
   const { search: customerSearch, count: customerCount, setSearch: setCustomerSearch } = useCustomerFilterStore();
 
   const isDark = theme === "dark";
@@ -221,102 +217,17 @@ export function AppNavbar() {
 
   /* ── Orders page ── */
   if (pathname === "/orders") {
-    const STATUS_TABS = [
-      { label: t.orders.tabs.active, value: "active" },
-      { label: t.orders.tabs.all, value: "all" },
-      { label: t.orders.tabs.new, value: "new" },
-      { label: t.orders.tabs.in_progress, value: "in_progress" },
-      { label: t.orders.tabs.bought, value: "bought" },
-      { label: t.orders.tabs.shipped, value: "shipped" },
-      { label: t.orders.tabs.delivered, value: "delivered" },
-      { label: t.orders.tabs.unpaid, value: "unpaid" },
-    ];
-    const activeTabLabel = STATUS_TABS.find((tab) => tab.value === activeTab)?.label ?? STATUS_TABS[0].label;
-
     return (
       <header className={HEADER_CLS} style={{ height: "56px" }}>
+        <div />
         <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-8 h-8 rounded-xl" style={{ background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.25)" }}>
-            <Package size={15} style={{ color: "#c9a84c" }} />
-          </div>
-          <span className="text-base font-bold" style={{ color: "var(--foreground)" }}>{t.orders.title}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative" ref={filterDropRef}>
-            <button
-              onClick={() => setFilterDropOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-              style={{ background: filterDropOpen ? "var(--surface-secondary)" : "var(--surface)", border: "1px solid var(--border)", color: "var(--foreground)" }}
-            >
-              <span className="hidden sm:inline">{activeTabLabel}</span>
-              <span className="sm:hidden">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
-              </span>
-              <ChevronDown size={12} className="text-[var(--muted)]"
-                style={{ transform: filterDropOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
-            </button>
-            {filterDropOpen && (
-              <div className="absolute left-0 top-full mt-1.5 z-50 min-w-[160px] rounded-xl shadow-xl overflow-hidden py-1"
-                style={{ background: "#1e1e2e", border: "1px solid #333" }} dir="rtl">
-                {STATUS_TABS.map((tab) => {
-                  const isActive = activeTab === tab.value;
-                  return (
-                    <button key={tab.value}
-                      onClick={() => { setActiveTab(tab.value); setFilterDropOpen(false); }}
-                      className="w-full text-start px-4 py-2 text-sm transition-colors hover:brightness-125"
-                      style={{
-                        backgroundColor: isActive ? "rgba(139,92,246,0.15)" : "transparent",
-                        color: isActive ? "#a78bfa" : "#e5e7eb",
-                        borderRight: isActive ? "3px solid #8b5cf6" : "3px solid transparent",
-                        fontWeight: isActive ? 600 : 400,
-                      }}>
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <div className="relative flex items-center">
-            {searchOpen ? (
-              <>
-                <Search size={13} className="absolute end-2.5 text-[var(--muted)] pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={orderSearch}
-                  onChange={(e) => setOrderSearch(e.target.value)}
-                  dir="rtl"
-                  autoFocus
-                  className="h-9 pe-8 ps-3 text-xs rounded-xl outline-none"
-                  style={{ background: "var(--surface)", border: "1px solid var(--accent)", color: "var(--foreground)", width: "160px" }}
-                />
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => { setOrderSearch(""); setSearchOpen(false); }}
-                  className="absolute start-2 flex items-center justify-center w-5 h-5 rounded-full transition-colors cursor-pointer"
-                  style={{ background: orderSearch ? "var(--muted)" : "var(--border)", color: "var(--surface)" }}
-                >
-                  <X size={10} strokeWidth={2.5} />
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="flex items-center justify-center w-9 h-9 rounded-full cursor-pointer transition-all hover:brightness-110"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--muted)" }}
-              >
-                <Search size={15} strokeWidth={1.8} />
-              </button>
-            )}
-          </div>
           <button
             onClick={() => router.push("/orders?new=true")}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
+            title={t.topbar.newOrder}
+            className="flex items-center justify-center w-9 h-9 rounded-full hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
             style={{ background: "#c9a84c", color: "#111111" }}
           >
-            <Plus size={14} strokeWidth={2.5} />
-            <span className="hidden sm:inline">{t.topbar.newOrder}</span>
+            <Plus size={16} strokeWidth={2.5} />
           </button>
         </div>
       </header>
