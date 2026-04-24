@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
   Plus,
+  Search,
   Pencil,
   Trash2,
   MessageCircle,
@@ -17,6 +18,7 @@ import {
   ExternalLink,
   ChevronDown,
   Clipboard,
+  Instagram,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,10 +44,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth";
-import { useOrderFilterStore } from "@/store/order-filter";
 import { formatIQD, formatTRY } from "@/lib/utils";
-import { useT } from "@/lib/i18n";
-import { buildInvoiceVars, renderTemplate, CLASSIC_TEMPLATE } from "@/lib/invoice-templates";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -128,7 +127,38 @@ interface ProductItem {
 // Constants
 // ---------------------------------------------------------------------------
 
+const STATUS_TABS = [
+  { label: "النشطة", value: "active" },
+  { label: "الكل", value: "all" },
+  { label: "جديد", value: "new" },
+  { label: "قيد التنفيذ", value: "in_progress" },
+  { label: "تم الشراء", value: "bought" },
+  { label: "تم الشحن", value: "shipped" },
+  { label: "تم التسليم", value: "delivered" },
+  { label: "غير مدفوع", value: "unpaid" },
+] as const;
 
+const PRODUCT_TYPES = [
+  { label: "حقيبة", value: "Bag" },
+  { label: "حذاء", value: "Shoe" },
+  { label: "ملابس", value: "Clothing" },
+  { label: "إكسسوار", value: "Accessory" },
+  { label: "أخرى", value: "Other" },
+];
+
+const STATUS_OPTIONS = [
+  { label: "جديد", value: "new" },
+  { label: "قيد التنفيذ", value: "in_progress" },
+  { label: "تم الشراء", value: "bought" },
+  { label: "تم الشحن", value: "shipped" },
+  { label: "تم التسليم", value: "delivered" },
+];
+
+const PAYMENT_OPTIONS = [
+  { label: "غير مدفوع", value: "unpaid" },
+  { label: "دفع جزئي", value: "partial" },
+  { label: "مدفوع", value: "paid" },
+];
 
 const IRAQI_CITIES = [
   "بغداد",
@@ -271,11 +301,96 @@ function pickSingleImage(fetchedImages: string[], selectedIdx: number, fallback:
   return JSON.stringify([fallback]);
 }
 
-function openInvoice(order: Order, template: string, storeName: string) {
-  const vars = buildInvoiceVars(order, storeName);
-  const html = renderTemplate(template || CLASSIC_TEMPLATE, vars);
+function openInvoice(order: Order) {
+  const finalPrice = order.sellingPrice + order.deliveryCost - order.deposit;
+  const productImages = order.images ? JSON.parse(order.images) : [];
+  const imageHtml = productImages.length > 0
+    ? `<div style="text-align:center;margin:16px 0;"><img src="${productImages[0]}" alt="صورة المنتج" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e0e0e0;" /></div>`
+    : "";
+
+  const html = `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>فاتورة - ${order.id}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1a1a1a; max-width: 800px; margin: 0 auto; direction: rtl; }
+    .header { text-align: center; margin-bottom: 32px; border-bottom: 3px solid #1a1a1a; padding-bottom: 16px; }
+    .header h1 { font-size: 28px; font-weight: 700; letter-spacing: 2px; }
+    .header p { color: #666; margin-top: 4px; }
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 14px; font-weight: 600; letter-spacing: 1px; color: #666; margin-bottom: 8px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; }
+    .field { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e0e0e0; }
+    .field-label { font-weight: 500; color: #555; }
+    .field-value { font-weight: 600; text-align: left; }
+    .totals { background: #f8f8f8; border-radius: 8px; padding: 16px; margin-top: 24px; }
+    .totals .field { border-bottom-color: #ccc; }
+    .totals .total-row { font-size: 18px; color: #1a1a1a; border-bottom: none; padding-top: 12px; }
+    .footer { text-align: center; margin-top: 48px; color: #999; font-size: 12px; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>متجر ترندي</h1>
+    <p>فاتورة</p>
+  </div>
+
+  ${imageHtml}
+
+  <div class="section">
+    <div class="section-title">معلومات الطلب</div>
+    <div class="grid">
+      <div class="field"><span class="field-label">رقم الطلب</span><span class="field-value">${order.id.slice(0, 8).toUpperCase()}</span></div>
+      <div class="field"><span class="field-label">التاريخ</span><span class="field-value">${format(new Date(order.createdAt), "dd MMM yyyy")}</span></div>
+      <div class="field"><span class="field-label">الحالة</span><span class="field-value">${prettyStatus(order.status)}</span></div>
+      <div class="field"><span class="field-label">الدفع</span><span class="field-value">${prettyStatus(order.paymentStatus)}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">العميل</div>
+    <div class="grid">
+      <div class="field"><span class="field-label">الاسم</span><span class="field-value">${order.customer?.name || "-"}</span></div>
+      <div class="field"><span class="field-label">الهاتف</span><span class="field-value">${order.phone || order.customer?.phone || "-"}</span></div>
+      <div class="field"><span class="field-label">الموقع</span><span class="field-value">${[order.governorate, order.area].filter(Boolean).join("، ") || "-"}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">المنتج</div>
+    <div class="grid">
+      <div class="field"><span class="field-label">النوع</span><span class="field-value">${PRODUCT_TYPE_LABELS[order.productType] || order.productType || "-"}</span></div>
+      <div class="field"><span class="field-label">الاسم</span><span class="field-value">${order.productName || "-"}</span></div>
+      <div class="field"><span class="field-label">اللون</span><span class="field-value">${order.color || "-"}</span></div>
+      <div class="field"><span class="field-label">المقاس</span><span class="field-value">${order.size || "-"}</span></div>
+    </div>
+  </div>
+
+  <div class="totals">
+    <div class="section-title">الأسعار</div>
+    <div class="field"><span class="field-label">سعر البيع</span><span class="field-value">${formatIQD(order.sellingPrice)}</span></div>
+    <div class="field"><span class="field-label">كلفة التوصيل</span><span class="field-value">${formatIQD(order.deliveryCost)}</span></div>
+    <div class="field"><span class="field-label">العربون المدفوع</span><span class="field-value">- ${formatIQD(order.deposit)}</span></div>
+    <div class="field total-row"><span class="field-label">المتبقي للدفع</span><span class="field-value">${formatIQD(finalPrice)}</span></div>
+  </div>
+
+  <div class="footer">
+    <p>شكراً لتسوقكم من متجر ترندي!</p>
+  </div>
+
+  <script>window.onload = function() { window.print(); };</script>
+</body>
+</html>`;
+
   const w = window.open("", "_blank");
-  if (w) { w.document.write(html); w.document.close(); }
+  if (w) {
+    w.document.write(html);
+    w.document.close();
+  }
 }
 
 function buildWhatsAppUrl(order: Order) {
@@ -295,6 +410,14 @@ function buildWhatsAppUrl(order: Order) {
       `شكراً لك!`
   );
   return `https://wa.me/${phone}?text=${text}`;
+}
+
+function buildInstagramUrl(order: Order): string | null {
+  const raw = (order.instagramLink || order.customer?.instagram || "").trim();
+  if (!raw) return null;
+  if (raw.startsWith("http")) return raw;
+  const handle = raw.replace(/^@/, "");
+  return handle ? `https://instagram.com/${handle}` : null;
 }
 
 function getOrderItemCount(order: Order): number {
@@ -332,45 +455,6 @@ function parseSubItems(items?: string | null): SubItem[] {
 
 export default function OrdersPage() {
   const { token, isAdmin } = useAuthStore();
-  const t = useT();
-
-  const STATUS_TABS = [
-    { label: t.orders.tabs.active, value: "active" },
-    { label: t.orders.tabs.all, value: "all" },
-    { label: t.orders.tabs.new, value: "new" },
-    { label: t.orders.tabs.in_progress, value: "in_progress" },
-    { label: t.orders.tabs.bought, value: "bought" },
-    { label: t.orders.tabs.shipped, value: "shipped" },
-    { label: t.orders.tabs.delivered, value: "delivered" },
-    { label: t.orders.tabs.unpaid, value: "unpaid" },
-  ];
-
-  const STATUS_LABELS: Record<string, string> = { ...t.orders.status };
-  const PRODUCT_TYPE_LABELS: Record<string, string> = { ...t.orders.productTypes };
-  const prettyStatus = (status: string) => STATUS_LABELS[status] || status;
-
-  const PRODUCT_TYPES = [
-    { label: t.orders.productTypes.Bag, value: "Bag" },
-    { label: t.orders.productTypes.Shoe, value: "Shoe" },
-    { label: t.orders.productTypes.Clothing, value: "Clothing" },
-    { label: t.orders.productTypes.Accessory, value: "Accessory" },
-    { label: t.orders.productTypes.Other, value: "Other" },
-  ];
-
-  const STATUS_OPTIONS = [
-    { label: t.orders.status.new, value: "new" },
-    { label: t.orders.status.in_progress, value: "in_progress" },
-    { label: t.orders.status.bought, value: "bought" },
-    { label: t.orders.status.shipped, value: "shipped" },
-    { label: t.orders.status.delivered, value: "delivered" },
-  ];
-
-  const PAYMENT_OPTIONS = [
-    { label: t.orders.status.unpaid, value: "unpaid" },
-    { label: t.orders.status.partial, value: "partial" },
-    { label: t.orders.status.paid, value: "paid" },
-  ];
-
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -381,19 +465,13 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState({ usdIqd: BASE_IQD, usdTry: BASE_TRY });
   const [previewImg, setPreviewImg] = useState<string | null>(null);
-  const [invoiceTemplate, setInvoiceTemplate] = useState(CLASSIC_TEMPLATE);
-  const [storeNameForInvoice, setStoreNameForInvoice] = useState("Trendy Store");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const toggleExpand = useCallback((id: string) =>
     setExpandedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; }), []);
 
   useEffect(() => {
     fetch("/api/settings").then(r => r.ok ? r.json() : null).then(d => {
-      if (d) {
-        setRates({ usdIqd: d.usdToIqd || BASE_IQD, usdTry: d.usdToTry || BASE_TRY });
-        setInvoiceTemplate(d.invoiceTemplate || CLASSIC_TEMPLATE);
-        setStoreNameForInvoice(d.storeName || "Trendy Store");
-      }
+      if (d) setRates({ usdIqd: d.usdToIqd || BASE_IQD, usdTry: d.usdToTry || BASE_TRY });
     }).catch(() => {});
   }, []);
 
@@ -406,7 +484,8 @@ export default function OrdersPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const { activeTab, search } = useOrderFilterStore();
+  const [activeTab, setActiveTab] = useState("active");
+  const [search, setSearch] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -848,17 +927,17 @@ export default function OrdersPage() {
         fetchOrders();
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.error || t.orders.alerts.saveFailed);
+        alert(err?.error || "فشل في حفظ الطلب");
       }
     } catch {
-      alert(t.orders.alerts.networkError);
+      alert("خطأ في الشبكة");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (order: Order) => {
-    if (!confirm(t.orders.alerts.deleteConfirm(order.customer?.name || ""))) return;
+    if (!confirm(`هل تريد حذف طلب "${order.customer?.name}"؟`)) return;
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
         method: "DELETE",
@@ -867,10 +946,10 @@ export default function OrdersPage() {
       if (res.ok) fetchOrders();
       else {
         const err = await res.json().catch(() => null);
-        alert(err?.error || t.orders.alerts.deleteFailed);
+        alert(err?.error || "فشل في حذف الطلب");
       }
     } catch {
-      alert(t.orders.alerts.networkError);
+      alert("خطأ في الشبكة");
     }
   };
 
@@ -889,7 +968,7 @@ export default function OrdersPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             <Package className="h-4 w-4" />
-            <span>{t.orders.dialog.productItem(index + 1)}</span>
+            <span>المنتج {index + 1}</span>
           </div>
           {productItems.length > 1 && (
             <Button
@@ -900,7 +979,7 @@ export default function OrdersPage() {
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Trash2 className="h-4 w-4 me-1" />
-              {t.orders.dialog.deleteProduct}
+              حذف المنتج
             </Button>
           )}
         </div>
@@ -915,7 +994,7 @@ export default function OrdersPage() {
                 <div className="relative group flex-1 min-h-0">
                   <img
                     src={item.fetchedImages[item.selectedImageIdx ?? 0]}
-                    alt={t.orders.dialog.productImage}
+                    alt="صورة المنتج"
                     className="w-full h-full rounded-lg object-cover border border-border"
                   />
                   <button
@@ -964,7 +1043,7 @@ export default function OrdersPage() {
                   value={item.productLink}
                   onChange={(e) => updateProductItem(item.id, { productLink: e.target.value, fetchedImages: [], images: "", selectedImageIdx: 0 })}
                   dir="ltr"
-                  placeholder={t.orders.fields.link}
+                  placeholder="رابط"
                   className="h-8 text-[13px] text-left pe-7 ps-7"
                 />
                 {isFetching
@@ -975,7 +1054,7 @@ export default function OrdersPage() {
                   type="button"
                   onClick={async () => { try { const t = await navigator.clipboard.readText(); updateProductItem(item.id, { productLink: t.trim(), fetchedImages: [], images: "", selectedImageIdx: 0 }); } catch { /* clipboard unavailable */ } }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                  title={t.orders.tooltips.paste}
+                  title="لصق"
                 >
                   <Clipboard className="h-3 w-3" />
                 </button>
@@ -990,7 +1069,7 @@ export default function OrdersPage() {
               <Input
                 value={item.color}
                 onChange={(e) => updateProductItem(item.id, { color: e.target.value })}
-                placeholder={t.orders.fields.color}
+                placeholder="لون"
                 className="h-8 text-[13px] flex-1"
               />
             </div>
@@ -1034,7 +1113,7 @@ export default function OrdersPage() {
                 <Input
                   value={item.size}
                   onChange={(e) => updateProductItem(item.id, { size: e.target.value })}
-                  placeholder={t.orders.fields.size}
+                  placeholder="مقاس"
                   className="h-8 text-[13px] flex-1 min-w-[3rem]"
                 />
               </div>
@@ -1050,7 +1129,7 @@ export default function OrdersPage() {
                 step="0.01"
                 min="0"
                 value={item.purchaseCost}
-                placeholder={t.orders.fields.buy}
+                placeholder="شراء"
                 className="h-8 text-[13px] flex-1"
                 onChange={(e) => {
                   const val = e.target.value;
@@ -1074,7 +1153,7 @@ export default function OrdersPage() {
                 step="1"
                 min="0"
                 value={item.sellingPrice}
-                placeholder={t.orders.fields.sell}
+                placeholder="بيع"
                 className="h-8 text-[13px] flex-1"
                 onChange={(e) => updateProductItem(item.id, { sellingPrice: e.target.value })}
               />
@@ -1089,14 +1168,41 @@ export default function OrdersPage() {
   // Render
   // -----------------------------------------------------------------------
   return (
-    <>
-    <div className="space-y-4 animate-fade-in-up">
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Page header */}
+      <h1 className="text-2xl font-bold tracking-tight">الطلبات</h1>
+
+      {/* Filter Tabs */}
+      <div className="flex flex-wrap gap-2">
+        {STATUS_TABS.map((tab) => (
+          <Button
+            key={tab.value}
+            variant={activeTab === tab.value ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveTab(tab.value)}
+            className="transition-all duration-200"
+          >
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative w-full md:max-w-sm">
+        <Search className="absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="البحث في الطلبات..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pe-9"
+        />
+      </div>
 
       {/* Orders Table — desktop only */}
       <Card className="card-hover overflow-hidden hidden md:block">
         <CardHeader>
           <CardTitle className="text-lg">
-            {t.orders.title}{" "}
+            الطلبات{" "}
             <span className="text-muted-foreground font-normal text-sm">
               ({orders.length})
             </span>
@@ -1109,26 +1215,26 @@ export default function OrdersPage() {
             </div>
           ) : orders.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground animate-fade-in-up">
-              {t.orders.noOrders}
+              لا توجد طلبات
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.image}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.customer}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.product}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.color}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.size}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.link}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.buyPrice}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.sellPrice}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.remaining}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.status}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.payment}</TableHead>
-                    <TableHead className="whitespace-nowrap text-start">{t.orders.table.date}</TableHead>
-                    <TableHead className="whitespace-nowrap text-end">{t.orders.table.actions}</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">الصورة</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">العميل</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">المنتج</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">اللون</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">المقاس</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">رابط</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">سعر الشراء</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">سعر البيع</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">المتبقي</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">الحالة</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">الدفع</TableHead>
+                    <TableHead className="whitespace-nowrap text-start">التاريخ</TableHead>
+                    <TableHead className="whitespace-nowrap text-end">الإجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1192,7 +1298,7 @@ export default function OrdersPage() {
                               className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors"
                             >
                               <ExternalLink className="h-3 w-3" />
-                              {t.orders.openLink}
+                              فتح
                             </a>
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
@@ -1306,11 +1412,11 @@ export default function OrdersPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(order)} title={t.orders.tooltips.edit}>
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(order)} title="تعديل">
                               <Pencil className="h-4 w-4" />
                             </Button>
                             {isAdmin() && (
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(order)} title={t.orders.tooltips.delete}>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(order)} title="حذف">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             )}
@@ -1319,11 +1425,22 @@ export default function OrdersPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-                              title={t.orders.tooltips.whatsapp}
+                              title="واتساب"
                             >
                               <MessageCircle className="h-4 w-4 text-green-600" />
                             </a>
-                            <Button variant="ghost" size="icon" onClick={() => openInvoice(order, invoiceTemplate, storeNameForInvoice)} title={t.orders.tooltips.invoice}>
+                            {buildInstagramUrl(order) && (
+                              <a
+                                href={buildInstagramUrl(order)!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                                title="انستغرام"
+                              >
+                                <Instagram className="h-4 w-4" style={{ color: "#e1306c" }} />
+                              </a>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={() => openInvoice(order)} title="فاتورة">
                               <FileText className="h-4 w-4" />
                             </Button>
                           </div>
@@ -1358,7 +1475,7 @@ export default function OrdersPage() {
                               {sub.productLink ? (
                                 <a href={sub.productLink} target="_blank" rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border hover:bg-accent transition-colors">
-                                  <ExternalLink className="h-3 w-3" />{t.orders.openLink}
+                                  <ExternalLink className="h-3 w-3" />فتح
                                 </a>
                               ) : <span className="text-muted-foreground text-xs">—</span>}
                             </TableCell>
@@ -1394,240 +1511,191 @@ export default function OrdersPage() {
           </div>
         ) : orders.length === 0 ? (
           <div className="py-16 text-center text-muted-foreground animate-fade-in-up">
-            {t.orders.noOrders}
+            لا توجد طلبات
           </div>
         ) : (
           <div className="space-y-3 pb-32">
             {orders.map((order, idx) => {
               const imgs = order.images ? (() => { try { return JSON.parse(order.images!); } catch { return []; } })() : [];
-              const itemCount = getOrderItemCount(order);
-              const subItems = parseSubItems(order.items);
-              const isExpanded = expandedIds.has(order.id);
-
               return (
                 <div
                   key={order.id}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl"
-                  style={{ position: "relative", zIndex: statusDropId === order.id ? 50 : "auto" }}
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-3.5 space-y-3 animate-fade-in-up"
+                  style={{ animationDelay: `${idx * 30}ms` }}
                 >
-                  {/* ── Main card body ── */}
-                  <div className="p-3 space-y-2">
-                    <div className="flex gap-2.5">
-                      {/* Image */}
-                      <div className="shrink-0 self-start">
-                        {imgs.length > 0 ? (
-                          <button type="button" onClick={() => setPreviewImg(imgs[0])}>
-                            <img
-                              src={imgs[0]}
-                              alt=""
-                              className="h-14 w-14 rounded-xl object-cover border border-[var(--border)] cursor-zoom-in"
-                            />
-                          </button>
-                        ) : (
-                          <div className="h-14 w-14 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] flex items-center justify-center">
-                            <ImageIcon className="h-4 w-4 text-[var(--muted)]" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        {/* Name + status */}
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-semibold text-sm leading-snug truncate text-[var(--foreground)]">
-                            {order.customer?.name || "-"}
-                          </p>
-                          <div
-                            className="relative shrink-0"
-                            ref={statusDropId === order.id ? statusDropRef : undefined}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => setStatusDropId(statusDropId === order.id ? null : order.id)}
-                            >
-                              <Badge
-                                variant={statusBadgeVariant(order.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}
-                                className="hover:opacity-80 transition-opacity"
-                              >
-                                {prettyStatus(order.status)}
-                              </Badge>
-                            </button>
-                            {statusDropId === order.id && (
-                              <div
-                                className="absolute z-[200] top-full mt-1 end-0 rounded-lg shadow-xl overflow-hidden min-w-[9rem]"
-                                style={{ backgroundColor: "#1e1e2e", border: "1px solid #333" }}
-                              >
-                                {STATUS_OPTIONS.map((s) => {
-                                  const colors: Record<string, string> = {
-                                    new: "#3b82f6", in_progress: "#eab308",
-                                    bought: "#a855f7", shipped: "#f97316", delivered: "#22c55e",
-                                  };
-                                  const active = order.status === s.value;
-                                  return (
-                                    <button
-                                      key={s.value}
-                                      type="button"
-                                      onClick={() => updateOrderStatus(order.id, order.status, s.value)}
-                                      style={{
-                                        backgroundColor: active ? colors[s.value] + "33" : "transparent",
-                                        color: colors[s.value] ?? "#e5e7eb",
-                                        borderRight: active ? `3px solid ${colors[s.value]}` : "3px solid transparent",
-                                      }}
-                                      className="w-full text-start px-3 py-2 text-sm font-medium transition-colors hover:brightness-125"
-                                    >
-                                      {s.label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Product details */}
-                        <div className="mt-1 space-y-[3px]">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[12px] text-[var(--foreground)] font-medium">{PRODUCT_TYPE_LABELS[order.productType] || order.productType}</span>
-                            {order.color && <span className="text-[11px] text-[var(--muted)]">· {order.color}</span>}
-                            {order.size && <span className="text-[11px] text-[var(--muted)]">· {order.size}</span>}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[11px] text-[var(--muted)]">₺{order.purchaseCost.toLocaleString()}</span>
-                            <span className="text-[12px] font-semibold" style={{ color: "#c9a84c" }}>{formatIQD(order.sellingPrice)}</span>
-                          </div>
-                          <span className="block text-[10px] text-[var(--muted)] opacity-50">
-                            {format(new Date(order.createdAt), "dd/MM/yyyy")}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Expand toggle — only if multiple items */}
-                    {itemCount > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => toggleExpand(order.id)}
-                        className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-semibold transition-colors"
-                        style={{
-                          background: isExpanded ? "rgba(139,92,246,0.12)" : "var(--surface-secondary)",
-                          color: isExpanded ? "#a78bfa" : "var(--muted)",
-                          border: isExpanded ? "1px solid rgba(139,92,246,0.3)" : "1px solid var(--border)",
-                        }}
-                      >
-                        <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
-                        {isExpanded
-                          ? "إخفاء المنتجات الإضافية"
-                          : `+${itemCount - 1} منتج إضافي — اضغط للعرض`}
-                      </button>
-                    )}
-
-                    {/* Actions row */}
-                    <div className="flex items-center justify-between pt-1.5 border-t border-[var(--border)]/40">
-                      <div className="flex items-center gap-0.5">
-                        <a
-                          href={buildWhatsAppUrl(order)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
-                          title={t.orders.tooltips.whatsapp}
-                        >
-                          <MessageCircle className="h-4 w-4 text-green-600" />
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(order)}
-                          className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
-                          title={t.orders.tooltips.edit}
-                        >
-                          <Pencil className="h-4 w-4 text-[var(--muted)]" />
+                  {/* Image + info */}
+                  <div className="flex gap-3">
+                    <div className="shrink-0 self-start">
+                      {imgs.length > 0 ? (
+                        <button type="button" onClick={() => setPreviewImg(imgs[0])}>
+                          <img
+                            src={imgs[0]}
+                            alt=""
+                            className="h-16 w-16 rounded-xl object-cover border border-[var(--border)] cursor-zoom-in"
+                          />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => openInvoice(order, invoiceTemplate, storeNameForInvoice)}
-                          className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
-                          title={t.orders.tooltips.invoice}
-                        >
-                          <FileText className="h-4 w-4 text-[var(--muted)]" />
-                        </button>
-                        {isAdmin() && (
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(order)}
-                            className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-red-500/10 transition-colors"
-                            title={t.orders.tooltips.delete}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </button>
-                        )}
-                      </div>
-                      {order.productLink && (
-                        <a
-                          href={order.productLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-secondary)] transition-colors text-[var(--foreground)]"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          {t.orders.openLink}
-                        </a>
+                      ) : (
+                        <div className="h-16 w-16 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border)] flex items-center justify-center">
+                          <ImageIcon className="h-5 w-5 text-[var(--muted)]" />
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  {/* ── Expanded sub-items ── */}
-                  {isExpanded && subItems.map((sub, si) => {
-                    const subImg = sub.images?.[0];
-                    const isLast = si === subItems.length - 1;
-                    return (
-                      <div
-                        key={`${order.id}-m-sub-${si}`}
-                        className={`border-t border-[var(--border)]/60 px-3 py-2.5 flex gap-2.5 items-center${isLast ? " rounded-b-2xl" : ""}`}
-                        style={{ background: "var(--surface-secondary)" }}
-                      >
-                        {/* Sub-item image */}
-                        <div className="shrink-0">
-                          {subImg ? (
-                            <button type="button" onClick={() => setPreviewImg(subImg)}>
-                              <img
-                                src={subImg}
-                                alt=""
-                                className="h-11 w-11 rounded-xl object-cover border border-[var(--border)] cursor-zoom-in"
-                              />
-                            </button>
-                          ) : (
-                            <div className="h-11 w-11 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
-                              <ImageIcon className="h-3.5 w-3.5 text-[var(--muted)]" />
+                    <div className="flex-1 min-w-0">
+                      {/* Name + tappable status badge */}
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-semibold text-sm leading-snug truncate text-[var(--foreground)]">
+                          {order.customer?.name || "-"}
+                        </p>
+                        <div
+                          className="relative shrink-0"
+                          ref={statusDropId === order.id ? statusDropRef : undefined}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setStatusDropId(statusDropId === order.id ? null : order.id)}
+                          >
+                            <Badge
+                              variant={statusBadgeVariant(order.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}
+                              className="hover:opacity-80 transition-opacity"
+                            >
+                              {prettyStatus(order.status)}
+                            </Badge>
+                          </button>
+                          {statusDropId === order.id && (
+                            <div
+                              className="absolute z-50 top-full mt-1 end-0 rounded-lg shadow-xl overflow-hidden min-w-[9rem]"
+                              style={{ backgroundColor: "#1e1e2e", border: "1px solid #333" }}
+                            >
+                              {STATUS_OPTIONS.map((s) => {
+                                const colors: Record<string, string> = {
+                                  new:         "#3b82f6",
+                                  in_progress: "#eab308",
+                                  bought:      "#a855f7",
+                                  shipped:     "#f97316",
+                                  delivered:   "#22c55e",
+                                };
+                                const active = order.status === s.value;
+                                return (
+                                  <button
+                                    key={s.value}
+                                    type="button"
+                                    onClick={() => updateOrderStatus(order.id, order.status, s.value)}
+                                    style={{
+                                      backgroundColor: active ? colors[s.value] + "33" : "transparent",
+                                      color: colors[s.value] ?? "#e5e7eb",
+                                      borderRight: active ? `3px solid ${colors[s.value]}` : "3px solid transparent",
+                                    }}
+                                    className="w-full text-start px-3 py-2 text-sm font-medium transition-colors hover:brightness-125"
+                                  >
+                                    {s.label}
+                                  </button>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
-
-                        {/* Sub-item info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 flex-wrap">
-                            <span className="text-[12px] font-medium text-[var(--foreground)]">{PRODUCT_TYPE_LABELS[sub.productType] || sub.productType}</span>
-                            {sub.color && <span className="text-[11px] text-[var(--muted)]">· {sub.color}</span>}
-                            {sub.size && <span className="text-[11px] text-[var(--muted)]">· {sub.size}</span>}
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {sub.purchaseCost && <span className="text-[11px] text-[var(--muted)]">₺{parseFloat(sub.purchaseCost).toLocaleString()}</span>}
-                            {sub.sellingPrice && <span className="text-[11px] font-semibold" style={{ color: "#c9a84c" }}>{formatIQD(parseFloat(sub.sellingPrice))}</span>}
-                          </div>
-                        </div>
-
-                        {/* Sub-item link */}
-                        {sub.productLink && (
-                          <a
-                            href={sub.productLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="shrink-0 flex items-center justify-center h-8 w-8 rounded-lg border border-[var(--border)] hover:bg-[var(--surface)] transition-colors"
-                            title={t.orders.openLink}
-                          >
-                            <ExternalLink className="h-3.5 w-3.5 text-[var(--muted)]" />
-                          </a>
-                        )}
                       </div>
-                    );
-                  })}
+
+                      {/* Product details */}
+                      <div className="mt-1.5 space-y-[5px]">
+                        <div className="flex items-center gap-1.5">
+                          <Package size={14} className="text-[var(--muted)] shrink-0" />
+                          <span className="text-[11px] text-[var(--muted)] opacity-50">نوع</span>
+                          <span className="text-[13px] text-[var(--foreground)]">{PRODUCT_TYPE_LABELS[order.productType] || order.productType}</span>
+                        </div>
+                        {order.color && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="shrink-0 h-[14px] w-[14px] rounded-full border border-[var(--border)]" style={{ background: order.color }} />
+                            <span className="text-[11px] text-[var(--muted)] opacity-50">لون</span>
+                            <span className="text-[13px] text-[var(--foreground)]">{order.color}</span>
+                          </div>
+                        )}
+                        {order.size && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none text-[var(--muted)]">SZ</span>
+                            <span className="text-[11px] text-[var(--muted)] opacity-50">مقاس</span>
+                            <span className="text-[13px] text-[var(--foreground)]">{order.size}</span>
+                          </div>
+                        )}
+                        {order.productLink && (
+                          <div className="flex items-center gap-1.5">
+                            <ExternalLink size={14} className="text-[var(--muted)] shrink-0" />
+                            <span className="text-[11px] text-[var(--muted)] opacity-50">رابط</span>
+                            <a href={order.productLink} target="_blank" rel="noopener noreferrer" className="text-[13px] text-blue-500 hover:underline">فتح</a>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none text-[var(--muted)]">₺</span>
+                          <span className="text-[11px] text-[var(--muted)] opacity-50">شراء</span>
+                          <span className="text-[13px] text-[var(--foreground)]">{formatTRY(order.purchaseCost)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="shrink-0 w-[14px] text-center text-[10px] font-mono leading-none" style={{ color: "#c9a84c" }}>IQ</span>
+                          <span className="text-[11px] text-[var(--muted)] opacity-50">بيع</span>
+                          <span className="text-[13px]" style={{ color: "#c9a84c" }}>{formatIQD(order.sellingPrice)}</span>
+                        </div>
+                      </div>
+                      <span className="mt-1 block text-[11px] text-[var(--muted)] opacity-50">
+                        {format(new Date(order.createdAt), "dd/MM/yyyy")}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions row */}
+                  <div className="flex items-center justify-between pt-2.5 border-t border-[var(--border)]/40">
+                    <div className="flex items-center gap-0.5">
+                      <a
+                        href={buildWhatsAppUrl(order)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
+                        title="واتساب"
+                      >
+                        <MessageCircle className="h-4 w-4 text-green-600" />
+                      </a>
+                      {buildInstagramUrl(order) && (
+                        <a
+                          href={buildInstagramUrl(order)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
+                          title="انستغرام"
+                        >
+                          <Instagram className="h-4 w-4" style={{ color: "#e1306c" }} />
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(order)}
+                        className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
+                        title="تعديل"
+                      >
+                        <Pencil className="h-4 w-4 text-[var(--muted)]" />
+                      </button>
+                      {isAdmin() && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(order)}
+                          className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-red-500/10 transition-colors"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </button>
+                      )}
+                    </div>
+                    {order.productLink ? (
+                      <a
+                        href={order.productLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--surface-secondary)] transition-colors text-[var(--foreground)]"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        فتح
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
@@ -1640,7 +1708,7 @@ export default function OrdersPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingOrder ? t.orders.dialog.editOrder : t.orders.dialog.newOrder}
+              {editingOrder ? "تعديل الطلب" : "طلب جديد"}
             </DialogTitle>
             <DialogClose onClose={() => setDialogOpen(false)} />
           </DialogHeader>
@@ -1650,16 +1718,16 @@ export default function OrdersPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="customerName" className="text-xs">{t.orders.dialog.nameRequired}</Label>
+                  <Label htmlFor="customerName" className="text-xs">الاسم *</Label>
                   <Input id="customerName" required value={form.customerName} onChange={(e) => setField("customerName", e.target.value)} className="h-8 text-sm" />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="customerPhone" className="text-xs">{t.orders.dialog.phone}</Label>
+                  <Label htmlFor="customerPhone" className="text-xs">الهاتف</Label>
                   <Input id="customerPhone" value={form.customerPhone} onChange={(e) => setField("customerPhone", e.target.value)} className="h-8 text-sm" />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="instagram" className="text-xs">{t.orders.dialog.instagram}</Label>
+                <Label htmlFor="instagram" className="text-xs">انستغرام</Label>
                 <div className="relative">
                   <Input id="instagram" dir="ltr" className="h-8 text-sm text-left pr-8" value={form.instagram} onChange={(e) => setField("instagram", e.target.value)} />
                   {fetchingIG && <Loader2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />}
@@ -1667,7 +1735,7 @@ export default function OrdersPage() {
                     type="button"
                     onClick={async () => { try { const t = await navigator.clipboard.readText(); setField("instagram", t.trim()); } catch { /* clipboard unavailable */ } }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                    title={t.orders.tooltips.paste}
+                    title="لصق"
                   >
                     <Clipboard className="h-3.5 w-3.5" />
                   </button>
@@ -1684,12 +1752,12 @@ export default function OrdersPage() {
                 className="w-full border border-dashed border-border rounded-lg p-2 text-center text-xs text-muted-foreground hover:border-accent hover:text-accent transition-all"
               >
                 <Plus className="h-3 w-3 inline-block me-1" />
-                {t.orders.dialog.addProduct}
+                إضافة منتج آخر
               </button>
               {productItems.length > 1 && (
                 <div className="rounded-lg bg-muted/50 px-3 py-1.5 text-xs border border-border/50 flex gap-5">
-                  <span><span className="text-muted-foreground">{t.orders.dialog.totalBuy}</span><span className="font-semibold">{formatTRY(totalPurchaseCost)}</span></span>
-                  <span><span className="text-muted-foreground">{t.orders.dialog.totalSell}</span><span className="font-semibold">{formatIQD(totalSellingPrice)}</span></span>
+                  <span><span className="text-muted-foreground">الشراء: </span><span className="font-semibold">{formatTRY(totalPurchaseCost)}</span></span>
+                  <span><span className="text-muted-foreground">البيع: </span><span className="font-semibold">{formatIQD(totalSellingPrice)}</span></span>
                 </div>
               )}
             </div>
@@ -1697,18 +1765,18 @@ export default function OrdersPage() {
             {/* Location & Batch */}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="governorate" className="text-xs">{t.orders.dialog.governorate}</Label>
+                <Label htmlFor="governorate" className="text-xs">المحافظة</Label>
                 <Select id="governorate" value={form.governorate} onChange={(e) => setField("governorate", e.target.value)} className="h-8 text-sm">
                   <option value="">—</option>
                   {IRAQI_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="area" className="text-xs">{t.orders.dialog.area}</Label>
+                <Label htmlFor="area" className="text-xs">المنطقة</Label>
                 <Input id="area" value={form.area} onChange={(e) => setField("area", e.target.value)} className="h-8 text-sm" style={{ height: "2rem" }} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="batchId" className="text-xs">{t.orders.dialog.batch}</Label>
+                <Label htmlFor="batchId" className="text-xs">الشحنة</Label>
                 <Select id="batchId" value={form.batchId} onChange={(e) => setField("batchId", e.target.value)} className="h-8 text-sm">
                   <option value="">—</option>
                   {batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -1719,19 +1787,19 @@ export default function OrdersPage() {
             {/* Pricing + Total */}
             <div className="grid grid-cols-3 gap-3 items-end">
               <div className="space-y-1">
-                <Label htmlFor="deliveryCost" className="text-xs">{t.orders.dialog.delivery}</Label>
+                <Label htmlFor="deliveryCost" className="text-xs">توصيل</Label>
                 <Select id="deliveryCost" value={form.deliveryCost} onChange={(e) => setField("deliveryCost", e.target.value)} className="h-8 text-sm">
                   <option value="">—</option>
                   {DELIVERY_COSTS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="deposit" className="text-xs">{t.orders.dialog.deposit}</Label>
+                <Label htmlFor="deposit" className="text-xs">عربون</Label>
                 <Input id="deposit" type="number" step="1" min="0" value={form.deposit} onChange={(e) => setField("deposit", e.target.value)} className="h-8 text-sm" style={{ height: "2rem" }} />
               </div>
               <div className="rounded-xl flex flex-col items-center justify-center gap-1 py-3"
                 style={{ background: "#f0fdf4", border: "1px solid #86efac", color: "#166534", minHeight: "4rem" }}>
-                <span className="text-[10px] font-medium opacity-60">{t.orders.dialog.totalPrice}</span>
+                <span className="text-[10px] font-medium opacity-60">السعر الكلي</span>
                 <span className="text-sm font-bold">{formatIQD(finalPrice)}</span>
               </div>
             </div>
@@ -1739,13 +1807,13 @@ export default function OrdersPage() {
             {/* Status */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="status" className="text-xs">{t.orders.dialog.orderStatus}</Label>
+                <Label htmlFor="status" className="text-xs">الحالة</Label>
                 <Select id="status" value={form.status} onChange={(e) => setField("status", e.target.value)} className="h-8 text-sm">
                   {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="paymentStatus" className="text-xs">{t.orders.dialog.paymentStatus}</Label>
+                <Label htmlFor="paymentStatus" className="text-xs">الدفع</Label>
                 <Select id="paymentStatus" value={form.paymentStatus} onChange={(e) => setField("paymentStatus", e.target.value)} className="h-8 text-sm">
                   {PAYMENT_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </Select>
@@ -1754,51 +1822,43 @@ export default function OrdersPage() {
 
             {/* Notes */}
             <div className="space-y-1">
-              <Label htmlFor="notes" className="text-xs">{t.orders.dialog.notes}</Label>
+              <Label htmlFor="notes" className="text-xs">ملاحظات</Label>
               <Textarea id="notes" rows={2} value={form.notes} onChange={(e) => setField("notes", e.target.value)} className="text-sm resize-none" />
             </div>
 
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-2 border-t border-border/50">
-              <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(false)}>{t.orders.dialog.cancel}</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(false)}>إلغاء</Button>
               <Button type="submit" size="sm" disabled={saving}>
                 {saving && <Loader2 className="me-2 h-3 w-3 animate-spin" />}
-                {editingOrder ? t.orders.dialog.save : t.orders.dialog.create}
+                {editingOrder ? "حفظ" : "إنشاء"}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-    </div>
-
-    {/* Image preview modal — rendered OUTSIDE animated wrapper to avoid transform stacking context */}
-    {previewImg && (
-      <div
-        className="fixed inset-0 z-[300] flex items-center justify-center"
-        style={{ backdropFilter: "blur(6px)", background: "rgba(0,0,0,0.75)" }}
-        onClick={() => setPreviewImg(null)}
-      >
+      {/* Image preview modal */}
+      {previewImg && (
         <div
-          className="relative mx-4"
-          onClick={(e) => e.stopPropagation()}
-          style={{ maxWidth: "min(420px, 92vw)" }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setPreviewImg(null)}
         >
-          <img
-            src={previewImg}
-            alt=""
-            className="w-full rounded-2xl object-contain shadow-2xl"
-            style={{ maxHeight: "72dvh" }}
-          />
-          <button
-            onClick={() => setPreviewImg(null)}
-            className="absolute -top-3 -right-3 flex items-center justify-center w-7 h-7 bg-[var(--surface)] border border-[var(--border)] rounded-full shadow-lg hover:bg-[var(--surface-secondary)] transition-colors"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={previewImg}
+              alt=""
+              className="max-w-sm max-h-[70vh] rounded-xl object-contain shadow-2xl"
+            />
+            <button
+              onClick={() => setPreviewImg(null)}
+              className="absolute -top-2.5 -right-2.5 bg-background border border-border rounded-full p-1 shadow hover:bg-accent transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
-      </div>
-    )}
-    </>
+      )}
+    </div>
   );
 }
