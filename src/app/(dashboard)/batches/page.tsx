@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -34,8 +34,10 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
+import { useBatchFilterStore } from "@/store/batch-filter";
 import { formatIQD, formatUSD, formatTRY } from "@/lib/utils";
 import { format } from "date-fns";
+import { useT, type Translations } from "@/lib/i18n";
 
 // ---------- Types ----------
 
@@ -94,21 +96,6 @@ const EMPTY_FORM: BatchFormData = {
   status: "open",
 };
 
-const STATUS_OPTIONS = [
-  { value: "open", label: "مفتوحة" },
-  { value: "shipped", label: "تم الشحن" },
-  { value: "in_distribution", label: "قيد التوزيع" },
-  { value: "completed", label: "مكتملة" },
-];
-
-const ORDER_STATUS_OPTIONS = [
-  { value: "new", label: "جديد" },
-  { value: "in_progress", label: "قيد التنفيذ" },
-  { value: "bought", label: "تم الشراء" },
-  { value: "shipped", label: "تم الشحن" },
-  { value: "delivered", label: "تم التسليم" },
-  { value: "cancelled", label: "ملغي" },
-];
 
 const ORDER_STATUS_COLORS: Record<string, string> = {
   new: "bg-blue-500/10 text-blue-600",
@@ -127,6 +114,13 @@ const PAYMENT_LABELS: Record<string, string> = {
   paid: "مدفوع", partial: "دفع جزئي", unpaid: "غير مدفوع",
 };
 
+const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  open:            { bg: "rgba(59,130,246,0.15)",  text: "#60a5fa", border: "rgba(59,130,246,0.3)" },
+  shipped:         { bg: "rgba(249,115,22,0.15)",  text: "#fb923c", border: "rgba(249,115,22,0.3)" },
+  in_distribution: { bg: "rgba(168,85,247,0.15)",  text: "#c084fc", border: "rgba(168,85,247,0.3)" },
+  completed:       { bg: "rgba(34,197,94,0.15)",   text: "#4ade80", border: "rgba(34,197,94,0.3)" },
+};
+
 function buildWhatsAppUrl(order: Order): string {
   const phone = (order.phone || order.customer?.phone || "").replace(/\D/g, "");
   const remaining = order.sellingPrice + order.deliveryCost - order.deposit;
@@ -141,7 +135,7 @@ function buildWhatsAppUrl(order: Order): string {
     `التوصيل: ${formatIQD(order.deliveryCost)}\n` +
     (order.deposit > 0 ? `العربون: ${formatIQD(order.deposit)}\n` : "") +
     `المتبقي: ${formatIQD(remaining)}\n\n` +
-    `الحالة: ${ORDER_STATUS_OPTIONS.find(s => s.value === order.status)?.label || order.status}\n` +
+    `الحالة: ${({ new: "جديد", in_progress: "قيد التنفيذ", bought: "تم الشراء", shipped: "تم الشحن", delivered: "تم التسليم", cancelled: "ملغي" } as Record<string, string>)[order.status] || order.status}\n` +
     `شكراً لك!`
   );
   return `https://wa.me/${phone}?text=${text}`;
@@ -186,15 +180,24 @@ function openInvoice(order: Order) {
   if (w) { w.document.write(html); w.document.close(); }
 }
 
-function batchStatusBadge(status: string) {
+function batchStatusBadge(status: string, t: Translations) {
   const map: Record<string, { label: string; className: string }> = {
-    open: { label: "مفتوحة", className: "bg-blue-500 text-white border-transparent" },
-    shipped: { label: "تم الشحن", className: "bg-amber-500 text-white border-transparent" },
-    in_distribution: { label: "قيد التوزيع", className: "bg-purple-500 text-white border-transparent" },
-    completed: { label: "مكتملة", className: "bg-green-500 text-white border-transparent" },
+    open: { label: t.batches.status.open, className: "bg-blue-500 text-white border-transparent" },
+    shipped: { label: t.batches.status.shipped, className: "bg-amber-500 text-white border-transparent" },
+    in_distribution: { label: t.batches.status.in_distribution, className: "bg-purple-500 text-white border-transparent" },
+    completed: { label: t.batches.status.completed, className: "bg-green-500 text-white border-transparent" },
   };
   const info = map[status] ?? { label: status, className: "" };
   return <Badge className={info.className}>{info.label}</Badge>;
+}
+
+// ---------- Helpers ----------
+
+function parseOrderImages(order: Order): string[] {
+  const imgs: string[] = [];
+  try { const p = JSON.parse(order.images ?? ""); if (Array.isArray(p)) imgs.push(...p); } catch { if (order.images) imgs.push(order.images); }
+  try { const subs = JSON.parse(order.items ?? ""); if (Array.isArray(subs)) subs.forEach((s: { images?: string[] }) => { if (Array.isArray(s.images)) imgs.push(...s.images); }); } catch { /* ignore */ }
+  return imgs;
 }
 
 // ---------- Batch Orders Modal ----------
@@ -205,13 +208,24 @@ function BatchOrdersModal({
   onClose,
   onRefresh,
   isAdmin,
+  t,
 }: {
   batch: Batch;
   batches: Batch[];
   onClose: () => void;
   onRefresh: () => void;
   isAdmin: boolean;
+  t: Translations;
 }) {
+  const ORDER_STATUS_OPTIONS = [
+    { value: "new", label: t.orders.status.new },
+    { value: "in_progress", label: t.orders.status.in_progress },
+    { value: "bought", label: t.orders.status.bought },
+    { value: "shipped", label: t.orders.status.shipped },
+    { value: "delivered", label: t.orders.status.delivered },
+    { value: "cancelled", label: t.orders.status.cancelled },
+  ];
+
   const [orders, setOrders] = useState<Order[]>(batch.orders);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
@@ -243,13 +257,11 @@ function BatchOrdersModal({
   }
 
   async function deleteOrder(orderId: string) {
-    if (!confirm("هل أنت متأكد من حذف هذا الطلب؟")) return;
+    if (!confirm(t.batches.modal.deleteOrderConfirm)) return;
     setLoadingOrderId(orderId);
     try {
       const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
-      if (res.ok) {
-        setOrders((prev) => prev.filter((o) => o.id !== orderId));
-      }
+      if (res.ok) setOrders((prev) => prev.filter((o) => o.id !== orderId));
     } catch (err) {
       console.error("Delete order failed", err);
     }
@@ -278,6 +290,11 @@ function BatchOrdersModal({
 
   const statusLabel = (s: string) => ORDER_STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;
 
+  const btnBase = "flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-semibold shrink-0 transition-colors cursor-pointer";
+  const btnDefault = `${btnBase} bg-[var(--surface)] border border-[var(--border)] hover:bg-[var(--surface-secondary)] text-[var(--foreground)]`;
+  const btnGreen  = `${btnBase} bg-green-500/10 border border-green-500/20 text-green-600 hover:bg-green-500/15`;
+  const btnRed    = `${btnBase} bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/15`;
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[var(--background)]" dir="rtl">
       {/* Header */}
@@ -288,248 +305,229 @@ function BatchOrdersModal({
           </div>
           <div>
             <h2 className="text-lg font-bold text-[var(--foreground)]">{batch.name}</h2>
-            <p className="text-xs text-[var(--muted)]">{orders.length} طلب</p>
+            <p className="text-xs text-[var(--muted)]">{t.batches.modal.orderCount(orders.length)}</p>
           </div>
         </div>
         <button
           onClick={() => { onClose(); onRefresh(); }}
-          title="رجوع"
+          title={t.batches.modal.back}
           className="flex items-center gap-1.5 px-3 h-9 rounded-xl hover:bg-[var(--surface-secondary)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer text-sm font-medium"
         >
           <ArrowRight size={16} />
-          رجوع
+          {t.batches.modal.back}
         </button>
       </div>
 
       {/* Orders List */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
         {orders.length === 0 && (
           <div className="flex items-center justify-center h-40 text-[var(--muted)]">
-            لا توجد طلبات في هذه الشحنة
+            {t.batches.modal.empty}
           </div>
         )}
 
-        {orders.map((order) => {
-          const isExpanded = expandedOrderId === order.id;
-          const isLoading = loadingOrderId === order.id;
-          const isMoving = movingOrderId === order.id;
-          const isEditing = editingOrder?.id === order.id;
-          const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-gray-500/10 text-gray-600";
+        <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+          {orders.map((order) => {
+            const isExpanded = expandedOrderId === order.id;
+            const isLoading  = loadingOrderId === order.id;
+            const isMoving   = movingOrderId === order.id;
+            const isEditing  = editingOrder?.id === order.id;
+            const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-gray-500/10 text-gray-600";
+            const allImgs    = parseOrderImages(order);
+            const showSize   = order.productType !== "Bag";
+            const total      = order.sellingPrice + order.deliveryCost;
 
-          return (
-            <div
-              key={order.id}
-              className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden transition-all"
-            >
-              {/* Row header */}
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3.5 text-right hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
-                onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+            return (
+              <div
+                key={order.id}
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden transition-all"
               >
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-[var(--foreground)] truncate">
-                    {order.customer.name}
-                  </p>
-                  <p className="text-xs text-[var(--muted)] truncate mt-0.5">
-                    {order.productName || order.productType}
-                    {order.color ? ` · ${order.color}` : ""}
-                    {order.size ? ` · ${order.size}` : ""}
-                  </p>
-                </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${statusColor}`}>
-                  {statusLabel(order.status)}
-                </span>
-                <div className="text-xs text-[var(--muted)] tabular-nums shrink-0">
-                  {formatIQD(order.sellingPrice)}
-                </div>
-                {isLoading ? (
-                  <Loader2 size={16} className="animate-spin text-[var(--muted)] shrink-0" />
-                ) : isExpanded ? (
-                  <ChevronUp size={16} className="text-[var(--muted)] shrink-0" />
-                ) : (
-                  <ChevronDown size={16} className="text-[var(--muted)] shrink-0" />
-                )}
-              </button>
+                {/* ── Collapsed header ── */}
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3 text-right hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
+                  onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                >
+                  {/* Thumbnail */}
+                  {allImgs[0] ? (
+                    <img src={allImgs[0]} alt="" className="h-10 w-10 rounded-xl object-cover shrink-0 border border-[var(--border)]" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-xl bg-[var(--background)] border border-[var(--border)] flex items-center justify-center shrink-0">
+                      <ImageIcon size={14} className="text-[var(--muted)]" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-[var(--foreground)] truncate">
+                      {order.customer.name}
+                    </p>
+                    <p className="text-[11px] text-[var(--muted)] truncate mt-0.5">
+                      {PRODUCT_TYPE_LABELS[order.productType] || order.productType}
+                      {order.color ? ` · ${order.color}` : ""}
+                      {order.size && showSize ? ` · ${order.size}` : ""}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${statusColor}`}>
+                    {statusLabel(order.status)}
+                  </span>
+                  {isLoading ? (
+                    <Loader2 size={15} className="animate-spin text-[var(--muted)] shrink-0" />
+                  ) : isExpanded ? (
+                    <ChevronUp size={15} className="text-[var(--muted)] shrink-0" />
+                  ) : (
+                    <ChevronDown size={15} className="text-[var(--muted)] shrink-0" />
+                  )}
+                </button>
 
-              {/* Expanded actions */}
-              {isExpanded && (
-                <div className="border-t border-[var(--border)] px-4 py-4 space-y-4 bg-[var(--background)]">
-
-                  {/* Edit mode */}
-                  {isEditing ? (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-[var(--muted)]">الحالة</label>
-                        <Select
-                          value={editStatus}
-                          onChange={(e) => setEditStatus(e.target.value)}
-                          className="text-sm"
-                        >
-                          {ORDER_STATUS_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                {/* ── Expanded content ── */}
+                {isExpanded && (
+                  <div className="border-t border-[var(--border)] bg-[var(--background)]">
+                    {isEditing ? (
+                      <div className="p-4 space-y-3">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-[var(--muted)]">{t.batches.modal.statusLabel}</label>
+                          <Select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="text-sm">
+                            {ORDER_STATUS_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-[var(--muted)]">{t.batches.modal.notes}</label>
+                          <textarea
+                            value={editNotes}
+                            onChange={(e) => setEditNotes(e.target.value)}
+                            placeholder={t.batches.modal.notesPlaceholder}
+                            rows={2}
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] resize-none outline-none focus:border-[var(--accent)] transition-colors"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={saveEdit} disabled={isLoading}>
+                            <CheckCircle2 size={14} className="me-1.5" />{t.batches.modal.save}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingOrder(null)}>
+                            {t.batches.modal.cancel}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : isMoving ? (
+                      <div className="p-4 space-y-3">
+                        <p className="text-xs font-medium text-[var(--muted)]">{t.batches.modal.moveTo}</p>
+                        <Select value={targetBatchId} onChange={(e) => setTargetBatchId(e.target.value)} className="text-sm">
+                          <option value="">{t.batches.modal.selectBatch}</option>
+                          {otherBatches.map((b) => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
                           ))}
                         </Select>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => moveOrder(order.id)} disabled={!targetBatchId || isLoading}>
+                            <ArrowRightLeft size={14} className="me-1.5" />{t.batches.modal.move}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setMovingOrderId(null)}>
+                            {t.batches.modal.cancel}
+                          </Button>
+                        </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-[var(--muted)]">ملاحظات</label>
-                        <textarea
-                          value={editNotes}
-                          onChange={(e) => setEditNotes(e.target.value)}
-                          placeholder="ملاحظات..."
-                          rows={2}
-                          className="w-full px-3 py-2 text-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] resize-none outline-none focus:border-[var(--accent)] transition-colors"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveEdit} disabled={isLoading}>
-                          <CheckCircle2 size={14} className="me-1.5" />
-                          حفظ
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingOrder(null)}>
-                          إلغاء
-                        </Button>
-                      </div>
-                    </div>
-                  ) : isMoving ? (
-                    /* Move to batch */
-                    <div className="space-y-3">
-                      <p className="text-xs font-medium text-[var(--muted)]">نقل إلى شحنة أخرى</p>
-                      <Select
-                        value={targetBatchId}
-                        onChange={(e) => setTargetBatchId(e.target.value)}
-                        className="text-sm"
-                      >
-                        <option value="">اختر الشحنة...</option>
-                        {otherBatches.map((b) => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                      </Select>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => moveOrder(order.id)} disabled={!targetBatchId || isLoading}>
-                          <ArrowRightLeft size={14} className="me-1.5" />
-                          نقل
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setMovingOrderId(null)}>
-                          إلغاء
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Action buttons */
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => startEdit(order)}>
-                        <Pencil size={13} className="me-1.5" />
-                        تعديل
-                      </Button>
+                    ) : (
+                      <div className="p-3 space-y-3">
 
-                      <a
-                        href={buildWhatsAppUrl(order)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md border border-[var(--border)] text-xs font-medium hover:bg-[var(--surface-secondary)] transition-colors text-green-600"
-                      >
-                        <MessageCircle size={13} />
-                        واتساب
-                      </a>
+                        {/* Images */}
+                        {allImgs.length > 0 && (
+                          <div className="flex gap-2 overflow-x-auto pb-1">
+                            {allImgs.map((img, i) => (
+                              <button key={i} type="button" onClick={() => setPreviewImg(img)} className="shrink-0">
+                                <img
+                                  src={img} alt=""
+                                  className="h-20 w-20 rounded-xl object-cover border border-[var(--border)] hover:opacity-80 transition-opacity cursor-zoom-in"
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        )}
 
-                      <Button size="sm" variant="outline" onClick={() => openInvoice(order)}>
-                        <FileText size={13} className="me-1.5" />
-                        طباعة
-                      </Button>
+                        {/* Info chips: color · size · total */}
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          {order.color && (
+                            <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)]">
+                              اللون · <strong>{order.color}</strong>
+                            </span>
+                          )}
+                          {order.size && showSize && (
+                            <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground)]">
+                              المقاس · <strong>{order.size}</strong>
+                            </span>
+                          )}
+                          <span className="text-[11px] px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 font-bold ms-auto">
+                            {formatIQD(total)}
+                          </span>
+                        </div>
 
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateOrder(order.id, { status: "new" })}
-                        disabled={isLoading || order.status === "new"}
-                      >
-                        <RotateCcw size={13} className="me-1.5" />
-                        إعادة للمعلق
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setMovingOrderId(order.id);
-                          setTargetBatchId("");
-                        }}
-                        disabled={otherBatches.length === 0}
-                      >
-                        <ArrowRightLeft size={13} className="me-1.5" />
-                        نقل لشحنة
-                      </Button>
-
-                      {isAdmin && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => deleteOrder(order.id)}
-                          disabled={isLoading}
-                        >
-                          <Trash2 size={13} className="me-1.5" />
-                          حذف
-                        </Button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Images */}
-                  {(() => {
-                    const allImgs: string[] = [];
-                    try { const p = JSON.parse(order.images ?? ""); if (Array.isArray(p)) allImgs.push(...p); } catch { if (order.images) allImgs.push(order.images); }
-                    try { const subs = JSON.parse(order.items ?? ""); if (Array.isArray(subs)) subs.forEach((s: {images?: string[]}) => { if (Array.isArray(s.images)) allImgs.push(...s.images); }); } catch { /* ignore */ }
-                    if (allImgs.length === 0) return null;
-                    return (
-                      <div className="flex gap-2 flex-wrap pt-1 border-t border-[var(--border)]">
-                        {allImgs.map((img, i) => (
-                          <button key={i} type="button" onClick={() => setPreviewImg(img)} className="shrink-0">
-                            <img src={img} alt="" className="h-16 w-16 rounded-xl object-cover border border-[var(--border)] hover:opacity-80 transition-opacity cursor-zoom-in" />
+                        {/* Action buttons — compact single row */}
+                        <div className="flex gap-1 overflow-x-auto pb-0.5">
+                          <button onClick={() => startEdit(order)} className={btnDefault}>
+                            <Pencil size={11} />{t.batches.modal.edit}
                           </button>
-                        ))}
+                          <a
+                            href={buildWhatsAppUrl(order)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={btnGreen}
+                          >
+                            <MessageCircle size={11} />{t.batches.modal.whatsapp}
+                          </a>
+                          <button onClick={() => openInvoice(order)} className={btnDefault}>
+                            <FileText size={11} />{t.batches.modal.print}
+                          </button>
+                          <button
+                            onClick={() => updateOrder(order.id, { status: "new" })}
+                            disabled={isLoading || order.status === "new"}
+                            className={`${btnDefault} disabled:opacity-40`}
+                          >
+                            <RotateCcw size={11} />{t.batches.modal.resetPending}
+                          </button>
+                          <button
+                            onClick={() => { setMovingOrderId(order.id); setTargetBatchId(""); }}
+                            disabled={otherBatches.length === 0}
+                            className={`${btnDefault} disabled:opacity-40`}
+                          >
+                            <ArrowRightLeft size={11} />{t.batches.modal.moveToBatch}
+                          </button>
+                          {isAdmin && (
+                            <button onClick={() => deleteOrder(order.id)} disabled={isLoading} className={btnRed}>
+                              <Trash2 size={11} />{t.batches.modal.delete}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Notes */}
+                        {order.notes && (
+                          <p className="text-xs text-[var(--muted)] bg-[var(--surface)] rounded-xl px-3 py-2">
+                            {order.notes}
+                          </p>
+                        )}
                       </div>
-                    );
-                  })()}
-
-                  {/* Order details */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-[var(--border)]">
-                    <div className="text-xs">
-                      <p className="text-[var(--muted)]">سعر الشراء</p>
-                      <p className="font-medium">{formatTRY(order.purchaseCost)}</p>
-                    </div>
-                    <div className="text-xs">
-                      <p className="text-[var(--muted)]">سعر البيع</p>
-                      <p className="font-medium">{formatIQD(order.sellingPrice)}</p>
-                    </div>
-                    <div className="text-xs">
-                      <p className="text-[var(--muted)]">الدفعة المقدمة</p>
-                      <p className="font-medium">{formatIQD(order.deposit)}</p>
-                    </div>
-                    <div className="text-xs">
-                      <p className="text-[var(--muted)]">الدفع</p>
-                      <p className="font-medium">{order.paymentStatus === "paid" ? "مدفوع" : "غير مدفوع"}</p>
-                    </div>
+                    )}
                   </div>
-
-                  {order.notes && (
-                    <p className="text-xs text-[var(--muted)] bg-[var(--surface)] rounded-xl px-3 py-2">
-                      {order.notes}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Image preview */}
       {previewImg && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6" onClick={() => setPreviewImg(null)}>
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            <img src={previewImg} alt="" className="max-w-sm max-h-[70vh] rounded-xl object-contain shadow-2xl" />
-            <button onClick={() => setPreviewImg(null)} className="absolute -top-2.5 -right-2.5 bg-[var(--background)] border border-[var(--border)] rounded-full p-1 shadow hover:bg-[var(--surface-secondary)] transition-colors">
-              <X size={14} />
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-6"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+          onClick={() => setPreviewImg(null)}
+        >
+          <div className="relative mx-4" style={{ maxWidth: "min(420px, 92vw)" }} onClick={(e) => e.stopPropagation()}>
+            <img src={previewImg} alt="" className="w-full rounded-2xl object-contain shadow-2xl" style={{ maxHeight: "72dvh" }} />
+            <button
+              onClick={() => setPreviewImg(null)}
+              className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-[var(--background)] border border-[var(--border)] flex items-center justify-center shadow hover:bg-[var(--surface-secondary)] transition-colors"
+            >
+              <X size={13} />
             </button>
           </div>
         </div>
@@ -549,8 +547,19 @@ export default function BatchesPage() {
   const [form, setForm] = useState<BatchFormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [viewingBatch, setViewingBatch] = useState<Batch | null>(null);
+  const [statusDropBatchId, setStatusDropBatchId] = useState<string | null>(null);
+  const statusDropRef = useRef<HTMLDivElement>(null);
 
+  const { statusFilter, setCounts } = useBatchFilterStore();
   const isAdmin = useAuthStore((s) => s.isAdmin);
+  const t = useT();
+
+  const STATUS_OPTIONS = [
+    { value: "open", label: t.batches.status.open },
+    { value: "shipped", label: t.batches.status.shipped },
+    { value: "in_distribution", label: t.batches.status.in_distribution },
+    { value: "completed", label: t.batches.status.completed },
+  ];
 
   const fetchData = useCallback(async () => {
     try {
@@ -561,8 +570,9 @@ export default function BatchesPage() {
       if (batchRes.ok) {
         const data = await batchRes.json();
         setBatches(data);
-        // Functional update: reads the latest state, not the captured closure value.
-        // If onClose() already set viewingBatch to null, prev will be null and we skip.
+        const cnt: Record<string, number> = { all: data.length };
+        for (const b of data) cnt[b.status] = (cnt[b.status] ?? 0) + 1;
+        setCounts(cnt);
         setViewingBatch((prev) => {
           if (!prev) return null;
           return data.find((b: Batch) => b.id === prev.id) ?? null;
@@ -579,6 +589,39 @@ export default function BatchesPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (statusDropRef.current && !statusDropRef.current.contains(e.target as Node)) {
+        setStatusDropBatchId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleNewBatch() { openCreate(); }
+    window.addEventListener("trendy:open-new-batch", handleNewBatch);
+    return () => window.removeEventListener("trendy:open-new-batch", handleNewBatch);
+  }, []);
+
+  async function quickUpdateStatus(batchId: string, newStatus: string) {
+    setStatusDropBatchId(null);
+    try {
+      const res = await fetch(`/api/batches/${batchId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setBatches((prev) => prev.map((b) => (b.id === batchId ? { ...b, ...updated } : b)));
+      }
+    } catch (err) {
+      console.error("Quick status update failed", err);
+    }
+  }
 
   function openCreate() {
     setEditingBatch(null);
@@ -627,7 +670,7 @@ export default function BatchesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("هل أنت متأكد من حذف هذه الشحنة؟ سيتم فصل الطلبات المرتبطة بها.")) return;
+    if (!confirm(t.batches.modal.deleteBatchConfirm)) return;
     try {
       const res = await fetch(`/api/batches/${id}`, { method: "DELETE" });
       if (res.ok) fetchData();
@@ -658,121 +701,158 @@ export default function BatchesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">الشحنات</h1>
-          <p className="text-muted-foreground">إدارة الشحنات وتتبع الطلبات</p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="me-2 h-4 w-4" />
-          شحنة جديدة
-        </Button>
-      </div>
+    <div className="space-y-4">
 
       {/* Batches Grid */}
       {batches.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Package className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">لا توجد شحنات بعد. أنشئ شحنتك الأولى.</p>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+          <Package className="h-10 w-10 text-[var(--muted)] mb-3 opacity-40" />
+          <p className="text-sm text-[var(--muted)]">{t.batches.empty}</p>
+        </div>
       ) : (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-          {batches.map((batch) => {
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+          {(statusFilter === "all" ? batches : batches.filter((b) => b.status === statusFilter)).map((batch) => {
             const bought = boughtCount(batch);
             const total = batch._count.orders;
+            const pct = total > 0 ? Math.round((bought / total) * 100) : 0;
             const totalPurchaseTRY = batch.orders.reduce((s, o) => s + o.purchaseCost, 0);
             const totalSellingIQD  = batch.orders.reduce((s, o) => s + o.sellingPrice, 0);
+            const sc = STATUS_COLORS[batch.status] ?? STATUS_COLORS.open;
+            const barColor = pct === 100 ? "#22c55e" : pct > 50 ? "#3b82f6" : "#f97316";
 
             return (
-              <Card key={batch.id} className="flex flex-col">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-lg">{batch.name}</CardTitle>
-                    {batchStatusBadge(batch.status)}
+              <div
+                key={batch.id}
+                className="rounded-2xl overflow-hidden flex flex-col"
+                style={{ border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}
+              >
+                {/* ── Dark header ── */}
+                <div
+                  className="px-4 py-3 flex items-center justify-between gap-2"
+                  style={{ background: "linear-gradient(135deg,#0f172a 0%,#1a2e4a 100%)" }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-white font-bold text-sm leading-tight truncate">{batch.name}</p>
+                    <p className="text-slate-400 text-[11px] mt-0.5 font-mono">
+                      {format(new Date(batch.openDate), "dd/MM/yyyy")}
+                      {batch.closeDate && (
+                        <span> → {format(new Date(batch.closeDate), "dd/MM/yyyy")}</span>
+                      )}
+                    </p>
                   </div>
-                </CardHeader>
-
-                <CardContent className="flex-1 space-y-3 text-sm">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-muted-foreground">تاريخ الفتح:</span>{" "}
-                      {format(new Date(batch.openDate), "MMM d, yyyy")}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">تاريخ الإغلاق:</span>{" "}
-                      {batch.closeDate ? format(new Date(batch.closeDate), "MMM d, yyyy") : "---"}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-muted-foreground">الشحن:</span>{" "}
-                      {formatUSD(batch.shippingCost)}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">الطلبات:</span> {total}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span>التقدم</span>
-                      <span>{bought} تم شراؤها / {total} الإجمالي</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                  <div className="relative shrink-0" ref={statusDropBatchId === batch.id ? statusDropRef : undefined}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setStatusDropBatchId(statusDropBatchId === batch.id ? null : batch.id); }}
+                      className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full cursor-pointer transition-all hover:brightness-125"
+                      style={{ background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}
+                    >
+                      {batchStatusBadge(batch.status, t).props.children}
+                      <ChevronDown size={9} style={{ transform: statusDropBatchId === batch.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+                    </button>
+                    {statusDropBatchId === batch.id && (
                       <div
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: total > 0 ? `${(bought / total) * 100}%` : "0%" }}
+                        className="absolute right-0 top-full mt-1.5 z-30 min-w-[140px] rounded-xl shadow-xl overflow-hidden py-1"
+                        style={{ background: "#1e1e2e", border: "1px solid #333" }}
+                        dir="rtl"
+                      >
+                        {STATUS_OPTIONS.map((opt) => {
+                          const oc = STATUS_COLORS[opt.value] ?? STATUS_COLORS.open;
+                          const isCurrent = batch.status === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              onClick={() => quickUpdateStatus(batch.id, opt.value)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors text-right"
+                              style={{ background: isCurrent ? oc.bg : "transparent", color: isCurrent ? oc.text : "#ccc" }}
+                            >
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: oc.text }} />
+                              {opt.label}
+                              {isCurrent && <span className="mr-auto text-[10px] opacity-60">✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Body ── */}
+                <div className="bg-[var(--surface)] px-4 py-3 space-y-3 flex-1">
+                  {/* Stats chips */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--border)] text-[var(--muted)]">
+                      <Package size={10} />
+                      <span className="font-semibold text-[var(--foreground)]">{total}</span>
+                      {t.batches.card.orders.replace(":", "")}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-[var(--background)] border border-[var(--border)] text-[var(--muted)]">
+                      {t.batches.card.shipping.replace(":", "")}
+                      <span className="font-semibold text-[var(--foreground)]">{formatUSD(batch.shippingCost)}</span>
+                    </span>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div>
+                    <div className="flex justify-between text-[11px] mb-1.5">
+                      <span className="text-[var(--muted)]">{t.batches.card.progress}</span>
+                      <span className="font-semibold" style={{ color: barColor }}>
+                        {t.batches.card.progressDetail(bought, total)} · {pct}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%`, background: barColor }}
                       />
                     </div>
                   </div>
 
-                  <div className="rounded-md border p-3 space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">تكاليف الشراء</span>
-                      <span className="font-medium">{formatTRY(totalPurchaseTRY)}</span>
+                  {/* Financial row */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl px-3 py-2 text-center" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                      <p className="text-[10px] text-[var(--muted)] mb-0.5">{t.batches.card.purchaseCosts}</p>
+                      <p className="text-xs font-bold text-[var(--foreground)] font-mono">{formatTRY(totalPurchaseTRY)}</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">تكاليف البيع</span>
-                      <span className="font-medium">{formatIQD(totalSellingIQD)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">تكلفة الشحن</span>
-                      <span className="font-medium">{formatUSD(batch.shippingCost)}</span>
+                    <div className="rounded-xl px-3 py-2 text-center" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                      <p className="text-[10px] text-[var(--muted)] mb-0.5">{t.batches.card.sellingCosts}</p>
+                      <p className="text-xs font-bold font-mono" style={{ color: "#c9a84c" }}>{formatIQD(totalSellingIQD)}</p>
                     </div>
                   </div>
-                </CardContent>
+                </div>
 
-                <CardFooter className="pt-3 border-t border-[var(--border)]/40 flex items-center gap-2">
+                {/* ── Footer actions ── */}
+                <div
+                  className="flex items-center gap-1.5 px-3 py-2.5"
+                  style={{ background: "var(--background)", borderTop: "1px solid var(--border)" }}
+                >
                   <button
                     onClick={() => setViewingBatch(batch)}
-                    className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-sm font-medium bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors duration-150 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/50"
+                    className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl text-xs font-semibold transition-all hover:brightness-110"
+                    style={{ background: "rgba(59,130,246,0.12)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.25)" }}
                   >
-                    <Eye size={15} strokeWidth={1.8} />
-                    عرض الطلبات
+                    <Eye size={13} />
+                    {t.batches.card.viewOrders}
                   </button>
                   <button
                     onClick={() => openEdit(batch)}
-                    className="flex items-center justify-center gap-1.5 h-9 px-4 rounded-xl text-sm font-medium bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 transition-colors duration-150 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/50"
+                    title={t.batches.card.edit}
+                    className="flex items-center justify-center h-8 w-8 rounded-xl transition-all hover:brightness-110"
+                    style={{ background: "rgba(234,179,8,0.12)", color: "#ca8a04", border: "1px solid rgba(234,179,8,0.25)" }}
                   >
-                    <Pencil size={15} strokeWidth={1.8} />
-                    تعديل
+                    <Pencil size={13} />
                   </button>
                   {isAdmin() && (
                     <button
                       onClick={() => handleDelete(batch.id)}
-                      className="flex items-center justify-center gap-1.5 h-9 px-4 rounded-xl text-sm font-medium bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-colors duration-150 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/50"
+                      title={t.batches.card.delete}
+                      className="flex items-center justify-center h-8 w-8 rounded-xl transition-all hover:brightness-110"
+                      style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
                     >
-                      <Trash2 size={15} strokeWidth={1.8} />
-                      حذف
+                      <Trash2 size={13} />
                     </button>
                   )}
-                </CardFooter>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -786,6 +866,7 @@ export default function BatchesPage() {
           onClose={() => setViewingBatch(null)}
           onRefresh={fetchData}
           isAdmin={isAdmin()}
+          t={t}
         />
       )}
 
@@ -794,23 +875,23 @@ export default function BatchesPage() {
         <DialogContent>
           <DialogClose onClose={() => setDialogOpen(false)} />
           <DialogHeader>
-            <DialogTitle>{editingBatch ? "تعديل الشحنة" : "شحنة جديدة"}</DialogTitle>
+            <DialogTitle>{editingBatch ? t.batches.dialog.editTitle : t.batches.dialog.newTitle}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="batch-name">اسم الشحنة</Label>
+              <Label htmlFor="batch-name">{t.batches.dialog.name}</Label>
               <Input
                 id="batch-name"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="مثال: شحنة #12 - مارس"
+                placeholder={t.batches.dialog.namePlaceholder}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="batch-open-date">تاريخ الفتح</Label>
+                <Label htmlFor="batch-open-date">{t.batches.dialog.openDate}</Label>
                 <Input
                   id="batch-open-date"
                   type="date"
@@ -819,7 +900,7 @@ export default function BatchesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="batch-close-date">تاريخ الإغلاق</Label>
+                <Label htmlFor="batch-close-date">{t.batches.dialog.closeDate}</Label>
                 <Input
                   id="batch-close-date"
                   type="date"
@@ -830,7 +911,7 @@ export default function BatchesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="batch-shipping">تكلفة الشحن (USD)</Label>
+              <Label htmlFor="batch-shipping">{t.batches.dialog.shippingCost}</Label>
               <Input
                 id="batch-shipping"
                 type="number"
@@ -842,7 +923,7 @@ export default function BatchesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="batch-status">الحالة</Label>
+              <Label htmlFor="batch-status">{t.batches.dialog.status}</Label>
               <Select
                 id="batch-status"
                 value={form.status}
@@ -858,11 +939,11 @@ export default function BatchesPage() {
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                إلغاء
+                {t.batches.dialog.cancel}
               </Button>
               <Button onClick={handleSave} disabled={saving || !form.name.trim()}>
                 {saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-                {editingBatch ? "حفظ" : "إنشاء شحنة"}
+                {editingBatch ? t.batches.dialog.save : t.batches.dialog.create}
               </Button>
             </div>
           </div>
