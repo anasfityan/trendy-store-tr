@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useBatchFilterStore } from "@/store/batch-filter";
+import { useOrderFilterStore } from "@/store/order-filter";
 import { useCustomerFilterStore } from "@/store/customer-filter";
 
 function getGreeting(): string {
@@ -55,6 +56,7 @@ export function AppNavbar() {
   const router = useRouter();
 
   const { statusFilter, counts, setStatusFilter } = useBatchFilterStore();
+  const { activeTab, setActiveTab, search: orderSearch, setSearch: setOrderSearch } = useOrderFilterStore();
   const { search: customerSearch, count: customerCount, setSearch: setCustomerSearch } = useCustomerFilterStore();
 
   const isDark = theme === "dark";
@@ -217,10 +219,90 @@ export function AppNavbar() {
 
   /* ── Orders page ── */
   if (pathname === "/orders") {
+    const ORDER_TABS = [
+      { label: "النشطة",       value: "active" },
+      { label: "الكل",         value: "all" },
+      { label: "جديد",         value: "new" },
+      { label: "قيد التنفيذ",  value: "in_progress" },
+      { label: "تم الشراء",    value: "bought" },
+      { label: "تم الشحن",     value: "shipped" },
+      { label: "تم التسليم",   value: "delivered" },
+      { label: "غير مدفوع",   value: "unpaid" },
+    ];
+    const activeLabel = ORDER_TABS.find((t) => t.value === activeTab)?.label ?? "النشطة";
+
     return (
-      <header className={HEADER_CLS} style={{ height: "56px" }}>
-        <div />
-        <div className="flex items-center gap-2">
+      <header className={HEADER_CLS} style={{ height: "56px", overflow: "visible" }}>
+        {/* Right: title */}
+        <span className="text-sm font-semibold" style={{ color: "#c9a84c" }}>طلبات</span>
+
+        {/* Left: filter + search + add */}
+        <div className="flex items-center gap-2" style={{ position: "relative", zIndex: 50 }}>
+          {/* Filter dropdown */}
+          <div className="relative" ref={filterDropRef}>
+            <button
+              onClick={() => setFilterDropOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              style={{ background: filterDropOpen ? "var(--surface-secondary)" : "var(--surface)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            >
+              <span>{activeLabel}</span>
+              <ChevronDown size={12} className="text-[var(--muted)]"
+                style={{ transform: filterDropOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+            </button>
+            {filterDropOpen && (
+              <div className="absolute left-0 top-full mt-1.5 z-50 min-w-[150px] rounded-xl shadow-xl overflow-hidden py-1"
+                style={{ background: "#1e1e2e", border: "1px solid #333" }} dir="rtl">
+                {ORDER_TABS.map((tab) => {
+                  const isActive = activeTab === tab.value;
+                  return (
+                    <button key={tab.value}
+                      onClick={() => { setActiveTab(tab.value); setFilterDropOpen(false); }}
+                      className="w-full text-start px-4 py-2 text-sm transition-colors"
+                      style={{
+                        background: isActive ? "rgba(201,168,76,0.15)" : "transparent",
+                        color: isActive ? "#c9a84c" : "#e5e7eb",
+                        borderRight: isActive ? "3px solid #c9a84c" : "3px solid transparent",
+                        fontWeight: isActive ? 600 : 400,
+                      }}>
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Expandable search */}
+          {searchOpen ? (
+            <div className="relative flex items-center" style={{ zIndex: 50 }}>
+              <Search size={12} className="absolute end-2.5 text-[var(--muted)] pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                autoFocus
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                dir="rtl"
+                className="h-9 rounded-full border border-[var(--border)] bg-[var(--surface)] text-sm ps-8 pe-7 outline-none focus:border-[var(--accent)] transition-colors"
+                style={{ width: "150px" }}
+              />
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { setOrderSearch(""); setSearchOpen(false); }}
+                className="absolute start-2 flex items-center justify-center w-5 h-5 rounded-full bg-[var(--muted)] text-[var(--background)] hover:opacity-80 transition-opacity"
+              >
+                <X size={10} strokeWidth={2.5} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center justify-center w-9 h-9 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
+            >
+              <Search size={15} strokeWidth={1.8} />
+            </button>
+          )}
+
+          {/* Add order */}
           <button
             onClick={() => router.push("/orders?new=true")}
             title={t.topbar.newOrder}
