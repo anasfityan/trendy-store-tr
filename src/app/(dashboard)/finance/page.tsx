@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth";
 import { formatIQD, formatUSD, formatTRY } from "@/lib/utils";
-import { ChevronDown, Users, Truck, TrendingDown, Wallet, MessageCircle, Check, ArrowRightLeft } from "lucide-react";
+import { ChevronDown, Users, Truck, TrendingDown, Wallet, MessageCircle, Check, ArrowRightLeft, MapPin, TrendingUp } from "lucide-react";
 
 interface Order {
   id: string;
@@ -11,6 +11,7 @@ interface Order {
   productType: string;
   sellingPrice: number;
   purchaseCost: number;
+  deliveryCost: number;
   deposit: number;
   paymentStatus: string;
   phone: string | null;
@@ -88,17 +89,20 @@ function BatchCard({
   // Keep local orders in sync if batch.orders changes externally
   useEffect(() => { setOrders(batch.orders); }, [batch.orders]);
 
-  const totalPurchaseTRY = orders.reduce((s, o) => s + o.purchaseCost, 0);
-  const totalSellIQD     = orders.reduce((s, o) => s + o.sellingPrice, 0);
-  const totalDeposit     = orders.reduce((s, o) => s + o.deposit, 0);
-  const totalRemaining   = orders.reduce((s, o) => {
+  const totalPurchaseTRY  = orders.reduce((s, o) => s + o.purchaseCost, 0);
+  const totalSellIQD      = orders.reduce((s, o) => s + o.sellingPrice, 0);
+  const totalDeliveryIQD  = orders.reduce((s, o) => s + o.deliveryCost, 0);
+  const totalDeposit      = orders.reduce((s, o) => s + o.deposit, 0);
+  const totalRemaining    = orders.reduce((s, o) => {
     const owed = o.sellingPrice - o.deposit;
     return s + (owed > 0 && o.paymentStatus !== "paid" ? owed : 0);
   }, 0);
 
-  const shippingIQD = batch.shippingCost * usdToIqd;
-  const purchaseIQD = totalPurchaseTRY * tryToIqd;
-  const profit      = totalSellIQD - purchaseIQD - shippingIQD;
+  const purchaseIQD    = totalPurchaseTRY * tryToIqd;
+  const purchaseUSD    = usdToIqd > 0 ? purchaseIQD / usdToIqd : 0;
+  const shippingIQD    = batch.shippingCost * usdToIqd;
+  // Profit = IQD selling − delivery costs − TRY purchase cost
+  const profit         = totalSellIQD - totalDeliveryIQD - purchaseIQD;
 
   const unpaidCount  = orders.filter((o) => o.paymentStatus !== "paid").length;
   const statusColor  = STATUS_COLOR[batch.status] ?? "#6b7280";
@@ -154,27 +158,46 @@ function BatchCard({
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-px" style={{ background: "var(--border)" }}>
+        {/* TRY purchase cost + USD faint */}
         <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
-          <InfoRow label="أجرة الشحن" value={`${num(Math.round(shippingIQD))} IQD`}
-            sub={`${formatUSD(batch.shippingCost)} × ${num(usdToIqd)}`} />
+          <span className="text-[11px]" style={{ color: "var(--muted)" }}>تكلفة الشراء</span>
+          <div className="text-sm font-semibold tabular-nums mt-0.5" style={{ color: "var(--foreground)" }}>
+            {formatTRY(totalPurchaseTRY)}
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)" }}>
+              ≈ {formatUSD(Math.round(purchaseUSD * 100) / 100)}
+            </span>
+            <span className="text-[9px]" style={{ color: "var(--muted)", opacity: 0.6 }}>USD</span>
+          </div>
         </div>
+
+        {/* IQD selling */}
         <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
-          <InfoRow label="مجموع الليرة (تكلفة)" value={formatTRY(totalPurchaseTRY)}
-            sub={`≈ ${num(Math.round(purchaseIQD))} IQD`} />
+          <InfoRow label="إجمالي البيع" value={`${num(totalSellIQD)} IQD`} valueColor="#22c55e" />
         </div>
+
+        {/* Delivery fees */}
         <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
-          <InfoRow label="مجموع الدينار (بيع)" value={`${num(totalSellIQD)} IQD`} />
+          <InfoRow label="أجور التوصيل" value={`${num(Math.round(totalDeliveryIQD))} IQD`}
+            valueColor="#f59e0b" sub={`${orders.filter(o => o.deliveryCost > 0).length} طلب`} />
         </div>
+
+        {/* Deposit */}
         <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
           <InfoRow label="العربون المحصل" value={`${num(totalDeposit)} IQD`} valueColor="#22c55e" />
         </div>
+
+        {/* Remaining */}
         <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
           <InfoRow label="المتبقي للتحصيل" value={`${num(totalRemaining)} IQD`}
             valueColor={totalRemaining > 0 ? "#ef4444" : "#22c55e"} />
         </div>
+
+        {/* Profit: sell − delivery − purchase */}
         <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
           <InfoRow label="الربح التقديري" value={`${num(Math.round(profit))} IQD`}
-            valueColor={profit >= 0 ? "#22c55e" : "#ef4444"} sub="بيع − تكلفة − شحن" />
+            valueColor={profit >= 0 ? "#22c55e" : "#ef4444"} sub="بيع − توصيل − تكلفة" />
         </div>
       </div>
 
@@ -358,34 +381,47 @@ export default function FinancePage() {
   }
 
   const { usdToIqd, tryToIqd } = settings;
-  const allOrders        = batches.flatMap((b) => b.orders);
-  const totalShippingUSD = batches.reduce((s, b) => s + b.shippingCost, 0);
-  const totalShippingIQD = totalShippingUSD * usdToIqd;
-  const totalPurchaseTRY = allOrders.reduce((s, o) => s + o.purchaseCost, 0);
-  const totalSellIQD     = allOrders.reduce((s, o) => s + o.sellingPrice, 0);
-  const totalRemaining   = allOrders.reduce((s, o) => {
+  const allOrders          = batches.flatMap((b) => b.orders);
+  const totalShippingUSD   = batches.reduce((s, b) => s + b.shippingCost, 0);
+  const totalShippingIQD   = totalShippingUSD * usdToIqd;
+  const totalPurchaseTRY   = allOrders.reduce((s, o) => s + o.purchaseCost, 0);
+  const totalPurchaseIQD   = totalPurchaseTRY * tryToIqd;
+  const totalPurchaseUSD   = usdToIqd > 0 ? totalPurchaseIQD / usdToIqd : 0;
+  const totalDeliveryIQD   = allOrders.reduce((s, o) => s + o.deliveryCost, 0);
+  const totalSellIQD       = allOrders.reduce((s, o) => s + o.sellingPrice, 0);
+  const totalRemaining     = allOrders.reduce((s, o) => {
     const owed = o.sellingPrice - o.deposit;
     return s + (owed > 0 && o.paymentStatus !== "paid" ? owed : 0);
   }, 0);
+  const totalProfit        = totalSellIQD - totalDeliveryIQD - totalPurchaseIQD;
 
   return (
     <div className="pb-8" dir="rtl">
       {/* Summary strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
-            <Truck size={12} />إجمالي الشحن
-          </div>
-          <span className="text-base font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{num(Math.round(totalShippingIQD))} IQD</span>
-          <span className="text-[10px]" style={{ color: "var(--muted)" }}>{formatUSD(totalShippingUSD)} — {batches.length} شحنة</span>
-        </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+        {/* TRY cost with USD faint */}
         <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
             <TrendingDown size={12} />إجمالي التكلفة
           </div>
           <span className="text-base font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{formatTRY(totalPurchaseTRY)}</span>
-          <span className="text-[10px]" style={{ color: "var(--muted)" }}>≈ {num(Math.round(totalPurchaseTRY * tryToIqd))} IQD</span>
+          <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.7 }}>
+            ≈ {formatUSD(Math.round(totalPurchaseUSD * 100) / 100)}
+          </span>
         </div>
+
+        {/* Delivery fees */}
+        <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
+            <MapPin size={12} />إجمالي التوصيل
+          </div>
+          <span className="text-base font-bold tabular-nums" style={{ color: "#f59e0b" }}>{num(Math.round(totalDeliveryIQD))} IQD</span>
+          <span className="text-[10px]" style={{ color: "var(--muted)" }}>
+            {allOrders.filter((o) => o.deliveryCost > 0).length} طلب لديه توصيل
+          </span>
+        </div>
+
+        {/* IQD selling */}
         <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
             <Wallet size={12} />إجمالي البيع
@@ -393,6 +429,8 @@ export default function FinancePage() {
           <span className="text-base font-bold tabular-nums" style={{ color: "#22c55e" }}>{num(totalSellIQD)} IQD</span>
           <span className="text-[10px]" style={{ color: "var(--muted)" }}>{allOrders.length} طلب</span>
         </div>
+
+        {/* Remaining */}
         <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
             <Users size={12} />المتبقي للتحصيل
@@ -403,6 +441,26 @@ export default function FinancePage() {
           <span className="text-[10px]" style={{ color: "var(--muted)" }}>
             {allOrders.filter((o) => o.paymentStatus !== "paid").length} طلب غير مكتمل
           </span>
+        </div>
+
+        {/* International shipping (reference only) */}
+        <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
+            <Truck size={12} />أجرة الشحن الدولي
+          </div>
+          <span className="text-base font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{formatUSD(totalShippingUSD)}</span>
+          <span className="text-[10px]" style={{ color: "var(--muted)" }}>{batches.length} شحنة</span>
+        </div>
+
+        {/* Net profit */}
+        <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
+            <TrendingUp size={12} />صافي الربح
+          </div>
+          <span className="text-base font-bold tabular-nums" style={{ color: totalProfit >= 0 ? "#22c55e" : "#ef4444" }}>
+            {num(Math.round(totalProfit))} IQD
+          </span>
+          <span className="text-[10px]" style={{ color: "var(--muted)" }}>بيع − توصيل − تكلفة</span>
         </div>
       </div>
 
