@@ -278,9 +278,18 @@ export default function CustomersPage() {
               <span className="text-base font-bold text-[var(--foreground)] truncate">
                 {selectedCustomer.name}
               </span>
-              {selectedCustomer.instagram && (
-                <span className="text-[12px] text-[var(--muted)]">@{selectedCustomer.instagram}</span>
-              )}
+              {selectedCustomer.instagram && (() => {
+                const raw = selectedCustomer.instagram!.trim();
+                const igUrl = raw.startsWith("http") ? raw : `https://instagram.com/${raw.replace(/^@/, "")}`;
+                return (
+                  <a href={igUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[12px] hover:opacity-75 transition-opacity"
+                    style={{ color: "#e1306c" }}>
+                    <Instagram size={12} />
+                    <span>{raw.startsWith("http") ? (raw.match(/instagram\.com\/([^/?#\s]+)/i)?.[1] ?? raw) : raw.replace(/^@/, "")}</span>
+                  </a>
+                );
+              })()}
               {selectedCustomer.isVIP && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "rgba(201,168,76,0.15)", color: "#c9a84c" }}>
                   ⭐ VIP

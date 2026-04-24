@@ -18,6 +18,7 @@ import {
   ExternalLink,
   ChevronDown,
   Clipboard,
+  Instagram,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -409,6 +410,14 @@ function buildWhatsAppUrl(order: Order) {
       `شكراً لك!`
   );
   return `https://wa.me/${phone}?text=${text}`;
+}
+
+function buildInstagramUrl(order: Order): string | null {
+  const raw = (order.instagramLink || order.customer?.instagram || "").trim();
+  if (!raw) return null;
+  if (raw.startsWith("http")) return raw;
+  const handle = raw.replace(/^@/, "");
+  return handle ? `https://instagram.com/${handle}` : null;
 }
 
 function getOrderItemCount(order: Order): number {
@@ -1420,6 +1429,17 @@ export default function OrdersPage() {
                             >
                               <MessageCircle className="h-4 w-4 text-green-600" />
                             </a>
+                            {buildInstagramUrl(order) && (
+                              <a
+                                href={buildInstagramUrl(order)!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                                title="انستغرام"
+                              >
+                                <Instagram className="h-4 w-4" style={{ color: "#e1306c" }} />
+                              </a>
+                            )}
                             <Button variant="ghost" size="icon" onClick={() => openInvoice(order)} title="فاتورة">
                               <FileText className="h-4 w-4" />
                             </Button>
@@ -1634,6 +1654,17 @@ export default function OrdersPage() {
                       >
                         <MessageCircle className="h-4 w-4 text-green-600" />
                       </a>
+                      {buildInstagramUrl(order) && (
+                        <a
+                          href={buildInstagramUrl(order)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center h-9 w-9 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
+                          title="انستغرام"
+                        >
+                          <Instagram className="h-4 w-4" style={{ color: "#e1306c" }} />
+                        </a>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleEdit(order)}
