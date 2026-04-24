@@ -157,49 +157,78 @@ function BatchCard({
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-px" style={{ background: "var(--border)" }}>
-        {/* TRY purchase cost + USD faint */}
-        <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
-          <span className="text-[11px]" style={{ color: "var(--muted)" }}>تكلفة الشراء</span>
-          <div className="text-sm font-semibold tabular-nums mt-0.5" style={{ color: "var(--foreground)" }}>
-            {formatTRY(totalPurchaseTRY)}
+      {(() => {
+        const sellUSD      = usdToIqd > 0 ? totalSellIQD / usdToIqd : 0;
+        const depositUSD   = usdToIqd > 0 ? totalDeposit / usdToIqd : 0;
+        const remainingUSD = usdToIqd > 0 ? totalRemaining / usdToIqd : 0;
+        const profitUSD    = usdToIqd > 0 ? profit / usdToIqd : 0;
+        const deliveryGroups = Object.entries(
+          orders.reduce((acc, o) => {
+            if (o.deliveryCost > 0) { const k = String(o.deliveryCost); acc[k] = (acc[k] || 0) + 1; }
+            return acc;
+          }, {} as Record<string, number>)
+        ).sort(([a], [b]) => Number(b) - Number(a));
+
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-px" style={{ background: "var(--border)" }}>
+            {/* TRY cost + IQD + USD faint */}
+            <div className="px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)" }}>
+              <span className="text-[11px]" style={{ color: "var(--muted)" }}>تكلفة الشراء</span>
+              <span className="text-sm font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>{formatTRY(totalPurchaseTRY)}</span>
+              <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)" }}>≈ {num(Math.round(purchaseIQD))} IQD</span>
+              <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(purchaseUSD * 100) / 100)}</span>
+            </div>
+
+            {/* IQD selling + USD faint */}
+            <div className="px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)" }}>
+              <span className="text-[11px]" style={{ color: "var(--muted)" }}>إجمالي البيع</span>
+              <span className="text-sm font-semibold tabular-nums" style={{ color: "#22c55e" }}>{num(totalSellIQD)} IQD</span>
+              <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(sellUSD * 100) / 100)}</span>
+              <span className="text-[10px]" style={{ color: "var(--muted)" }}>{orders.length} طلب</span>
+            </div>
+
+            {/* Delivery fees breakdown */}
+            <div className="px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)" }}>
+              <span className="text-[11px]" style={{ color: "var(--muted)" }}>أجور التوصيل</span>
+              <span className="text-sm font-semibold tabular-nums" style={{ color: "#f59e0b" }}>{num(Math.round(totalDeliveryIQD))} IQD</span>
+              <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>
+                ≈ {formatUSD(usdToIqd > 0 ? Math.round(totalDeliveryIQD / usdToIqd * 100) / 100 : 0)}
+              </span>
+              {deliveryGroups.length > 0
+                ? deliveryGroups.map(([cost, count]) => (
+                    <span key={cost} className="text-[10px] tabular-nums" style={{ color: "var(--muted)" }}>
+                      {num(Number(cost))} × {count} طلب
+                    </span>
+                  ))
+                : <span className="text-[10px]" style={{ color: "var(--muted)" }}>لا يوجد توصيل</span>
+              }
+            </div>
+
+            {/* Deposit + USD faint */}
+            <div className="px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)" }}>
+              <span className="text-[11px]" style={{ color: "var(--muted)" }}>العربون المحصل</span>
+              <span className="text-sm font-semibold tabular-nums" style={{ color: "#22c55e" }}>{num(totalDeposit)} IQD</span>
+              <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(depositUSD * 100) / 100)}</span>
+            </div>
+
+            {/* Remaining + USD faint */}
+            <div className="px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)" }}>
+              <span className="text-[11px]" style={{ color: "var(--muted)" }}>المتبقي للتحصيل</span>
+              <span className="text-sm font-semibold tabular-nums" style={{ color: totalRemaining > 0 ? "#ef4444" : "#22c55e" }}>{num(totalRemaining)} IQD</span>
+              <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(remainingUSD * 100) / 100)}</span>
+              <span className="text-[10px]" style={{ color: "var(--muted)" }}>{unpaidCount} طلب غير مكتمل</span>
+            </div>
+
+            {/* Profit + USD faint */}
+            <div className="px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)" }}>
+              <span className="text-[11px]" style={{ color: "var(--muted)" }}>الربح التقديري</span>
+              <span className="text-sm font-semibold tabular-nums" style={{ color: profit >= 0 ? "#22c55e" : "#ef4444" }}>{num(Math.round(profit))} IQD</span>
+              <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(profitUSD * 100) / 100)}</span>
+              <span className="text-[10px]" style={{ color: "var(--muted)" }}>بيع − توصيل − تكلفة</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)" }}>
-              ≈ {formatUSD(Math.round(purchaseUSD * 100) / 100)}
-            </span>
-            <span className="text-[9px]" style={{ color: "var(--muted)", opacity: 0.6 }}>USD</span>
-          </div>
-        </div>
-
-        {/* IQD selling */}
-        <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
-          <InfoRow label="إجمالي البيع" value={`${num(totalSellIQD)} IQD`} valueColor="#22c55e" />
-        </div>
-
-        {/* Delivery fees */}
-        <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
-          <InfoRow label="أجور التوصيل" value={`${num(Math.round(totalDeliveryIQD))} IQD`}
-            valueColor="#f59e0b" sub={`${orders.filter(o => o.deliveryCost > 0).length} طلب`} />
-        </div>
-
-        {/* Deposit */}
-        <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
-          <InfoRow label="العربون المحصل" value={`${num(totalDeposit)} IQD`} valueColor="#22c55e" />
-        </div>
-
-        {/* Remaining */}
-        <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
-          <InfoRow label="المتبقي للتحصيل" value={`${num(totalRemaining)} IQD`}
-            valueColor={totalRemaining > 0 ? "#ef4444" : "#22c55e"} />
-        </div>
-
-        {/* Profit: sell − delivery − purchase */}
-        <div className="px-4 py-3" style={{ background: "var(--surface)" }}>
-          <InfoRow label="الربح التقديري" value={`${num(Math.round(profit))} IQD`}
-            valueColor={profit >= 0 ? "#22c55e" : "#ef4444"} sub="بيع − توصيل − تكلفة" />
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Customers toggle */}
       {orders.length > 0 && (
@@ -383,61 +412,74 @@ export default function FinancePage() {
   const { usdToIqd, tryToIqd } = settings;
   const allOrders          = batches.flatMap((b) => b.orders);
   const totalShippingUSD   = batches.reduce((s, b) => s + b.shippingCost, 0);
-  const totalShippingIQD   = totalShippingUSD * usdToIqd;
   const totalPurchaseTRY   = allOrders.reduce((s, o) => s + o.purchaseCost, 0);
   const totalPurchaseIQD   = totalPurchaseTRY * tryToIqd;
   const totalPurchaseUSD   = usdToIqd > 0 ? totalPurchaseIQD / usdToIqd : 0;
   const totalDeliveryIQD   = allOrders.reduce((s, o) => s + o.deliveryCost, 0);
+  const totalDeliveryUSD   = usdToIqd > 0 ? totalDeliveryIQD / usdToIqd : 0;
   const totalSellIQD       = allOrders.reduce((s, o) => s + o.sellingPrice, 0);
+  const totalSellUSD       = usdToIqd > 0 ? totalSellIQD / usdToIqd : 0;
   const totalRemaining     = allOrders.reduce((s, o) => {
     const owed = o.sellingPrice - o.deposit;
     return s + (owed > 0 && o.paymentStatus !== "paid" ? owed : 0);
   }, 0);
+  const totalRemainingUSD  = usdToIqd > 0 ? totalRemaining / usdToIqd : 0;
   const totalProfit        = totalSellIQD - totalDeliveryIQD - totalPurchaseIQD;
+  const totalProfitUSD     = usdToIqd > 0 ? totalProfit / usdToIqd : 0;
+  const allDeliveryGroups  = Object.entries(
+    allOrders.reduce((acc, o) => {
+      if (o.deliveryCost > 0) { const k = String(o.deliveryCost); acc[k] = (acc[k] || 0) + 1; }
+      return acc;
+    }, {} as Record<string, number>)
+  ).sort(([a], [b]) => Number(b) - Number(a));
 
   return (
     <div className="pb-8" dir="rtl">
       {/* Summary strip */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-        {/* TRY cost with USD faint */}
-        <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        {/* TRY cost + IQD + USD faint */}
+        <div className="rounded-2xl px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
             <TrendingDown size={12} />إجمالي التكلفة
           </div>
           <span className="text-base font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{formatTRY(totalPurchaseTRY)}</span>
-          <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.7 }}>
-            ≈ {formatUSD(Math.round(totalPurchaseUSD * 100) / 100)}
-          </span>
+          <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)" }}>≈ {num(Math.round(totalPurchaseIQD))} IQD</span>
+          <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(totalPurchaseUSD * 100) / 100)}</span>
         </div>
 
-        {/* Delivery fees */}
-        <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        {/* Delivery fees + USD + breakdown */}
+        <div className="rounded-2xl px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
             <MapPin size={12} />إجمالي التوصيل
           </div>
           <span className="text-base font-bold tabular-nums" style={{ color: "#f59e0b" }}>{num(Math.round(totalDeliveryIQD))} IQD</span>
-          <span className="text-[10px]" style={{ color: "var(--muted)" }}>
-            {allOrders.filter((o) => o.deliveryCost > 0).length} طلب لديه توصيل
-          </span>
+          <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(totalDeliveryUSD * 100) / 100)}</span>
+          {allDeliveryGroups.map(([cost, count]) => (
+            <span key={cost} className="text-[10px] tabular-nums" style={{ color: "var(--muted)" }}>
+              {num(Number(cost))} × {count} طلب
+            </span>
+          ))}
         </div>
 
-        {/* IQD selling */}
-        <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        {/* IQD selling + USD faint */}
+        <div className="rounded-2xl px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
             <Wallet size={12} />إجمالي البيع
           </div>
           <span className="text-base font-bold tabular-nums" style={{ color: "#22c55e" }}>{num(totalSellIQD)} IQD</span>
+          <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(totalSellUSD * 100) / 100)}</span>
           <span className="text-[10px]" style={{ color: "var(--muted)" }}>{allOrders.length} طلب</span>
         </div>
 
-        {/* Remaining */}
-        <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        {/* Remaining + USD faint */}
+        <div className="rounded-2xl px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
             <Users size={12} />المتبقي للتحصيل
           </div>
           <span className="text-base font-bold tabular-nums" style={{ color: totalRemaining > 0 ? "#ef4444" : "#22c55e" }}>
             {num(totalRemaining)} IQD
           </span>
+          <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(totalRemainingUSD * 100) / 100)}</span>
           <span className="text-[10px]" style={{ color: "var(--muted)" }}>
             {allOrders.filter((o) => o.paymentStatus !== "paid").length} طلب غير مكتمل
           </span>
@@ -452,14 +494,15 @@ export default function FinancePage() {
           <span className="text-[10px]" style={{ color: "var(--muted)" }}>{batches.length} شحنة</span>
         </div>
 
-        {/* Net profit */}
-        <div className="rounded-2xl px-4 py-3 flex flex-col gap-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        {/* Net profit + USD faint */}
+        <div className="rounded-2xl px-4 py-3 flex flex-col gap-0.5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--muted)" }}>
             <TrendingUp size={12} />صافي الربح
           </div>
           <span className="text-base font-bold tabular-nums" style={{ color: totalProfit >= 0 ? "#22c55e" : "#ef4444" }}>
             {num(Math.round(totalProfit))} IQD
           </span>
+          <span className="text-[10px] tabular-nums" style={{ color: "var(--muted)", opacity: 0.6 }}>≈ {formatUSD(Math.round(totalProfitUSD * 100) / 100)}</span>
           <span className="text-[10px]" style={{ color: "var(--muted)" }}>بيع − توصيل − تكلفة</span>
         </div>
       </div>
