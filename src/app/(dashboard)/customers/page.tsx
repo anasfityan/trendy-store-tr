@@ -147,13 +147,15 @@ export default function CustomersPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.displayName) setForm((f) => ({ ...f, name: f.name || data.displayName }));
+        if (data.displayName && data.displayName.toLowerCase() !== handle.toLowerCase()) {
+          setForm((f) => ({ ...f, name: f.name || data.displayName }));
+        }
       }
     } catch { /* ignore */ }
     setFetchingIG(false);
   };
 
-  const handleInstagramPaste = (raw: string) => {
+  const applyInstagramValue = (raw: string) => {
     const handle = extractInstagramHandle(raw);
     setForm((f) => ({ ...f, instagram: handle }));
     if (handle.length >= 2) fetchInstagramName(handle);
@@ -162,7 +164,7 @@ export default function CustomersPage() {
   const pasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
-      handleInstagramPaste(text);
+      applyInstagramValue(text);
     } catch { /* clipboard access denied */ }
   };
 
@@ -464,21 +466,9 @@ export default function CustomersPage() {
                   <input
                     id="instagram"
                     value={form.instagram}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val.includes("instagram.com/")) {
-                        const handle = extractInstagramHandle(val);
-                        setForm((f) => ({ ...f, instagram: handle }));
-                        if (handle.length >= 2) fetchInstagramName(handle);
-                      } else {
-                        setForm({ ...form, instagram: val });
-                      }
-                    }}
-                    onPaste={(e) => {
-                      e.preventDefault();
-                      handleInstagramPaste(e.clipboardData.getData("text"));
-                    }}
-                    placeholder="@username"
+                    onChange={(e) => setForm({ ...form, instagram: e.target.value })}
+                    onBlur={(e) => applyInstagramValue(e.target.value)}
+                    placeholder="@username أو الرابط"
                     dir="ltr"
                     className="w-full h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm pe-8 ps-3 outline-none focus:border-[var(--accent)] transition-colors text-[var(--foreground)] placeholder:text-[var(--muted)]"
                   />
