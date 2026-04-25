@@ -153,6 +153,11 @@ export default function CustomersPage() {
   // Order history view
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const fetchInstagramName = async (handle: string) => {
     if (!handle || handle.length < 2) return;
     setFetchingIG(true);
@@ -341,6 +346,22 @@ export default function CustomersPage() {
     finally { setDetailLoading(false); }
   };
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map((c) => c.id)));
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    await Promise.all([...selectedIds].map((id) => fetch(`/api/customers/${id}`, { method: "DELETE" })));
+    setSelectedIds(new Set());
+    setBulkDeleteOpen(false);
+    setBulkDeleting(false);
+    fetchCustomers();
+  };
+
   // ── Customer detail view ───────────────────────────────────────────────────
   if (selectedCustomer) {
     const phones = parsePhones(selectedCustomer.phone);
@@ -461,13 +482,40 @@ export default function CustomersPage() {
   // ── Main list ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-2xl" dir="rtl">
+          <span className="text-[12px] text-[var(--muted)]">{selectedIds.size} محدد</span>
+          <div className="flex-1" />
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="h-7 px-3 rounded-lg text-[12px] border border-[var(--border)] hover:bg-[var(--surface-secondary)] text-[var(--muted)] transition-colors cursor-pointer"
+          >
+            إلغاء
+          </button>
+          <button
+            onClick={() => setBulkDeleteOpen(true)}
+            className="h-7 px-3 rounded-lg text-[12px] font-semibold flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors cursor-pointer"
+          >
+            <Trash2 size={12} />
+            حذف المحدد
+          </button>
+        </div>
+      )}
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
         {/* Column headers — desktop only */}
         <div
           className="hidden sm:grid px-3 py-2 border-b border-[var(--border)] bg-[var(--background)]"
-          style={{ gridTemplateColumns: "140px 1fr 130px 68px" }}
+          style={{ gridTemplateColumns: "24px 140px 1fr 130px 68px" }}
           dir="ltr"
         >
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              onChange={toggleSelectAll}
+              className="w-3.5 h-3.5 rounded cursor-pointer accent-[var(--accent)]"
+            />
+          </div>
           <span className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide">المستخدم</span>
           <span className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide text-center">المحافظة</span>
           <span className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide text-right">الهاتف</span>
@@ -495,6 +543,21 @@ export default function CustomersPage() {
                   dir="ltr"
                   onClick={() => handleRowClick(customer)}
                 >
+                  <div
+                    className={`shrink-0 flex items-center transition-opacity ${selectedIds.has(customer.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(customer.id)}
+                      onChange={() => setSelectedIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(customer.id)) next.delete(customer.id); else next.add(customer.id);
+                        return next;
+                      })}
+                      className="w-3.5 h-3.5 rounded cursor-pointer accent-[var(--accent)]"
+                    />
+                  </div>
                   <div className="w-[110px] sm:w-[140px] shrink-0">
                     <p className="text-[13px] font-semibold text-[var(--foreground)] truncate">
                       {customer.instagram?.match(/instagram\.com\/([^/?#\s]+)/i)?.[1] ?? customer.instagram ?? customer.name}
@@ -669,6 +732,24 @@ export default function CustomersPage() {
               <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>إلغاء</Button>
               <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>
                 {deleting ? "جاري الحذف..." : "حذف"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <DialogContent>
+          <DialogClose onClose={() => setBulkDeleteOpen(false)} />
+          <DialogHeader><DialogTitle>حذف العملاء المحددين</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-4" dir="rtl">
+            <p>هل أنت متأكد من حذف <strong>{selectedIds.size}</strong> عميل؟ لا يمكن التراجع عن هذا الإجراء.</p>
+            <p className="text-sm text-[var(--muted)]">ملاحظة: العملاء الذين لديهم طلبات لن يُحذفوا.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setBulkDeleteOpen(false)}>إلغاء</Button>
+              <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDeleting}>
+                {bulkDeleting ? "جاري الحذف..." : `حذف ${selectedIds.size} عميل`}
               </Button>
             </div>
           </div>
