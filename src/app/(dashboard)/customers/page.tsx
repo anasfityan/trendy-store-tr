@@ -469,6 +469,9 @@ export default function CustomersPage() {
               const igHandle = igRaw ? (igRaw.match(/instagram\.com\/([^/?#\s]+)/i)?.[1] ?? igRaw.replace(/^@/, "")) : null;
               const igUrl = igRaw ? (igRaw.startsWith("http") ? igRaw : `https://instagram.com/${igHandle}`) : null;
               const waPhone = (customer.phone || "").replace(/\D/g, "");
+              const cityWords = customer.city ? customer.city.trim().split(/\s+/) : [];
+              const cityGov = cityWords[0] ?? "";
+              const cityDetail = customer.area || cityWords.slice(1).join(" ");
               return (
                 <div key={customer.id}>
                   {/* Row */}
@@ -503,10 +506,10 @@ export default function CustomersPage() {
                       </p>
                     </div>
                     <div className="flex-1 text-center">
-                      {customer.city ? (
+                      {cityGov ? (
                         <>
-                          <p className="text-[12px] font-medium text-[var(--foreground)]">{customer.city}</p>
-                          {customer.area && <p className="text-[11px] text-[var(--muted)]">{customer.area}</p>}
+                          <p className="text-[12px] font-medium text-[var(--foreground)]">{cityGov}</p>
+                          {cityDetail && <p className="text-[11px] text-[var(--muted)] truncate">{cityDetail}</p>}
                         </>
                       ) : (
                         <span className="text-[11px] text-[var(--muted)]">—</span>
