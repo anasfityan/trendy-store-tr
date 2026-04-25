@@ -497,7 +497,7 @@ export default function CustomersPage() {
                 >
                   <div className="w-[110px] sm:w-[140px] shrink-0">
                     <p className="text-[13px] font-semibold text-[var(--foreground)] truncate">
-                      {customer.name}
+                      {customer.name?.match(/instagram\.com\/([^/?#\s]+)/i)?.[1] ?? customer.name}
                     </p>
                   </div>
                   <div className="flex-1 text-center">
