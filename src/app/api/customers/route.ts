@@ -44,8 +44,10 @@ export async function POST(req: NextRequest) {
         name: data.name,
         instagram: data.instagram,
         phone: data.phone,
+        phone2: data.phone2,
         city: data.city,
         area: data.area,
+        notes: data.notes,
       },
     });
 

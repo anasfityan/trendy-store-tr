@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-// Force Node.js runtime — required for adm-zip (binary module)
 export const runtime = "nodejs";
 
 function parseCSVLine(line: string): string[] {
@@ -26,11 +25,9 @@ function parseCSVLine(line: string): string[] {
 }
 
 function parseCSV(raw: string): { headers: string[]; rows: Record<string, string>[] } {
-  // Strip UTF-8 BOM and normalize line endings
   const content = raw.replace(/^﻿/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const lines = content.split("\n").filter((l) => l.trim());
   if (lines.length < 2) return { headers: [], rows: [] };
-
   const headers = parseCSVLine(lines[0]).map((h) => h.trim());
   const rows = lines.slice(1).map((line) => {
     const values = parseCSVLine(line);
@@ -38,12 +35,10 @@ function parseCSV(raw: string): { headers: string[]; rows: Record<string, string
     headers.forEach((h, i) => { row[h] = (values[i] ?? "").trim(); });
     return row;
   }).filter((r) => Object.values(r).some((v) => v));
-
   return { headers, rows };
 }
 
-function extractCSVFromZip(buffer: Buffer): { csvContent: string; filename: string } {
-  // Dynamic require so Next.js doesn't try to bundle it for Edge
+function extractCSVFromZip(buffer: Buffer): string {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const AdmZip = require("adm-zip");
   const zip = new AdmZip(buffer);
@@ -51,19 +46,24 @@ function extractCSVFromZip(buffer: Buffer): { csvContent: string; filename: stri
     (e: { isDirectory: boolean; entryName: string }) =>
       !e.isDirectory && e.entryName.toLowerCase().endsWith(".csv")
   );
-
   if (entries.length === 0) throw new Error("no_csv");
-
-  // Prefer file with customer/client/زبون in name, else first CSV
   const preferred =
     entries.find((e: { entryName: string }) =>
       /customer|عميل|زبون|client/i.test(e.entryName)
     ) ?? entries[0];
+  return preferred.getData().toString("utf-8");
+}
 
-  return {
-    csvContent: preferred.getData().toString("utf-8"),
-    filename: preferred.entryName as string,
-  };
+function parseNum(v: string | undefined): number {
+  if (!v) return 0;
+  const n = parseFloat(v.replace(/[,،\s]/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+function parseDate(v: string | undefined): Date | undefined {
+  if (!v) return undefined;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? undefined : d;
 }
 
 export async function POST(req: NextRequest) {
@@ -73,16 +73,14 @@ export async function POST(req: NextRequest) {
   }
 
   let formData: FormData;
-  try {
-    formData = await req.formData();
-  } catch (e) {
+  try { formData = await req.formData(); }
+  catch (e) {
     console.error("formData parse error:", e);
-    return NextResponse.json({ error: "تعذّر قراءة الملف — تأكد من رفعه بشكل صحيح" }, { status: 400 });
+    return NextResponse.json({ error: "تعذّر قراءة الملف" }, { status: 400 });
   }
 
   const file = formData.get("file") as File | null;
   const action = (formData.get("action") as string) ?? "parse";
-
   if (!file) return NextResponse.json({ error: "لم يتم اختيار ملف" }, { status: 400 });
 
   const name = file.name.toLowerCase();
@@ -90,30 +88,22 @@ export async function POST(req: NextRequest) {
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-
     if (name.endsWith(".csv")) {
-      // Plain CSV upload
       csvContent = buffer.toString("utf-8");
     } else if (name.endsWith(".zip")) {
-      // ZIP containing CSV
-      const result = extractCSVFromZip(buffer);
-      csvContent = result.csvContent;
+      csvContent = extractCSVFromZip(buffer);
     } else {
       return NextResponse.json({ error: "الملف غير مدعوم — ارفع ملف ZIP أو CSV" }, { status: 400 });
     }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "";
-    if (msg === "no_csv") {
-      return NextResponse.json({ error: "لا يوجد ملف CSV داخل الـ ZIP" }, { status: 400 });
-    }
+    if (msg === "no_csv") return NextResponse.json({ error: "لا يوجد ملف CSV داخل الـ ZIP" }, { status: 400 });
     console.error("file read error:", e);
-    return NextResponse.json({ error: "فشل فتح الملف — تأكد أنه ملف ZIP أو CSV صحيح" }, { status: 400 });
+    return NextResponse.json({ error: "فشل فتح الملف" }, { status: 400 });
   }
 
   const { headers, rows } = parseCSV(csvContent);
-  if (headers.length === 0) {
-    return NextResponse.json({ error: "الملف فارغ أو تعذّرت قراءته" }, { status: 400 });
-  }
+  if (headers.length === 0) return NextResponse.json({ error: "الملف فارغ أو تعذّرت قراءته" }, { status: 400 });
 
   if (action === "parse") {
     return NextResponse.json({ headers, preview: rows.slice(0, 8), total: rows.length });
@@ -121,13 +111,16 @@ export async function POST(req: NextRequest) {
 
   // action === "import"
   let mapping: Record<string, string> = {};
-  try {
-    mapping = JSON.parse((formData.get("mapping") as string) ?? "{}");
-  } catch {
-    return NextResponse.json({ error: "بيانات الربط غير صحيحة" }, { status: 400 });
-  }
+  try { mapping = JSON.parse((formData.get("mapping") as string) ?? "{}"); }
+  catch { return NextResponse.json({ error: "بيانات الربط غير صحيحة" }, { status: 400 }); }
 
   if (!mapping.name) return NextResponse.json({ error: "يجب تحديد عمود الاسم" }, { status: 400 });
+
+  const g = (col: string, row: Record<string, string>) =>
+    mapping[col] ? (row[mapping[col]]?.trim() || null) : null;
+
+  const hasOrderFields = !!(mapping.productName || mapping.productLink ||
+    mapping.purchaseCost || mapping.sellingPrice || mapping.size || mapping.productType);
 
   let created = 0;
   let skipped = 0;
@@ -136,15 +129,40 @@ export async function POST(req: NextRequest) {
     const customerName = row[mapping.name]?.trim();
     if (!customerName) { skipped++; continue; }
     try {
-      await db.customer.create({
+      const orderDate = parseDate(g("orderDate", row) ?? undefined);
+      const customer = await db.customer.create({
         data: {
-          name: customerName,
-          instagram: mapping.instagram ? (row[mapping.instagram]?.trim() || null) : null,
-          phone:     mapping.phone     ? (row[mapping.phone]?.trim()     || null) : null,
-          city:      mapping.city      ? (row[mapping.city]?.trim()      || null) : null,
-          area:      mapping.area      ? (row[mapping.area]?.trim()      || null) : null,
+          name:      customerName,
+          instagram: g("instagram", row),
+          phone:     g("phone", row),
+          phone2:    g("phone2", row),
+          city:      g("city", row),
+          area:      g("area", row),
+          notes:     g("notes", row),
+          ...(orderDate ? { createdAt: orderDate } : {}),
         },
       });
+
+      if (hasOrderFields) {
+        const productType = g("productType", row) || "Other";
+        const purchaseCost = parseNum(g("purchaseCost", row) ?? undefined);
+        const sellingPrice = parseNum(g("sellingPrice", row) ?? undefined);
+        await db.order.create({
+          data: {
+            customerId:   customer.id,
+            productType,
+            productName:  g("productName", row),
+            productLink:  g("productLink", row),
+            size:         g("size", row),
+            purchaseCost,
+            sellingPrice,
+            status:       "delivered",
+            paymentStatus: "paid",
+            ...(orderDate ? { createdAt: orderDate } : {}),
+          },
+        });
+      }
+
       created++;
     } catch {
       skipped++;

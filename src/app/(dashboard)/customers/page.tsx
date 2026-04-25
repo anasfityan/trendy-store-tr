@@ -51,8 +51,10 @@ interface Customer {
   name: string;
   instagram: string | null;
   phone: string | null;
+  phone2: string | null;
   city: string | null;
   area: string | null;
+  notes: string | null;
   isVIP: boolean;
   ltv: number;
   totalOrders: number;
@@ -76,8 +78,10 @@ interface CustomerForm {
   name: string;
   instagram: string;
   phone: string;
+  phone2: string;
   city: string;
   area: string;
+  notes: string;
 }
 
 const IRAQI_CITIES = [
@@ -86,7 +90,7 @@ const IRAQI_CITIES = [
   "ذي قار", "القادسية", "المثنى", "ميسان", "واسط", "صلاح الدين",
 ];
 
-const emptyForm: CustomerForm = { name: "", instagram: "", phone: "", city: "", area: "" };
+const emptyForm: CustomerForm = { name: "", instagram: "", phone: "", phone2: "", city: "", area: "", notes: "" };
 
 const statusLabels: Record<string, string> = {
   new: "جديد",
@@ -139,7 +143,7 @@ export default function CustomersPage() {
   const [importPreview, setImportPreview] = useState<Record<string, string>[]>([]);
   const [importTotal, setImportTotal] = useState(0);
   const [importFile, setImportFile] = useState<File | null>(null);
-  const [importMapping, setImportMapping] = useState<Record<string, string>>({ name: "", instagram: "", phone: "", city: "", area: "" });
+  const [importMapping, setImportMapping] = useState<Record<string, string>>({ name: "", instagram: "", phone: "", phone2: "", city: "", area: "", notes: "", productType: "", productName: "", productLink: "", purchaseCost: "", sellingPrice: "", size: "", orderDate: "" });
   const [importParsing, setImportParsing] = useState(false);
   const [importingData, setImportingData] = useState(false);
   const [importResult, setImportResult] = useState<{ created: number; skipped: number } | null>(null);
@@ -215,14 +219,23 @@ export default function CustomersPage() {
       setImportPreview(data.preview);
       setImportTotal(data.total);
       // Auto-map obvious column names
-      const autoMap: Record<string, string> = { name: "", instagram: "", phone: "", city: "", area: "" };
+      const autoMap: Record<string, string> = { name: "", instagram: "", phone: "", phone2: "", city: "", area: "", notes: "", productType: "", productName: "", productLink: "", purchaseCost: "", sellingPrice: "", size: "", orderDate: "" };
       for (const h of data.headers) {
         const l = h.toLowerCase();
-        if (!autoMap.name      && /name|اسم|الاسم/.test(l))          autoMap.name = h;
-        if (!autoMap.instagram && /instagram|انستغرام|انستقرام/.test(l)) autoMap.instagram = h;
-        if (!autoMap.phone     && /phone|هاتف|جوال|موبايل|تلفون/.test(l)) autoMap.phone = h;
-        if (!autoMap.city      && /city|محافظة|المحافظة|مدينة/.test(l))   autoMap.city = h;
-        if (!autoMap.area      && /area|منطقة|حي|المنطقة/.test(l))        autoMap.area = h;
+        if (!autoMap.name         && /name|اسم|الاسم|الزبون/.test(l))                          autoMap.name = h;
+        if (!autoMap.instagram    && /instagram|انستغرام|انستقرام/.test(l))                    autoMap.instagram = h;
+        if (!autoMap.phone        && /phone.?1|هاتف.?1|جوال.?1|phone$|هاتف$|جوال$|موبايل/.test(l)) autoMap.phone = h;
+        if (!autoMap.phone2       && /phone.?2|هاتف.?2|جوال.?2/.test(l))                       autoMap.phone2 = h;
+        if (!autoMap.city         && /city|محافظة|المحافظة|مدينة/.test(l))                     autoMap.city = h;
+        if (!autoMap.area         && /area|منطقة|حي|المنطقة|عنوان/.test(l))                    autoMap.area = h;
+        if (!autoMap.notes        && /notes|ملاحظ/.test(l))                                     autoMap.notes = h;
+        if (!autoMap.productName  && /product.?name|اسم.?المنتج|اسم المنتج/.test(l))           autoMap.productName = h;
+        if (!autoMap.productType  && /product.?type|نوع.?المنتج|نوع المنتج/.test(l))           autoMap.productType = h;
+        if (!autoMap.productLink  && /product.?link|رابط.?المنتج|رابط المنتج/.test(l))         autoMap.productLink = h;
+        if (!autoMap.purchaseCost && /purchase|تركي|try|بالتركي/.test(l))                      autoMap.purchaseCost = h;
+        if (!autoMap.sellingPrice && /selling|عراقي|iqd|بالعراقي/.test(l))                     autoMap.sellingPrice = h;
+        if (!autoMap.size         && /size|قياس|مقاس/.test(l))                                  autoMap.size = h;
+        if (!autoMap.orderDate    && /date|تاريخ/.test(l))                                      autoMap.orderDate = h;
       }
       setImportMapping(autoMap);
       setImportStep("map");
@@ -254,7 +267,7 @@ export default function CustomersPage() {
     setImportHeaders([]);
     setImportPreview([]);
     setImportTotal(0);
-    setImportMapping({ name: "", instagram: "", phone: "", city: "", area: "" });
+    setImportMapping({ name: "", instagram: "", phone: "", phone2: "", city: "", area: "", notes: "", productType: "", productName: "", productLink: "", purchaseCost: "", sellingPrice: "", size: "", orderDate: "" });
     setImportResult(null);
     setImportError("");
   };
@@ -311,7 +324,7 @@ export default function CustomersPage() {
 
   const handleOpenEdit = (customer: Customer) => {
     setEditingId(customer.id);
-    setForm({ name: customer.name, instagram: customer.instagram || "", phone: customer.phone || "", city: customer.city || "", area: customer.area || "" });
+    setForm({ name: customer.name, instagram: customer.instagram || "", phone: customer.phone || "", phone2: customer.phone2 || "", city: customer.city || "", area: customer.area || "", notes: customer.notes || "" });
     setDialogOpen(true);
   };
 
@@ -407,12 +420,18 @@ export default function CustomersPage() {
               {phones.map((ph, i) => (
                 <span key={i} className="text-[11px] text-[var(--muted)] font-mono tabular-nums">{ph}</span>
               ))}
+              {selectedCustomer.phone2 && parsePhones(selectedCustomer.phone2).map((ph, i) => (
+                <span key={`p2-${i}`} className="text-[11px] text-[var(--muted)] font-mono tabular-nums">{ph}</span>
+              ))}
               {selectedCustomer.city && (
                 <span className="text-[11px] text-[var(--muted)]">
                   {selectedCustomer.city}{selectedCustomer.area && ` · ${selectedCustomer.area}`}
                 </span>
               )}
             </div>
+            {selectedCustomer.notes && (
+              <p className="text-[11px] text-[var(--muted)] mt-1 leading-relaxed">{selectedCustomer.notes}</p>
+            )}
           </div>
           {/* Compact stats */}
           <div className="flex items-stretch gap-2 shrink-0">
@@ -694,17 +713,28 @@ export default function CustomersPage() {
               />
             </div>
 
-            {/* Phone */}
-            <div>
-              <label className="text-[11px] font-medium text-[var(--muted)] mb-1.5 block">الهاتف</label>
-              <input
-                id="phone"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="07xxxxxxxxxx"
-                dir="ltr"
-                className="w-full h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm px-3 outline-none focus:border-[var(--accent)] transition-colors text-[var(--foreground)] placeholder:text-[var(--muted)]"
-              />
+            {/* Phone 1 + Phone 2 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] font-medium text-[var(--muted)] mb-1.5 block">هاتف 1</label>
+                <input
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="07xxxxxxxxxx"
+                  dir="ltr"
+                  className="w-full h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm px-3 outline-none focus:border-[var(--accent)] transition-colors text-[var(--foreground)] placeholder:text-[var(--muted)]"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-[var(--muted)] mb-1.5 block">هاتف 2</label>
+                <input
+                  value={form.phone2}
+                  onChange={(e) => setForm({ ...form, phone2: e.target.value })}
+                  placeholder="07xxxxxxxxxx"
+                  dir="ltr"
+                  className="w-full h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm px-3 outline-none focus:border-[var(--accent)] transition-colors text-[var(--foreground)] placeholder:text-[var(--muted)]"
+                />
+              </div>
             </div>
 
             {/* City + Area */}
@@ -727,6 +757,18 @@ export default function CustomersPage() {
                   className="w-full h-9 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm px-3 outline-none focus:border-[var(--accent)] transition-colors text-[var(--foreground)] placeholder:text-[var(--muted)]"
                 />
               </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-[11px] font-medium text-[var(--muted)] mb-1.5 block">ملاحظات</label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="أي معلومات إضافية..."
+                rows={2}
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm px-3 py-2 outline-none focus:border-[var(--accent)] transition-colors text-[var(--foreground)] placeholder:text-[var(--muted)] resize-none"
+              />
             </div>
 
             {/* Actions */}
@@ -844,12 +886,37 @@ export default function CustomersPage() {
                 </p>
 
                 {/* Mapping fields */}
+                <p className="text-[11px] font-semibold text-[var(--foreground)]">معلومات الزبون</p>
                 {([
-                  { key: "name",      label: "الاسم *"     },
-                  { key: "instagram", label: "انستغرام"    },
-                  { key: "phone",     label: "الهاتف"      },
-                  { key: "city",      label: "المحافظة"    },
-                  { key: "area",      label: "المنطقة"     },
+                  { key: "name",      label: "الاسم *"      },
+                  { key: "instagram", label: "انستغرام"     },
+                  { key: "phone",     label: "هاتف 1"       },
+                  { key: "phone2",    label: "هاتف 2"       },
+                  { key: "city",      label: "المحافظة"     },
+                  { key: "area",      label: "المنطقة/العنوان" },
+                  { key: "notes",     label: "ملاحظات"      },
+                ] as const).map(({ key, label }) => (
+                  <div key={key} className="grid grid-cols-2 items-center gap-3">
+                    <label className="text-[12px] font-medium text-[var(--foreground)]">{label}</label>
+                    <select
+                      value={importMapping[key]}
+                      onChange={(e) => setImportMapping((m) => ({ ...m, [key]: e.target.value }))}
+                      className="h-8 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[12px] px-2 outline-none focus:border-[var(--accent)] transition-colors text-[var(--foreground)]"
+                    >
+                      <option value="">— تجاهل —</option>
+                      {importHeaders.map((h) => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                ))}
+                <p className="text-[11px] font-semibold text-[var(--foreground)] pt-1">بيانات الطلب <span className="font-normal text-[var(--muted)]">(اختياري — ينشئ طلباً لكل صف)</span></p>
+                {([
+                  { key: "productName",  label: "اسم المنتج"       },
+                  { key: "productType",  label: "نوع المنتج"       },
+                  { key: "productLink",  label: "رابط المنتج"      },
+                  { key: "purchaseCost", label: "السعر بالتركي ₺"  },
+                  { key: "sellingPrice", label: "السعر بالعراقي IQD" },
+                  { key: "size",         label: "القياس"           },
+                  { key: "orderDate",    label: "التاريخ"          },
                 ] as const).map(({ key, label }) => (
                   <div key={key} className="grid grid-cols-2 items-center gap-3">
                     <label className="text-[12px] font-medium text-[var(--foreground)]">{label}</label>

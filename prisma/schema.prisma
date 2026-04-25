@@ -25,6 +25,7 @@ model Customer {
   phone2    String?
   city      String?
   area      String?
+  notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]

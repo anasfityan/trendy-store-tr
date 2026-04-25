@@ -49,8 +49,10 @@ export async function PUT(
         ...(data.name && { name: data.name }),
         ...(data.instagram !== undefined && { instagram: data.instagram }),
         ...(data.phone !== undefined && { phone: data.phone }),
+        ...(data.phone2 !== undefined && { phone2: data.phone2 }),
         ...(data.city !== undefined && { city: data.city }),
         ...(data.area !== undefined && { area: data.area }),
+        ...(data.notes !== undefined && { notes: data.notes }),
       },
     });
 
