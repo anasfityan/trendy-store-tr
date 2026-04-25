@@ -1,12 +1,12 @@
 /**
  * Group existing orders into monthly batches.
  *
- * For every unique year+month found in orders.createdAt, creates a Batch
- * named e.g. "حزيران 2023" and links all orders from that month to it.
- * Orders that already have a batchId are skipped.
+ * Dry-run:  npx tsx scripts/group-orders-into-batches.ts
+ * Execute:  npx tsx scripts/group-orders-into-batches.ts --execute
  *
- * Dry-run (default):  npx tsx scripts/group-orders-into-batches.ts
- * Execute:            npx tsx scripts/group-orders-into-batches.ts --execute
+ * If you already ran this before (with wrong status), use --fix-status
+ * to update any existing batches from "closed" → "completed":
+ *   npx tsx scripts/group-orders-into-batches.ts --fix-status
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -17,21 +17,12 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
 
 const db = new PrismaClient();
-const EXECUTE = process.argv.includes("--execute");
+const EXECUTE    = process.argv.includes("--execute");
+const FIX_STATUS = process.argv.includes("--fix-status");
 
 const ARABIC_MONTHS = [
-  "كانون الثاني", // 1
-  "شباط",         // 2
-  "آذار",         // 3
-  "نيسان",        // 4
-  "أيار",         // 5
-  "حزيران",       // 6
-  "تموز",         // 7
-  "آب",           // 8
-  "أيلول",        // 9
-  "تشرين الأول",  // 10
-  "تشرين الثاني", // 11
-  "كانون الأول",  // 12
+  "كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران",
+  "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول",
 ];
 
 function monthName(year: number, month: number): string {
@@ -39,21 +30,57 @@ function monthName(year: number, month: number): string {
 }
 
 async function main() {
-  // Load only orders without a batch
+
+  /* ── Diagnostic: show current state ── */
+  const allBatches = await db.batch.findMany({ select: { id: true, name: true, status: true, _count: { select: { orders: true } } }, orderBy: { createdAt: "asc" } });
+  const totalOrders    = await db.order.count();
+  const withBatch      = await db.order.count({ where: { batchId: { not: null } } });
+  const withoutBatch   = totalOrders - withBatch;
+
+  console.log("\n════════ الحالة الحالية ════════");
+  console.log(`إجمالي الطلبات      : ${totalOrders}`);
+  console.log(`طلبات لها شحنة      : ${withBatch}`);
+  console.log(`طلبات بدون شحنة     : ${withoutBatch}`);
+  console.log(`إجمالي الشحنات الآن : ${allBatches.length}`);
+
+  if (allBatches.length > 0) {
+    console.log("\nالشحنات الموجودة:");
+    for (const b of allBatches) {
+      console.log(`  [${b.status}]  "${b.name}"  — ${b._count.orders} طلب`);
+    }
+  }
+
+  /* ── --fix-status: update "closed" → "completed" ── */
+  if (FIX_STATUS) {
+    const closed = allBatches.filter((b) => b.status === "closed");
+    if (closed.length === 0) {
+      console.log('\nلا توجد شحنات بحالة "closed" لإصلاحها.');
+    } else {
+      console.log(`\nتحديث ${closed.length} شحنة من "closed" إلى "completed"...`);
+      for (const b of closed) {
+        await db.batch.update({ where: { id: b.id }, data: { status: "completed" } });
+        console.log(`  ✓  "${b.name}"`);
+      }
+      console.log("تم الإصلاح.");
+    }
+    return;
+  }
+
+  /* ── Group unbatched orders ── */
+  if (withoutBatch === 0) {
+    console.log("\nجميع الطلبات لها شحنة بالفعل.");
+    console.log("إذا كانت الشحنات لا تظهر بسبب حالة خاطئة، شغّل:");
+    console.log("  npx tsx scripts/group-orders-into-batches.ts --fix-status");
+    return;
+  }
+
   const orders = await db.order.findMany({
     where: { batchId: null },
     select: { id: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
 
-  if (orders.length === 0) {
-    console.log("لا توجد طلبات بدون شحنة.");
-    return;
-  }
-
-  // Group by "YYYY-MM"
   const groups = new Map<string, { year: number; month: number; ids: string[] }>();
-
   for (const order of orders) {
     const d = new Date(order.createdAt);
     const year = d.getFullYear();
@@ -65,12 +92,9 @@ async function main() {
 
   const sorted = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
 
-  console.log(`\nالطلبات بدون شحنة: ${orders.length}`);
-  console.log(`المجموعات (الأشهر): ${sorted.length}\n`);
-
+  console.log(`\nسيتم إنشاء ${sorted.length} شحنة شهرية:`);
   for (const [key, { year, month, ids }] of sorted) {
-    const name = monthName(year, month);
-    console.log(`  ${key}  →  "${name}"  (${ids.length} طلب)`);
+    console.log(`  ${key}  →  "${monthName(year, month)}"  (${ids.length} طلب)`);
   }
 
   if (!EXECUTE) {
@@ -79,25 +103,18 @@ async function main() {
     return;
   }
 
-  console.log("\nجاري الإنشاء...");
-
   for (const [, { year, month, ids }] of sorted) {
     const name = monthName(year, month);
-    const openDate = new Date(year, month - 1, 1);
-    const closeDate = new Date(year, month, 0, 23, 59, 59); // last day of month
+    const openDate  = new Date(year, month - 1, 1);
+    const closeDate = new Date(year, month, 0, 23, 59, 59);
 
-    // Create or find existing batch with same name
     let batch = await db.batch.findFirst({ where: { name } });
     if (!batch) {
       batch = await db.batch.create({
-        data: {
-          name,
-          openDate,
-          closeDate,
-          status: "completed",
-          createdAt: openDate,
-        },
+        data: { name, openDate, closeDate, status: "completed" },
       });
+    } else if (batch.status === "closed") {
+      await db.batch.update({ where: { id: batch.id }, data: { status: "completed" } });
     }
 
     await db.order.updateMany({
