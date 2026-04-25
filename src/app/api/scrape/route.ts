@@ -331,15 +331,51 @@ export async function POST(req: NextRequest) {
 
     // Slug-based color fallback (e.g. shulebags.com URLs contain color in slug)
     if (!result.colors?.length) {
-      const slugColors = [
-        "cevizi", "kahve", "siyah", "beyaz", "kirmizi", "mavi",
-        "yesil", "sari", "pembe", "mor", "gri", "turuncu",
-        "lacivert", "krem", "bej", "altin", "gumus", "bordo", "haki",
-      ];
-      const slug = url.toLowerCase();
-      for (const tr of slugColors) {
-        if (slug.includes(tr)) { result.colors = [{ name: tr }]; break; }
-      }
+      try {
+        const pathname = new URL(url).pathname.toLowerCase();
+        const segments = pathname.split(/[-\/]+/).filter(Boolean);
+
+        // Longer/compound slugs must be checked first; single-word slugs must match a full segment
+        const slugColorMap: [string, string][] = [
+          ["findik-kabugu", "Fındık Kabuğu"],
+          ["findik", "Fındık Kabuğu"],
+          ["kiremit", "Kiremit"],
+          ["antrasit", "Antrasit"],
+          ["vizon", "Vizon"],
+          ["nefti", "Nefti"],
+          ["somon", "Somon"],
+          ["pudra", "Pudra"],
+          ["ekru", "Ekru"],
+          ["camel", "Camel"],
+          ["leopar", "Leopar"],
+          ["lacivert", "Lacivert"],
+          ["turuncu", "Turuncu"],
+          ["bordo", "Bordo"],
+          ["kirmizi", "Kırmızı"],
+          ["pembe", "Pembe"],
+          ["yesil", "Yeşil"],
+          ["altin", "Altın"],
+          ["gumus", "Gümüş"],
+          ["cevizi", "Cevizi"],
+          ["kahve", "Kahve"],
+          ["krem", "Krem"],
+          ["haki", "Haki"],
+          ["bej", "Bej"],
+          ["gri", "Gri"],
+          ["sari", "Sarı"],
+          ["mavi", "Mavi"],
+          ["beyaz", "Beyaz"],
+          ["siyah", "Siyah"],
+          ["mor", "Mor"],
+        ];
+
+        for (const [slug, name] of slugColorMap) {
+          const matched = slug.includes("-")
+            ? pathname.includes(slug)          // compound: substring of full path
+            : segments.includes(slug);          // single word: must be a full segment
+          if (matched) { result.colors = [{ name }]; break; }
+        }
+      } catch { /* invalid URL */ }
     }
 
     // Generic site images fallback
