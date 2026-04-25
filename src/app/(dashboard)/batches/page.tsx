@@ -373,6 +373,12 @@ function BatchOrdersModal({
                       {order.color ? ` · ${order.color}` : ""}
                       {order.size && order.productType !== "Bag" ? ` · ${order.size}` : ""}
                     </p>
+                    {order.notes && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <FileText size={10} className="shrink-0 text-amber-500" />
+                        <span className="text-[10px] text-[var(--muted)] truncate">{order.notes}</span>
+                      </div>
+                    )}
                   </div>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${statusColor}`}>
                     {statusLabel(order.status)}

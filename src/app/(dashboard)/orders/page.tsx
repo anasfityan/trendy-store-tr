@@ -1597,6 +1597,12 @@ export default function OrdersPage() {
                         <span className="text-[12px] font-bold tabular-nums" style={{ color: "#c9a84c" }}>{formatIQD(order.sellingPrice)}</span>
                         <span className="text-[10px] text-[var(--muted)] opacity-60 ms-auto">{format(new Date(order.createdAt), "dd/MM/yyyy")}</span>
                       </div>
+                      {order.notes && (
+                        <div className="mt-1.5 flex items-start gap-1.5">
+                          <FileText size={11} className="shrink-0 text-amber-500 mt-0.5" />
+                          <p className="text-[11px] text-[var(--muted)] leading-snug">{order.notes}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
