@@ -193,11 +193,21 @@ function batchStatusBadge(status: string, t: Translations) {
 
 // ---------- Helpers ----------
 
-function parseOrderImages(order: Order): string[] {
-  const imgs: string[] = [];
-  try { const p = JSON.parse(order.images ?? ""); if (Array.isArray(p)) imgs.push(...p); } catch { if (order.images) imgs.push(order.images); }
-  try { const subs = JSON.parse(order.items ?? ""); if (Array.isArray(subs)) subs.forEach((s: { images?: string[] }) => { if (Array.isArray(s.images)) imgs.push(...s.images); }); } catch { /* ignore */ }
-  return imgs;
+interface ImageDetail { img: string; color: string | null; size: string | null; productType: string; }
+
+function parseOrderImageDetails(order: Order): ImageDetail[] {
+  const details: ImageDetail[] = [];
+  try {
+    const p = JSON.parse(order.images ?? "");
+    if (Array.isArray(p)) p.forEach((img: string) => details.push({ img, color: order.color, size: order.size, productType: order.productType }));
+  } catch { if (order.images) details.push({ img: order.images, color: order.color, size: order.size, productType: order.productType }); }
+  try {
+    const subs = JSON.parse(order.items ?? "");
+    if (Array.isArray(subs)) subs.forEach((s: { images?: string[]; color?: string; size?: string; productType?: string }) => {
+      if (Array.isArray(s.images)) s.images.forEach((img: string) => details.push({ img, color: s.color ?? null, size: s.size ?? null, productType: s.productType ?? order.productType }));
+    });
+  } catch { /* ignore */ }
+  return details;
 }
 
 // ---------- Batch Orders Modal ----------
@@ -333,8 +343,7 @@ function BatchOrdersModal({
             const isMoving   = movingOrderId === order.id;
             const isEditing  = editingOrder?.id === order.id;
             const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-gray-500/10 text-gray-600";
-            const allImgs    = parseOrderImages(order);
-            const showSize   = order.productType !== "Bag";
+            const imgDetails = parseOrderImageDetails(order);
             const total      = order.sellingPrice + order.deliveryCost;
 
             return (
@@ -348,8 +357,8 @@ function BatchOrdersModal({
                   onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
                 >
                   {/* Thumbnail */}
-                  {allImgs[0] ? (
-                    <img src={allImgs[0]} alt="" className="h-10 w-10 rounded-xl object-cover shrink-0 border border-[var(--border)]" />
+                  {imgDetails[0]?.img ? (
+                    <img src={imgDetails[0].img} alt="" className="h-10 w-10 rounded-xl object-cover shrink-0 border border-[var(--border)]" />
                   ) : (
                     <div className="h-10 w-10 rounded-xl bg-[var(--background)] border border-[var(--border)] flex items-center justify-center shrink-0">
                       <ImageIcon size={14} className="text-[var(--muted)]" />
@@ -362,7 +371,7 @@ function BatchOrdersModal({
                     <p className="text-[11px] text-[var(--muted)] truncate mt-0.5">
                       {PRODUCT_TYPE_LABELS[order.productType] || order.productType}
                       {order.color ? ` · ${order.color}` : ""}
-                      {order.size && showSize ? ` · ${order.size}` : ""}
+                      {order.size && order.productType !== "Bag" ? ` · ${order.size}` : ""}
                     </p>
                   </div>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${statusColor}`}>
@@ -431,23 +440,27 @@ function BatchOrdersModal({
                       <div className="p-3 space-y-3">
 
                         {/* Images with color/size label beneath each */}
-                        {allImgs.length > 0 && (
+                        {imgDetails.length > 0 && (
                           <div className="flex gap-2 overflow-x-auto pb-1">
-                            {allImgs.map((img, i) => (
-                              <div key={i} className="shrink-0 flex flex-col items-center gap-1">
-                                <button type="button" onClick={() => setPreviewImg(img)}>
-                                  <img
-                                    src={img} alt=""
-                                    className="h-20 w-20 rounded-xl object-cover border border-[var(--border)] hover:opacity-80 transition-opacity cursor-zoom-in"
-                                  />
-                                </button>
-                                {(order.color || (order.size && showSize)) && (
-                                  <span className="text-[10px] text-center text-[var(--muted)] leading-tight max-w-[80px] truncate">
-                                    {[order.color, showSize ? order.size : null].filter(Boolean).join(" · ")}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
+                            {imgDetails.map((detail, i) => {
+                              const itemShowSize = detail.productType !== "Bag";
+                              const label = [detail.color, itemShowSize ? detail.size : null].filter(Boolean).join(" · ");
+                              return (
+                                <div key={i} className="shrink-0 flex flex-col items-center gap-1">
+                                  <button type="button" onClick={() => setPreviewImg(detail.img)}>
+                                    <img
+                                      src={detail.img} alt=""
+                                      className="h-20 w-20 rounded-xl object-cover border border-[var(--border)] hover:opacity-80 transition-opacity cursor-zoom-in"
+                                    />
+                                  </button>
+                                  {label && (
+                                    <span className="text-[10px] text-center text-[var(--muted)] leading-tight max-w-[80px] truncate">
+                                      {label}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
 
