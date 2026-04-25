@@ -57,18 +57,6 @@ function num(n: number) {
   return n.toLocaleString("en-IQ");
 }
 
-function InfoRow({ label, value, sub, valueColor }: {
-  label: string; value: string; sub?: string; valueColor?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[11px]" style={{ color: "var(--muted)" }}>{label}</span>
-      <span className="text-sm font-semibold tabular-nums" style={{ color: valueColor ?? "var(--foreground)" }}>{value}</span>
-      {sub && <span className="text-[10px]" style={{ color: "var(--muted)" }}>{sub}</span>}
-    </div>
-  );
-}
-
 function BatchCard({
   batch,
   settings,
