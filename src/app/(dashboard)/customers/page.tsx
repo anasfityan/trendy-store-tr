@@ -295,15 +295,17 @@ export default function CustomersPage() {
     );
   }
 
-  const filtered = customers.filter((c) => {
-    const q = search.toLowerCase();
-    if (!q) return true;
-    return (
-      c.name.toLowerCase().includes(q) ||
-      c.instagram?.toLowerCase().includes(q) ||
-      c.phone?.toLowerCase().includes(q)
-    );
-  });
+  const filtered = [...customers]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .filter((c) => {
+      const q = search.toLowerCase();
+      if (!q) return true;
+      return (
+        c.name.toLowerCase().includes(q) ||
+        c.instagram?.toLowerCase().includes(q) ||
+        c.phone?.toLowerCase().includes(q)
+      );
+    });
 
   const handleOpenCreate = () => { setEditingId(null); setForm(emptyForm); setDialogOpen(true); };
 
@@ -491,6 +493,12 @@ export default function CustomersPage() {
             {selectedIds.size > 0 ? `${selectedIds.size} محدد` : "اختر عملاء"}
           </span>
           <div className="flex-1" />
+          <button
+            onClick={toggleSelectAll}
+            className="h-7 px-3 rounded-lg text-[12px] border border-[var(--border)] hover:bg-[var(--surface-secondary)] text-[var(--foreground)] transition-colors cursor-pointer"
+          >
+            {allFilteredSelected ? "إلغاء الكل" : "تحديد الكل"}
+          </button>
           <button
             onClick={exitSelectionMode}
             className="h-7 px-3 rounded-lg text-[12px] border border-[var(--border)] hover:bg-[var(--surface-secondary)] text-[var(--muted)] transition-colors cursor-pointer"
