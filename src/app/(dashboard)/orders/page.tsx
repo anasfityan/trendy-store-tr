@@ -463,6 +463,7 @@ export default function OrdersPage() {
   const ordersRef = useRef<Order[]>([]);
   ordersRef.current = orders;
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [defaultBatchId, setDefaultBatchId] = useState("");
   const [loading, setLoading] = useState(true);
   const [rates, setRates] = useState({ usdIqd: BASE_IQD, usdTry: BASE_TRY });
   const [previewImg, setPreviewImg] = useState<string | null>(null);
@@ -660,7 +661,10 @@ export default function OrdersPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          setBatches(Array.isArray(data) ? data : []);
+          const list: Batch[] = Array.isArray(data) ? data : [];
+          setBatches(list);
+          const lastOpen = list.find((b) => b.status === "open");
+          if (lastOpen) setDefaultBatchId(lastOpen.id);
         }
       } catch { /* ignore */ }
     }
@@ -776,7 +780,7 @@ export default function OrdersPage() {
 
   const handleNewOrder = () => {
     setEditingOrder(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, batchId: defaultBatchId });
     setProductItems([createEmptyItem()]);
     setDialogOpen(true);
   };
