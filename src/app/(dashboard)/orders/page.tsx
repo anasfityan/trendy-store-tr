@@ -1511,7 +1511,7 @@ export default function OrdersPage() {
               return (
                 <div
                   key={order.id}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-3 animate-fade-in-up"
+                  className={`bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-3 animate-fade-in-up ${statusDropId === order.id ? "z-[100]" : ""}`}
                   style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   {/* Image + info */}
