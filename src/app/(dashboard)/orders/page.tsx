@@ -1096,7 +1096,7 @@ export default function OrdersPage() {
                 <span className="text-[14px] leading-none text-[var(--muted)]">⊟</span>
               </div>
               <div className="flex-1 flex items-center gap-1 flex-wrap">
-                {item.availableSizes.map((s, si) => (
+                {item.availableSizes.length > 1 && item.availableSizes.map((s, si) => (
                   <button
                     key={si}
                     type="button"
