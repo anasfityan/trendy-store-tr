@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuthStore } from "@/store/auth";
 import { useCustomerFilterStore } from "@/store/customer-filter";
 import { formatIQD } from "@/lib/utils";
@@ -157,6 +157,8 @@ export default function CustomersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchInstagramName = async (handle: string) => {
     if (!handle || handle.length < 2) return;
@@ -344,6 +346,16 @@ export default function CustomersPage() {
       if (res.ok) setSelectedCustomer(await res.json());
     } catch (err) { console.error("Fetch customer detail error:", err); }
     finally { setDetailLoading(false); }
+  };
+
+  const handleRowTouchStart = (customerId: string) => {
+    pressTimerRef.current = setTimeout(() => {
+      setSelectedIds((prev) => { const next = new Set(prev); next.add(customerId); return next; });
+    }, 500);
+  };
+
+  const handleRowTouchEnd = () => {
+    if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
   };
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
@@ -536,20 +548,35 @@ export default function CustomersPage() {
           <div className="divide-y divide-[var(--border)]">
             {filtered.map((customer) => {
               const phones = parsePhones(customer.phone);
+              const isSelected = selectedIds.has(customer.id);
+              const selectionMode = selectedIds.size > 0;
+              const showCb = isSelected || selectionMode || hoveredId === customer.id;
               return (
                 <div
                   key={customer.id}
-                  className="flex items-center gap-2 px-3 py-2.5 hover:bg-[var(--surface-secondary)] cursor-pointer group transition-colors"
+                  className="flex items-center gap-2 px-3 py-2.5 hover:bg-[var(--surface-secondary)] cursor-pointer transition-colors"
                   dir="ltr"
-                  onClick={() => handleRowClick(customer)}
+                  onMouseEnter={() => setHoveredId(customer.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  onTouchStart={() => handleRowTouchStart(customer.id)}
+                  onTouchEnd={handleRowTouchEnd}
+                  onTouchMove={handleRowTouchEnd}
+                  onContextMenu={(e) => e.preventDefault()}
+                  onClick={() => {
+                    if (selectionMode) {
+                      setSelectedIds((prev) => { const next = new Set(prev); if (next.has(customer.id)) next.delete(customer.id); else next.add(customer.id); return next; });
+                    } else {
+                      handleRowClick(customer);
+                    }
+                  }}
                 >
                   <div
-                    className={`shrink-0 flex items-center transition-opacity ${selectedIds.has(customer.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                    className={`shrink-0 flex items-center transition-opacity ${showCb ? "opacity-100" : "opacity-0 pointer-events-none"}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <input
                       type="checkbox"
-                      checked={selectedIds.has(customer.id)}
+                      checked={isSelected}
                       onChange={() => setSelectedIds((prev) => {
                         const next = new Set(prev);
                         if (next.has(customer.id)) next.delete(customer.id); else next.add(customer.id);
@@ -583,7 +610,7 @@ export default function CustomersPage() {
                     )}
                   </div>
                   <div
-                    className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 w-16 justify-end"
+                    className={`hidden sm:flex items-center gap-0.5 transition-opacity shrink-0 w-16 justify-end ${hoveredId === customer.id ? "opacity-100" : "opacity-0"}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button
