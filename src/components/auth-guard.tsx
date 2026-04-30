@@ -6,40 +6,52 @@ import { useAuthStore } from "@/store/auth";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
+  const setAuth = useAuthStore((s) => s.setAuth);
   const router = useRouter();
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-
-    if (!user && pathname !== "/login") {
-      router.push("/login");
+    if (pathname === "/login") {
+      setChecking(false);
+      return;
     }
 
-    // Role-based route protection
+    // If zustand already has the user (persisted from localStorage), skip the check
+    if (user) {
+      setChecking(false);
+      return;
+    }
+
+    // Try to restore session from the httpOnly cookie
+    fetch("/api/auth/me")
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("no session");
+      })
+      .then((data) => {
+        // Cookie session is valid — restore user into store (token not needed client-side)
+        setAuth(data.user, "cookie");
+        setChecking(false);
+      })
+      .catch(() => {
+        router.replace("/login");
+      });
+  }, [pathname]);
+
+  // Role-based route protection
+  useEffect(() => {
+    if (!user) return;
     const adminOnlyRoutes = ["/customers", "/finance", "/settings"];
-    if (user && user.role === "worker" && adminOnlyRoutes.some((r) => pathname.startsWith(r))) {
-      router.push("/");
+    if (user.role === "worker" && adminOnlyRoutes.some((r) => pathname.startsWith(r))) {
+      router.replace("/");
     }
-  }, [user, pathname, router, mounted]);
+  }, [user, pathname]);
 
-  if (!mounted) {
+  if (checking && pathname !== "/login") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">جاري التحميل...</div>
-      </div>
-    );
-  }
-
-  if (!user && pathname !== "/login") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">جاري التحويل...</div>
       </div>
     );
   }

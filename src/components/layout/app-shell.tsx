@@ -14,8 +14,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-    const isReload = nav?.type === "reload";
-    if (isReload && pathname !== "/") {
+    const isInitialOpen = nav?.type === "navigate" || nav?.type === "reload";
+    if (isInitialOpen && pathname !== "/") {
       router.replace("/");
     }
   }, []);
