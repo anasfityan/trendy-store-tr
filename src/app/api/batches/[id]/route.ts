@@ -38,6 +38,8 @@ export async function PUT(
         ...(data.name && { name: data.name }),
         ...(data.closeDate !== undefined && { closeDate: data.closeDate ? new Date(data.closeDate) : null }),
         ...(data.shippingCost !== undefined && { shippingCost: parseFloat(data.shippingCost) || 0 }),
+        ...(data.promotionCost !== undefined && { promotionCost: parseFloat(data.promotionCost) || 0 }),
+        ...(data.expenses !== undefined && { expenses: parseFloat(data.expenses) || 0 }),
         ...(data.status && { status: data.status }),
       },
       include: {

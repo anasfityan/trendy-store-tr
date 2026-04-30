@@ -36,8 +36,10 @@ model Batch {
   name         String
   openDate     DateTime  @default(now())
   closeDate    DateTime?
-  shippingCost Float     @default(0)
-  status       String    @default("open")
+  shippingCost  Float     @default(0)
+  promotionCost Float     @default(0)
+  expenses      Float     @default(0)
+  status        String    @default("open")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   orders       Order[]

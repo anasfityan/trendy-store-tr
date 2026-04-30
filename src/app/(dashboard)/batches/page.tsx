@@ -70,6 +70,8 @@ interface Batch {
   openDate: string;
   closeDate: string | null;
   shippingCost: number;
+  promotionCost: number;
+  expenses: number;
   status: string;
   orders: Order[];
   _count: { orders: number };
@@ -85,6 +87,8 @@ interface BatchFormData {
   openDate: string;
   closeDate: string;
   shippingCost: string;
+  promotionCost: string;
+  expenses: string;
   status: string;
 }
 
@@ -93,6 +97,8 @@ const EMPTY_FORM: BatchFormData = {
   openDate: new Date().toISOString().slice(0, 10),
   closeDate: "",
   shippingCost: "0",
+  promotionCost: "0",
+  expenses: "0",
   status: "open",
 };
 
@@ -658,6 +664,8 @@ export default function BatchesPage() {
       openDate: batch.openDate ? batch.openDate.slice(0, 10) : "",
       closeDate: batch.closeDate ? batch.closeDate.slice(0, 10) : "",
       shippingCost: String(batch.shippingCost),
+      promotionCost: String(batch.promotionCost),
+      expenses: String(batch.expenses),
       status: batch.status,
     });
     setDialogOpen(true);
@@ -671,6 +679,8 @@ export default function BatchesPage() {
         openDate: form.openDate || undefined,
         closeDate: form.closeDate || null,
         shippingCost: form.shippingCost,
+        promotionCost: form.promotionCost,
+        expenses: form.expenses,
         status: form.status,
       };
       const url = editingBatch ? `/api/batches/${editingBatch.id}` : "/api/batches";
@@ -702,12 +712,14 @@ export default function BatchesPage() {
   }
 
   function calcProfit(batch: Batch) {
-    if (!settings) return { revenue: 0, purchaseCosts: 0, shippingCosts: 0, profit: 0 };
+    if (!settings) return { revenue: 0, purchaseCosts: 0, shippingCosts: 0, promotionCosts: 0, expensesCosts: 0, profit: 0 };
     const revenue = batch.orders.reduce((sum, o) => sum + o.sellingPrice, 0);
     const purchaseCosts = batch.orders.reduce((sum, o) => sum + o.purchaseCost * settings.tryToIqd, 0);
     const shippingCosts = batch.shippingCost * settings.usdToIqd;
-    const profit = revenue - purchaseCosts - shippingCosts;
-    return { revenue, purchaseCosts, shippingCosts, profit };
+    const promotionCosts = batch.promotionCost * settings.usdToIqd;
+    const expensesCosts = batch.expenses * settings.usdToIqd;
+    const profit = revenue - purchaseCosts - shippingCosts - promotionCosts - expensesCosts;
+    return { revenue, purchaseCosts, shippingCosts, promotionCosts, expensesCosts, profit };
   }
 
   function boughtCount(batch: Batch) {
@@ -933,16 +945,40 @@ export default function BatchesPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="batch-shipping">{t.batches.dialog.shippingCost}</Label>
-              <Input
-                id="batch-shipping"
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.shippingCost}
-                onChange={(e) => setForm((f) => ({ ...f, shippingCost: e.target.value }))}
-              />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="batch-shipping">{t.batches.dialog.shippingCost}</Label>
+                <Input
+                  id="batch-shipping"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.shippingCost}
+                  onChange={(e) => setForm((f) => ({ ...f, shippingCost: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="batch-promotion">{t.batches.dialog.promotionCost}</Label>
+                <Input
+                  id="batch-promotion"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.promotionCost}
+                  onChange={(e) => setForm((f) => ({ ...f, promotionCost: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="batch-expenses">{t.batches.dialog.expenses}</Label>
+                <Input
+                  id="batch-expenses"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.expenses}
+                  onChange={(e) => setForm((f) => ({ ...f, expenses: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

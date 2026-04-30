@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
         name: data.name,
         openDate: data.openDate ? new Date(data.openDate) : new Date(),
         shippingCost: parseFloat(data.shippingCost) || 0,
+        promotionCost: parseFloat(data.promotionCost) || 0,
+        expenses: parseFloat(data.expenses) || 0,
         status: data.status || "open",
       },
       include: { _count: { select: { orders: true } } },
