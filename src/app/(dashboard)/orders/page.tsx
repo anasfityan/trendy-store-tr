@@ -302,88 +302,199 @@ function pickSingleImage(fetchedImages: string[], selectedIdx: number, fallback:
   return JSON.stringify([fallback]);
 }
 
-function openInvoice(order: Order) {
-  const finalPrice = order.sellingPrice + order.deliveryCost - order.deposit;
-  const productImages = order.images ? JSON.parse(order.images) : [];
-  const imageHtml = productImages.length > 0
-    ? `<div style="text-align:center;margin:16px 0;"><img src="${productImages[0]}" alt="صورة المنتج" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e0e0e0;" /></div>`
-    : "";
+async function openInvoice(order: Order) {
+  // Fetch store settings
+  let storeName = "TRENDY STORE";
+  let storePhone = "";
+  let storeInstagram = "";
+  let storeLogo = "";
+  let storeCity = "Istanbul, Türkiye";
+  try {
+    const res = await fetch("/api/settings");
+    if (res.ok) {
+      const s = await res.json();
+      if (s.storeName) storeName = s.storeName.toUpperCase();
+      if (s.phone) storePhone = s.phone;
+      if (s.instagram) storeInstagram = s.instagram.replace(/^@/, "");
+      if (s.logo) storeLogo = s.logo;
+      if (s.city) storeCity = s.city;
+    }
+  } catch { /* use defaults */ }
 
-  const html = `
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+  // Auto-increment invoice number
+  const counterKey = "inv_counter";
+  const counter = (parseInt(localStorage.getItem(counterKey) || "0", 10) || 0) + 1;
+  localStorage.setItem(counterKey, String(counter));
+  const invoiceNum = String(counter).padStart(5, "0");
+
+  // Build product rows from order + sub-items
+  const subItems = parseSubItems(order.items);
+  const allItems = [
+    {
+      name: [order.productName, order.color, order.size].filter(Boolean).join(" · ") || order.productType,
+      price: order.sellingPrice,
+      qty: 1,
+    },
+    ...subItems.map((s) => ({
+      name: [s.productName, s.color, s.size].filter(Boolean).join(" · ") || s.productType,
+      price: parseFloat(s.sellingPrice) || 0,
+      qty: 1,
+    })),
+  ];
+
+  const subtotal = allItems.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const delivery = order.deliveryCost || 0;
+  const discount = order.deposit || 0;
+  const total = subtotal + delivery - discount;
+  const discountPct = subtotal > 0 ? Math.round((discount / subtotal) * 100) : 0;
+
+  const fmtPrice = (n: number) => `$${n.toFixed(2)}`;
+
+  const itemRows = allItems.map((item) => `
+    <tr>
+      <td class="td-item">${item.name}</td>
+      <td class="td-num">${fmtPrice(item.price)}</td>
+      <td class="td-num">${item.qty.toString().padStart(2, "0")}</td>
+      <td class="td-num">${fmtPrice(item.price * item.qty)}</td>
+    </tr>`).join("");
+
+  const logoHtml = storeLogo
+    ? `<img src="${storeLogo}" alt="logo" style="width:90px;height:90px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.25))">`
+    : `<div style="width:90px;height:90px;border:2px solid #2a1f0e;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Courier New',monospace;font-size:11px;font-weight:700;letter-spacing:1px;color:#2a1f0e">LOGO</div>`;
+
+  const instagramHtml = storeInstagram
+    ? `<p>Instagram: @${storeInstagram}</p>` : "";
+  const phoneHtml = storePhone
+    ? `<p>Phone: ${storePhone}</p>` : "";
+
+  const customerName = order.customer?.name || "-";
+  const customerPhone = order.phone || order.customer?.phone || "-";
+  const customerCity = [order.governorate, order.area].filter(Boolean).join(", ") || "-";
+  const orderDate = format(new Date(order.createdAt), "dd/MM/yyyy");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>فاتورة - ${order.id}</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Invoice #${invoiceNum}</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1a1a1a; max-width: 800px; margin: 0 auto; direction: rtl; }
-    .header { text-align: center; margin-bottom: 32px; border-bottom: 3px solid #1a1a1a; padding-bottom: 16px; }
-    .header h1 { font-size: 28px; font-weight: 700; letter-spacing: 2px; }
-    .header p { color: #666; margin-top: 4px; }
-    .section { margin-bottom: 24px; }
-    .section-title { font-size: 14px; font-weight: 600; letter-spacing: 1px; color: #666; margin-bottom: 8px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; }
-    .field { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e0e0e0; }
-    .field-label { font-weight: 500; color: #555; }
-    .field-value { font-weight: 600; text-align: left; }
-    .totals { background: #f8f8f8; border-radius: 8px; padding: 16px; margin-top: 24px; }
-    .totals .field { border-bottom-color: #ccc; }
-    .totals .total-row { font-size: 18px; color: #1a1a1a; border-bottom: none; padding-top: 12px; }
-    .footer { text-align: center; margin-top: 48px; color: #999; font-size: 12px; }
-    @media print { body { padding: 20px; } }
+    @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Courier Prime','Courier New',monospace;background:#ede9df;color:#2a1f0e;min-height:100vh;padding:0}
+    .page{max-width:720px;margin:0 auto;padding:48px 52px;background:#ede9df}
+    /* Header */
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px}
+    .hdr-left .title{font-size:36px;font-weight:700;letter-spacing:2px;line-height:1}
+    .hdr-left .subtitle{font-size:13px;font-weight:700;letter-spacing:1px;margin:4px 0 14px}
+    .hdr-left p{font-size:12px;line-height:1.9;letter-spacing:0.3px}
+    /* Divider */
+    .divider{border:none;border-top:1.5px solid #2a1f0e;margin:20px 0}
+    /* Customer row */
+    .cust-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
+    .cust-label{font-size:13px;font-weight:700;letter-spacing:1px;margin-bottom:8px}
+    .cust-field{font-size:12px;line-height:2;letter-spacing:0.3px}
+    .cust-right{text-align:right;font-size:12px;line-height:2;letter-spacing:0.3px}
+    /* Table */
+    table{width:100%;border-collapse:collapse;margin-bottom:32px}
+    .th{font-size:11px;font-weight:700;letter-spacing:1.5px;padding:6px 4px;text-align:left;border-bottom:1.5px solid #2a1f0e}
+    .th-num{text-align:right}
+    .td-item{font-size:12px;padding:10px 4px;border-bottom:1px dashed #9a8c78;letter-spacing:0.3px}
+    .td-num{font-size:12px;padding:10px 4px;border-bottom:1px dashed #9a8c78;text-align:right;letter-spacing:0.3px}
+    /* Totals */
+    .totals{width:260px;margin-left:auto;font-size:12px;letter-spacing:0.3px}
+    .tot-row{display:flex;justify-content:space-between;padding:5px 0;line-height:1.6}
+    .tot-label{color:#5a4a38}
+    .tot-value{font-weight:400}
+    .tot-divider{border:none;border-top:1px solid #9a8c78;margin:6px 0}
+    .tot-final{display:flex;justify-content:space-between;padding:7px 0;font-weight:700;font-size:13px;letter-spacing:1px}
+    /* Footer */
+    .footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:52px}
+    .footer-text .ty{font-size:13px;font-weight:700;letter-spacing:2px;margin-bottom:4px}
+    .footer-text .ty-ar{font-size:14px;letter-spacing:0.5px;font-family:Arial,sans-serif}
+    .footer-qr{text-align:right}
+    .footer-qr .follow{font-size:11px;letter-spacing:1px;margin-bottom:6px}
+    /* Print button */
+    .print-bar{position:fixed;bottom:24px;right:24px;display:flex;gap:10px;z-index:99}
+    .btn-print{background:#2a1f0e;color:#ede9df;border:none;padding:11px 24px;font-family:'Courier New',monospace;font-size:13px;font-weight:700;letter-spacing:1.5px;cursor:pointer;border-radius:4px}
+    .btn-print:hover{background:#3d2e14}
+    @media print{
+      .print-bar{display:none}
+      body{background:#ede9df}
+      .page{padding:32px 40px}
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>متجر ترندي</h1>
-    <p>فاتورة</p>
+<div class="page">
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="title">INVOICE</div>
+      <div class="subtitle">${storeName}</div>
+      <p>${storeCity}</p>
+      ${phoneHtml}
+      ${instagramHtml}
+    </div>
+    <div>${logoHtml}</div>
   </div>
 
-  ${imageHtml}
+  <hr class="divider"/>
 
-  <div class="section">
-    <div class="section-title">معلومات الطلب</div>
-    <div class="grid">
-      <div class="field"><span class="field-label">رقم الطلب</span><span class="field-value">${order.id.slice(0, 8).toUpperCase()}</span></div>
-      <div class="field"><span class="field-label">التاريخ</span><span class="field-value">${format(new Date(order.createdAt), "dd MMM yyyy")}</span></div>
-      <div class="field"><span class="field-label">الحالة</span><span class="field-value">${prettyStatus(order.status)}</span></div>
-      <div class="field"><span class="field-label">الدفع</span><span class="field-value">${prettyStatus(order.paymentStatus)}</span></div>
+  <!-- Customer -->
+  <div class="cust-row">
+    <div>
+      <div class="cust-label">Customer:</div>
+      <div class="cust-field">
+        <div>Name: &nbsp;${customerName}</div>
+        <div>Phone: ${customerPhone}</div>
+        <div>City: &nbsp;${customerCity}</div>
+      </div>
+    </div>
+    <div class="cust-right">
+      <div>Invoice #: ${invoiceNum}</div>
+      <div>Date: &nbsp;&nbsp;&nbsp;${orderDate}</div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">العميل</div>
-    <div class="grid">
-      <div class="field"><span class="field-label">الاسم</span><span class="field-value">${order.customer?.name || "-"}</span></div>
-      <div class="field"><span class="field-label">الهاتف</span><span class="field-value">${order.phone || order.customer?.phone || "-"}</span></div>
-      <div class="field"><span class="field-label">الموقع</span><span class="field-value">${[order.governorate, order.area].filter(Boolean).join("، ") || "-"}</span></div>
-    </div>
-  </div>
+  <!-- Products -->
+  <table>
+    <thead>
+      <tr>
+        <th class="th" style="width:55%">PARTICULARS</th>
+        <th class="th th-num" style="width:15%">PRICE</th>
+        <th class="th th-num" style="width:10%">QTY</th>
+        <th class="th th-num" style="width:20%">AMOUNT</th>
+      </tr>
+    </thead>
+    <tbody>${itemRows}</tbody>
+  </table>
 
-  <div class="section">
-    <div class="section-title">المنتج</div>
-    <div class="grid">
-      <div class="field"><span class="field-label">النوع</span><span class="field-value">${PRODUCT_TYPE_LABELS[order.productType] || order.productType || "-"}</span></div>
-      <div class="field"><span class="field-label">الاسم</span><span class="field-value">${order.productName || "-"}</span></div>
-      <div class="field"><span class="field-label">اللون</span><span class="field-value">${order.color || "-"}</span></div>
-      <div class="field"><span class="field-label">المقاس</span><span class="field-value">${order.size || "-"}</span></div>
-    </div>
-  </div>
-
+  <!-- Totals -->
   <div class="totals">
-    <div class="section-title">الأسعار</div>
-    <div class="field"><span class="field-label">سعر البيع</span><span class="field-value">${formatIQD(order.sellingPrice)}</span></div>
-    <div class="field"><span class="field-label">كلفة التوصيل</span><span class="field-value">${formatIQD(order.deliveryCost)}</span></div>
-    <div class="field"><span class="field-label">العربون المدفوع</span><span class="field-value">- ${formatIQD(order.deposit)}</span></div>
-    <div class="field total-row"><span class="field-label">المتبقي للدفع</span><span class="field-value">${formatIQD(finalPrice)}</span></div>
+    <div class="tot-row"><span class="tot-label">التوصيل</span><span class="tot-value">${fmtPrice(delivery)}</span></div>
+    <div class="tot-row"><span class="tot-label">SUBTOTAL</span><span class="tot-value">${fmtPrice(subtotal)}</span></div>
+    <div class="tot-row"><span class="tot-label">${discountPct}% DISCOUNT</span><span class="tot-value">-${fmtPrice(discount)}</span></div>
+    <hr class="tot-divider"/>
+    <div class="tot-final"><span>TOTAL</span><span>${fmtPrice(total)}</span></div>
   </div>
 
+  <!-- Footer -->
   <div class="footer">
-    <p>شكراً لتسوقكم من متجر ترندي!</p>
+    <div class="footer-text">
+      <div class="ty">THANK YOU FOR YOUR ORDER.</div>
+      <div class="ty-ar">شكرًا لقيامكم بالتسوق معنا.</div>
+    </div>
+    <div class="footer-qr">
+      <div class="follow">Follow us</div>
+      ${storeInstagram ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://instagram.com/${storeInstagram}&bgcolor=ede9df&color=2a1f0e&margin=2" width="80" height="80" alt="QR">` : ""}
+    </div>
   </div>
+</div>
 
-  <script>window.onload = function() { window.print(); };</script>
+<div class="print-bar">
+  <button class="btn-print" onclick="window.print()">PRINT</button>
+</div>
 </body>
 </html>`;
 
