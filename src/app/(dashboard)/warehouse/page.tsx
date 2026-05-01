@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Box } from "lucide-react";
 import { formatIQD } from "@/lib/utils";
+
+// ─── Types ────────────────────────────────────────────────────
 
 const PENDING_STATUSES = ["new", "in_progress", "bought", "shipped"] as const;
 
@@ -26,7 +28,9 @@ interface Order {
   batch: { name: string } | null;
 }
 
-export default function PendingPage() {
+// ─── Tab: Pending Orders ─────────────────────────────────────
+
+function PendingTab() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -34,16 +38,16 @@ export default function PendingPage() {
   useEffect(() => {
     fetch("/api/orders")
       .then((r) => r.json())
-      .then((data: Order[]) => {
-        setOrders(data.filter((o) => PENDING_STATUSES.includes(o.status as typeof PENDING_STATUSES[number])));
-      })
+      .then((data: Order[]) =>
+        setOrders(data.filter((o) => PENDING_STATUSES.includes(o.status as typeof PENDING_STATUSES[number])))
+      )
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center h-48">
         <p className="text-sm text-[var(--muted)]">جاري التحميل...</p>
       </div>
     );
@@ -51,8 +55,8 @@ export default function PendingPage() {
 
   if (orders.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
-        <AlertCircle size={36} strokeWidth={1.5} className="text-[var(--muted)]" />
+      <div className="flex flex-col items-center justify-center h-48 gap-3">
+        <AlertCircle size={32} strokeWidth={1.5} className="text-[var(--muted)]" />
         <p className="text-sm text-[var(--muted)]">لا توجد طلبات معلقة</p>
       </div>
     );
@@ -64,38 +68,29 @@ export default function PendingPage() {
   }, {});
 
   return (
-    <div className="space-y-5 pb-8" dir="rtl">
+    <div className="space-y-5">
       {PENDING_STATUSES.map((status) => {
         const group = grouped[status];
         if (!group?.length) return null;
         const meta = STATUS_META[status];
         return (
           <div key={status}>
-            {/* Group header */}
             <div className="flex items-center gap-2 mb-2 px-1">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.color }} />
               <span className="text-xs font-bold" style={{ color: meta.color }}>{meta.label}</span>
               <span className="text-[11px] text-[var(--muted)] tabular-nums">{group.length}</span>
             </div>
-
-            {/* Orders list */}
             <div className="rounded-2xl border border-[var(--border)] overflow-hidden">
               {group.map((order, i) => (
                 <div
                   key={order.id}
                   onClick={() => router.push("/orders")}
-                  className="flex items-center gap-3 px-4 py-3 bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-secondary)] transition-colors active:scale-[0.99]"
+                  className="flex items-center gap-3 px-4 py-3 bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-secondary)] transition-colors"
                   style={{ borderBottom: i < group.length - 1 ? "1px solid var(--border)" : "none" }}
                 >
-                  {/* Status dot */}
-                  <div
-                    className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: meta.bg }}
-                  >
+                  <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: meta.bg }}>
                     <span className="w-2 h-2 rounded-full" style={{ background: meta.color }} />
                   </div>
-
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[var(--foreground)] truncate leading-tight">
                       {order.customer.name}
@@ -104,16 +99,12 @@ export default function PendingPage() {
                       {order.productName || order.productType}
                     </p>
                   </div>
-
-                  {/* Batch chip */}
                   {order.batch && (
                     <span className="hidden sm:inline text-[10px] px-2 py-0.5 rounded-full shrink-0"
                       style={{ background: "var(--surface-secondary)", color: "var(--muted)", border: "1px solid var(--border)" }}>
                       {order.batch.name}
                     </span>
                   )}
-
-                  {/* Price */}
                   <span className="text-sm font-bold tabular-nums shrink-0" style={{ color: "#c9a84c" }}>
                     {formatIQD(order.sellingPrice)}
                   </span>
@@ -123,6 +114,61 @@ export default function PendingPage() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Tab: Warehouse ───────────────────────────────────────────
+
+function WarehouseTab() {
+  return (
+    <div className="flex flex-col items-center justify-center h-48 gap-3">
+      <Box size={36} strokeWidth={1.2} className="text-[var(--muted)]" />
+      <p className="text-sm font-semibold text-[var(--foreground)]">المخزن</p>
+      <p className="text-xs text-[var(--muted)] text-center max-w-[220px]">
+        قريباً — إدارة المخزون وتتبع المنتجات
+      </p>
+    </div>
+  );
+}
+
+// ─── Tabs bar ─────────────────────────────────────────────────
+
+const TABS = [
+  { id: "pending",   label: "المعلق" },
+  { id: "warehouse", label: "المخزن" },
+];
+
+// ─── Page ─────────────────────────────────────────────────────
+
+export default function WarehousePage() {
+  const [activeTab, setActiveTab] = useState("pending");
+
+  return (
+    <div className="space-y-4 pb-8" dir="rtl">
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-2xl bg-[var(--surface)]" style={{ border: "1px solid var(--border)" }}>
+        {TABS.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer"
+              style={{
+                background: active ? "#c9a84c" : "transparent",
+                color: active ? "#111111" : "var(--muted)",
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content */}
+      {activeTab === "pending"   && <PendingTab />}
+      {activeTab === "warehouse" && <WarehouseTab />}
     </div>
   );
 }

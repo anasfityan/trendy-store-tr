@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  Sun, Moon, Search, ChevronLeft, Plus, ChevronDown, Package, X, Users, Upload, DollarSign, Clock,
+  Sun, Moon, Search, ChevronLeft, Plus, ChevronDown, Package, X, Users, Upload, DollarSign, Warehouse,
 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useBatchFilterStore } from "@/store/batch-filter";
@@ -371,16 +371,16 @@ export function AppNavbar() {
     );
   }
 
-  /* ── Pending page ── */
-  if (pathname === "/pending") {
+  /* ── Warehouse page ── */
+  if (pathname === "/warehouse") {
     return (
       <header className={HEADER_CLS} style={{ height: "56px" }}>
         <div className="flex items-center gap-2">
           <div className="flex items-center justify-center w-8 h-8 rounded-xl"
-            style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.25)" }}>
-            <Clock size={15} style={{ color: "#fbbf24" }} />
+            style={{ background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.25)" }}>
+            <Warehouse size={15} style={{ color: "#c9a84c" }} />
           </div>
-          <span className="text-base font-bold" style={{ color: "var(--foreground)" }}>الطلبات المعلقة</span>
+          <span className="text-base font-bold" style={{ color: "var(--foreground)" }}>المخزن</span>
         </div>
       </header>
     );

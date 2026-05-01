@@ -9,7 +9,7 @@ import {
   Users,
   DollarSign,
   Settings,
-  Clock,
+  Warehouse,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { useT } from "@/lib/i18n";
@@ -23,7 +23,7 @@ export function Dock() {
     { href: "/", label: t.nav.home, icon: LayoutDashboard, adminOnly: false },
     { href: "/orders", label: t.nav.orders, icon: ShoppingCart, adminOnly: false },
     { href: "/batches", label: t.nav.batches, icon: Package, adminOnly: false },
-    { href: "/pending", label: t.nav.pending, icon: Clock, adminOnly: false },
+    { href: "/warehouse", label: t.nav.warehouse, icon: Warehouse, adminOnly: false },
     { href: "/finance", label: t.nav.finance, icon: DollarSign, adminOnly: true },
     { href: "/customers", label: t.nav.customers, icon: Users, adminOnly: true },
     { href: "/settings", label: t.nav.settings, icon: Settings, adminOnly: true },
