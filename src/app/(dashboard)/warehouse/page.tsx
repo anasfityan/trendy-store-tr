@@ -85,7 +85,11 @@ function OrderRow({
 
   const meta = STATUS_META[order.status] ?? { label: order.status, color: "#999", bg: "rgba(150,150,150,0.1)" };
   const phone = order.customer.phone?.replace(/\D/g, "");
-  const productLabel = [order.productName, order.color, order.size].filter(Boolean).join(" · ") || order.productType;
+
+  const PRODUCT_TYPE_AR: Record<string, string> = {
+    Bag: "حقيبة", Shoe: "حذاء", Clothing: "ملابس", Accessory: "إكسسوار", Other: "أخرى",
+  };
+  const productLabel = PRODUCT_TYPE_AR[order.productType] ?? order.productType;
 
   async function handleDelete() {
     if (!confirm("هل تريد حذف هذا الطلب؟")) return;
@@ -129,12 +133,9 @@ function OrderRow({
           style={{ background: "var(--background)", borderTop: "1px solid var(--border)" }}
         >
           {/* Info chips */}
-          <div className="flex flex-wrap gap-2">
-            <Chip label="المنتج"  value={productLabel} />
-            <Chip label="الحالة"  value={meta.label} valueColor={meta.color} />
-            {order.customer.instagram && (
-              <Chip label="انستقرام" value={`@${order.customer.instagram}`} />
-            )}
+          <div className="flex gap-2">
+            <Chip label="المنتج" value={productLabel} />
+            <Chip label="الحالة" value={meta.label} valueColor={meta.color} />
           </div>
 
           {/* Action icons */}
