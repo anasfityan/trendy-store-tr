@@ -84,6 +84,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isAdmin = useAuthStore((s) => s.isAdmin);
 
+  // On initial open / reload → always land on home page
+  useEffect(() => {
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type === "navigate" || nav?.type === "reload") {
+      router.replace("/");
+    }
+  }, []);
+
   // Prefetch all routes immediately so navigation is instant
   useEffect(() => {
     ALL_ROUTES.forEach((r) => router.prefetch(r));
