@@ -123,11 +123,13 @@ export default function LoginPage() {
             )}
             <h1
               style={{
-                fontSize: "22px",
-                fontWeight: 300,
-                letterSpacing: "0.18em",
+                fontFamily: "'Cormorant Garamond', 'Didact Gothic', Georgia, serif",
+                fontSize: "26px",
+                fontWeight: 600,
+                letterSpacing: "0.06em",
                 textTransform: "uppercase",
                 lineHeight: 1,
+                textShadow: "0 1px 0 rgba(255,255,255,0.07), 0 2px 6px rgba(0,0,0,0.6), 0 4px 14px rgba(0,0,0,0.35)",
               }}
             >
               <StoreName name={storeName} />
@@ -222,6 +224,7 @@ export default function LoginPage() {
       </div>
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap');
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(18px); }
           to   { opacity: 1; transform: translateY(0); }
