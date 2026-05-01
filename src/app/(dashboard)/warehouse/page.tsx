@@ -104,25 +104,22 @@ function EditSheet({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="fixed left-0 right-0 z-50 rounded-t-3xl"
+        className="fixed left-4 right-4 z-50 rounded-3xl"
         style={{
-          bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
+          top: "50%",
+          transform: "translateY(-50%)",
           background: "var(--surface)",
           border: "1px solid var(--border)",
-          maxHeight: "calc(88dvh - 72px)",
+          maxHeight: "80dvh",
           overflowY: "auto",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
         }}
         dir="rtl"
       >
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-[var(--border)]" />
-        </div>
-
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <p className="text-base font-bold text-[var(--foreground)]">تعديل الطلب</p>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--surface-secondary)] text-[var(--muted)] cursor-pointer">
             <X size={14} />
