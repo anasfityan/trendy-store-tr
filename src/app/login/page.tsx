@@ -16,7 +16,7 @@ function StoreName({ name }: { name: string }) {
   return (
     <>
       <span style={{ color: "#c9a84c" }}>{first}</span>
-      <span style={{ color: "var(--foreground)" }}> {second}</span>
+      <span style={{ color: "#b0b0b0" }}> {second}</span>
     </>
   );
 }
@@ -121,7 +121,15 @@ export default function LoginPage() {
                 <ShoppingBag className="w-8 h-8 text-black" />
               </div>
             )}
-            <h1 className="text-2xl font-bold tracking-wide" style={{ letterSpacing: "0.04em" }}>
+            <h1
+              style={{
+                fontSize: "22px",
+                fontWeight: 300,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                lineHeight: 1,
+              }}
+            >
               <StoreName name={storeName} />
             </h1>
           </div>
