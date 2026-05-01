@@ -530,25 +530,56 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="logo">{t.settings.store.logoUrl}</Label>
-              <Input
-                id="logo"
-                value={logo}
-                onChange={(e) => setLogo(e.target.value)}
-                placeholder="https://example.com/logo.png"
-                dir="ltr"
-                className="text-left"
-              />
+              <Label>{t.settings.store.logoUrl}</Label>
+              {/* Upload or URL */}
+              <div className="flex gap-2">
+                <Input
+                  id="logo"
+                  value={logo}
+                  onChange={(e) => setLogo(e.target.value)}
+                  placeholder="https://example.com/logo.png"
+                  dir="ltr"
+                  className="text-left flex-1"
+                />
+                <label
+                  className="flex items-center justify-center w-10 h-10 rounded-xl border border-[var(--border)] cursor-pointer hover:border-[var(--accent)] transition-colors shrink-0"
+                  title="رفع صورة من الجهاز"
+                  style={{ background: "var(--surface)" }}
+                >
+                  <Upload size={15} style={{ color: "var(--muted)" }} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        const dataUrl = ev.target?.result as string;
+                        if (dataUrl) setLogo(dataUrl);
+                      };
+                      reader.readAsDataURL(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
               {logo && (
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-3">
                   <img
                     src={logo}
                     alt={t.settings.store.logoPreviewAlt}
                     className="h-16 w-16 object-contain rounded-xl border border-[var(--border)]"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setLogo("")}
+                    className="text-[12px] text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    حذف الشعار
+                  </button>
                 </div>
               )}
             </div>

@@ -1,37 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
-import { ShoppingBag, Loader2 } from "lucide-react";
+import { ShoppingBag, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [storeName, setStoreName] = useState("متجر ترندي");
+  const [logo, setLogo] = useState<string | null>(null);
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (!d) return;
+        if (d.storeName) setStoreName(d.storeName);
+        if (d.logo) setLogo(d.logo);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "فشل تسجيل الدخول");
-        return;
-      }
-
+      if (!res.ok) { setError(data.error || "فشل تسجيل الدخول"); return; }
       setAuth(data.user, data.token);
       router.push("/");
     } catch {
@@ -42,85 +49,160 @@ export default function LoginPage() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen flex items-center justify-center bg-[var(--background)] p-4">
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-[0.02]" style={{
-        backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
-        backgroundSize: '32px 32px'
-      }} />
+    <div dir="rtl" className="min-h-screen flex items-center justify-center bg-[var(--background)] p-4 relative overflow-hidden">
 
-      {/* Aura background blobs */}
+      {/* Radial glow behind card */}
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full"
+        style={{ background: "radial-gradient(ellipse at center, rgba(201,168,76,0.07) 0%, transparent 70%)" }}
+      />
+
+      {/* Subtle dot grid */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.025]"
+        style={{ backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)", backgroundSize: "28px 28px" }}
+      />
+
+      {/* Aura blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden>
         <div className="aura-blob aura-blob-1" />
         <div className="aura-blob aura-blob-2" />
         <div className="aura-blob aura-blob-3" />
-        <div className="aura-blob aura-blob-4" />
-        <div className="aura-blob aura-blob-5" />
       </div>
 
-      <div className="relative w-full max-w-[420px] animate-fade-in-up">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--overlay-shadow)]">
-          {/* Logo */}
+      {/* Card */}
+      <div className="relative w-full max-w-[400px]" style={{ animation: "fadeInUp 0.45s ease both" }}>
+        <div
+          className="rounded-3xl border border-[var(--border)] p-8"
+          style={{
+            background: "rgba(var(--surface-rgb, 22,22,22), 0.85)",
+            backdropFilter: "blur(24px)",
+            boxShadow: "0 8px 48px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05), 0 0 60px rgba(201,168,76,0.06)",
+          }}
+        >
+          {/* Logo / Branding */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--accent)] flex items-center justify-center mb-4 shadow-lg">
-              <ShoppingBag className="w-7 h-7 text-[var(--accent-foreground)]" />
-            </div>
-            <h1 className="text-page-title">متجر ترندي</h1>
-            <p className="text-stat-label mt-1">نظام الإدارة</p>
+            {logo ? (
+              <div className="mb-4 w-20 h-20 rounded-2xl overflow-hidden border border-[var(--border)] flex items-center justify-center" style={{ background: "var(--surface)" }}>
+                <img
+                  src={logo}
+                  alt={storeName}
+                  className="w-full h-full object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+            ) : (
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                style={{ background: "linear-gradient(135deg, #c9a84c 0%, #b8860b 100%)", boxShadow: "0 4px 20px rgba(201,168,76,0.35)" }}
+              >
+                <ShoppingBag className="w-8 h-8 text-black" />
+              </div>
+            )}
+            <h1
+              className="text-xl font-bold tracking-wide"
+              style={{ color: "var(--foreground)", letterSpacing: "0.03em" }}
+            >
+              {storeName}
+            </h1>
+            <p className="text-[13px] mt-1" style={{ color: "var(--muted)" }}>
+              نظام الإدارة
+            </p>
           </div>
 
+          {/* Divider */}
+          <div className="h-px mb-6" style={{ background: "linear-gradient(to right, transparent, var(--border), transparent)" }} />
+
+          {/* Error */}
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)] text-sm animate-fade-in-scale">
+            <div className="mb-4 px-4 py-3 rounded-xl text-sm text-red-400 border border-red-500/20" style={{ background: "rgba(239,68,68,0.08)" }}>
               {error}
             </div>
           )}
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[var(--foreground)]">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium" style={{ color: "var(--muted)" }}>
                 اسم المستخدم
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full h-11 px-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none transition-all duration-150"
+                className="w-full h-11 px-4 rounded-xl text-sm outline-none transition-all duration-150"
+                style={{
+                  background: "var(--background)",
+                  border: "1.5px solid var(--border)",
+                  color: "var(--foreground)",
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(201,168,76,0.12)"; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
                 placeholder="أدخل اسم المستخدم"
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[var(--foreground)]">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium" style={{ color: "var(--muted)" }}>
                 كلمة المرور
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-11 px-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 focus:outline-none transition-all duration-150"
-                placeholder="أدخل كلمة المرور"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full h-11 px-4 pe-10 rounded-xl text-sm outline-none transition-all duration-150"
+                  style={{
+                    background: "var(--background)",
+                    border: "1.5px solid var(--border)",
+                    color: "var(--foreground)",
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(201,168,76,0.12)"; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
+                  placeholder="أدخل كلمة المرور"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-80"
+                  style={{ color: "var(--muted)" }}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-xl bg-[var(--accent)] text-[var(--accent-foreground)] font-medium text-sm hover:opacity-90 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full h-11 rounded-xl font-semibold text-sm transition-all duration-150 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+              style={{
+                background: "linear-gradient(135deg, #c9a84c 0%, #b8860b 100%)",
+                color: "#111",
+                boxShadow: loading ? "none" : "0 4px 16px rgba(201,168,76,0.3)",
+              }}
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
             </button>
           </form>
-
-          <div className="mt-6 pt-6 border-t border-[var(--separator)]">
-            <p className="text-xs text-[var(--muted)] text-center">
-              بيانات الدخول الافتراضية: admin/admin123 أو worker/worker123
-            </p>
-          </div>
         </div>
+
+        {/* Bottom label */}
+        <p className="text-center text-[11px] mt-4" style={{ color: "var(--muted)" }}>
+          &copy; {new Date().getFullYear()} {storeName}
+        </p>
       </div>
+
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
