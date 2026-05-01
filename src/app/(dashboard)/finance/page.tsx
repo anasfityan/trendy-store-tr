@@ -161,7 +161,7 @@ function BatchFinanceCard({ batch, settings }: { batch: Batch; settings: Setting
       {/* ── التكاليف بالدينار ── */}
       <SectionLabel text="تكاليف متغيرة" />
       <div className="grid grid-cols-2 gap-px bg-[var(--border)]">
-        <GridCell label="التوصيل" primary={formatIQD(totalDeliveryIQD)} sub={formatUSD(totalDeliveryUSD)} />
+        <GridCell label="التوصيل" primary={formatIQD(totalDeliveryIQD)} />
         <GridCell label="العربون" primary={formatIQD(totalDepositIQD)}  sub={formatUSD(totalDepositUSD)}  />
       </div>
 
