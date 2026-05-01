@@ -1,20 +1,19 @@
 type SoundType = "tap" | "success" | "error" | "open" | "close";
 
-let ctx: AudioContext | null = null;
+type AC = typeof AudioContext;
 
-function getCtx(): AudioContext | null {
+function newCtx(): AudioContext | null {
   try {
-    if (!ctx || ctx.state === "closed") {
-      ctx = new (window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    }
-    return ctx;
+    const Ctor: AC = window.AudioContext ||
+      (window as unknown as { webkitAudioContext: AC }).webkitAudioContext;
+    return new Ctor();
   } catch {
     return null;
   }
 }
 
 function playTone(
+  ac: AudioContext,
   freq: number,
   endFreq: number,
   duration: number,
@@ -22,8 +21,6 @@ function playTone(
   type: OscillatorType = "sine",
   delay = 0,
 ) {
-  const ac = getCtx();
-  if (!ac) return;
   const t = ac.currentTime + delay;
   const osc = ac.createOscillator();
   const gain = ac.createGain();
@@ -44,37 +41,42 @@ function haptic(ms = 6) {
 
 export function playSound(type: SoundType = "tap") {
   try {
+    const ac = newCtx();
+    if (!ac) return;
+    // close context after all tones finish to free resources
+    setTimeout(() => { try { ac.close(); } catch { /* ignore */ } }, 500);
+
     switch (type) {
       // ─── Navigation tap — clean double-tick
       case "tap":
         haptic(6);
-        playTone(900, 600, 0.07, 0.10, "sine");
-        playTone(1100, 700, 0.05, 0.07, "sine", 0.04);
+        playTone(ac, 900, 600, 0.07, 0.10, "sine");
+        playTone(ac, 1100, 700, 0.05, 0.07, "sine", 0.04);
         break;
 
       // ─── Success — bright rising chime
       case "success":
         haptic(8);
-        playTone(520, 780, 0.09, 0.11, "sine");
-        playTone(660, 1040, 0.11, 0.08, "sine", 0.07);
+        playTone(ac, 520, 780, 0.09, 0.11, "sine");
+        playTone(ac, 660, 1040, 0.11, 0.08, "sine", 0.07);
         break;
 
       // ─── Error — low descending thud
       case "error":
         haptic(12);
-        playTone(380, 200, 0.13, 0.13, "sine");
+        playTone(ac, 380, 200, 0.13, 0.13, "sine");
         break;
 
       // ─── Open modal — quick ascending pop
       case "open":
         haptic(5);
-        playTone(420, 720, 0.09, 0.11, "sine");
+        playTone(ac, 420, 720, 0.09, 0.11, "sine");
         break;
 
       // ─── Close modal — quick descending pop
       case "close":
         haptic(5);
-        playTone(720, 420, 0.08, 0.10, "sine");
+        playTone(ac, 720, 420, 0.08, 0.10, "sine");
         break;
     }
   } catch {
