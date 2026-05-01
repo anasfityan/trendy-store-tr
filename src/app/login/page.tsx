@@ -104,8 +104,8 @@ export default function LoginPage() {
                 alt={storeName}
                 className="mb-5"
                 style={{
-                  width: "90px",
-                  height: "90px",
+                  width: "150px",
+                  height: "150px",
                   objectFit: "contain",
                   filter: "drop-shadow(0 2px 8px rgba(201,168,76,0.45)) drop-shadow(0 8px 24px rgba(0,0,0,0.55)) drop-shadow(0 1px 2px rgba(255,255,255,0.08))",
                   transform: "perspective(400px) rotateX(4deg)",
