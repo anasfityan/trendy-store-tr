@@ -106,8 +106,14 @@ function EditSheet({
     <>
       <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)", maxHeight: "88dvh", overflowY: "auto" }}
+        className="fixed left-0 right-0 z-50 rounded-t-3xl"
+        style={{
+          bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          maxHeight: "calc(88dvh - 72px)",
+          overflowY: "auto",
+        }}
         dir="rtl"
       >
         {/* Handle */}
