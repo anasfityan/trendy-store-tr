@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth";
+import { useFinanceFilterStore } from "@/store/finance-filter";
 import { formatIQD, formatUSD, formatTRY } from "@/lib/utils";
 import { Package, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
@@ -189,6 +190,7 @@ function ResultCell({
 
 export default function FinancePage() {
   const { isAdmin } = useAuthStore();
+  const { statusFilter, search } = useFinanceFilterStore();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -227,19 +229,19 @@ export default function FinancePage() {
     );
   }
 
-  const completedBatches = batches.filter((b) => b.status === "completed");
+  const filtered = batches
+    .filter((b) => statusFilter === "all" || b.status === statusFilter)
+    .filter((b) => !search || b.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-4 pb-8" dir="rtl">
-      <h1 className="text-xl font-bold text-[var(--foreground)]">المالية</h1>
-
-      {completedBatches.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="flex items-center justify-center h-48 rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-          <p className="text-sm text-[var(--muted)]">لا توجد شحنات مكتملة بعد.</p>
+          <p className="text-sm text-[var(--muted)]">لا توجد شحنات مطابقة.</p>
         </div>
       ) : (
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-          {completedBatches.map((batch) => (
+          {filtered.map((batch) => (
             <BatchFinanceCard key={batch.id} batch={batch} settings={settings} />
           ))}
         </div>

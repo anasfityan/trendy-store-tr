@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  Sun, Moon, Search, ChevronLeft, Plus, ChevronDown, Package, X, Users, Upload,
+  Sun, Moon, Search, ChevronLeft, Plus, ChevronDown, Package, X, Users, Upload, DollarSign,
 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useBatchFilterStore } from "@/store/batch-filter";
 import { useOrderFilterStore } from "@/store/order-filter";
 import { useCustomerFilterStore } from "@/store/customer-filter";
+import { useFinanceFilterStore } from "@/store/finance-filter";
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -58,6 +59,7 @@ export function AppNavbar() {
   const { statusFilter, counts, setStatusFilter } = useBatchFilterStore();
   const { activeTab, setActiveTab, search: orderSearch, setSearch: setOrderSearch } = useOrderFilterStore();
   const { search: customerSearch, count: customerCount, setSearch: setCustomerSearch } = useCustomerFilterStore();
+  const { search: financeSearch, statusFilter: financeStatus, setSearch: setFinanceSearch, setStatusFilter: setFinanceStatus } = useFinanceFilterStore();
 
   const isDark = theme === "dark";
 
@@ -373,6 +375,96 @@ export function AppNavbar() {
               <Plus size={16} strokeWidth={2.5} />
             </button>
           </div>
+        </div>
+      </header>
+    );
+  }
+
+  /* ── Finance page ── */
+  if (pathname === "/finance") {
+    const financeStatusOptions = [
+      { value: "all",             label: "الكل",          color: "#6b7280" },
+      { value: "open",            label: "مفتوحة",        color: "#3b82f6" },
+      { value: "shipped",         label: "تم الشحن",      color: "#f97316" },
+      { value: "in_distribution", label: "قيد التوزيع",   color: "#a855f7" },
+      { value: "completed",       label: "مكتملة",        color: "#22c55e" },
+    ];
+    const activeFinance = financeStatusOptions.find((o) => o.value === financeStatus) ?? financeStatusOptions[0];
+
+    return (
+      <header className={HEADER_CLS} style={{ height: "56px", overflow: "visible" }}>
+        {/* Title */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center w-8 h-8 rounded-xl"
+            style={{ background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.25)" }}>
+            <DollarSign size={15} style={{ color: "#c9a84c" }} />
+          </div>
+          <span className="text-base font-bold" style={{ color: "var(--foreground)" }}>المالية</span>
+        </div>
+
+        {/* Controls */}
+        <div className="flex items-center gap-2" style={{ position: "relative", zIndex: 50 }}>
+          {/* Status filter */}
+          <div className="relative" ref={filterDropRef}>
+            <button
+              onClick={() => setFilterDropOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              style={{ background: filterDropOpen ? "var(--surface-secondary)" : "var(--surface)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: activeFinance.color }} />
+              <span className="hidden sm:inline">{activeFinance.label}</span>
+              <ChevronDown size={12} className="text-[var(--muted)]"
+                style={{ transform: filterDropOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+            </button>
+            {filterDropOpen && (
+              <div className="absolute left-0 top-full mt-1.5 z-50 min-w-[160px] rounded-xl shadow-xl overflow-hidden py-1"
+                style={{ background: "#1e1e2e", border: "1px solid #333" }} dir="rtl">
+                {financeStatusOptions.map(({ value, label, color }) => {
+                  const isActive = financeStatus === value;
+                  return (
+                    <button key={value}
+                      onClick={() => { setFinanceStatus(value); setFilterDropOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors text-right"
+                      style={{ background: isActive ? color + "22" : "transparent", color: isActive ? color : "#ccc" }}>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                      <span className="flex-1">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Search */}
+          {searchOpen ? (
+            <div className="relative flex items-center" style={{ zIndex: 50 }}>
+              <Search size={12} className="absolute end-2.5 text-[var(--muted)] pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                autoFocus
+                value={financeSearch}
+                onChange={(e) => setFinanceSearch(e.target.value)}
+                dir="rtl"
+                placeholder="بحث في الشحنات..."
+                className="h-9 rounded-full border border-[var(--border)] bg-[var(--surface)] text-sm ps-8 pe-7 outline-none focus:border-[var(--accent)] transition-colors"
+                style={{ width: "160px" }}
+              />
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { setFinanceSearch(""); setSearchOpen(false); }}
+                className="absolute start-2 flex items-center justify-center w-5 h-5 rounded-full bg-[var(--muted)] text-[var(--background)] hover:opacity-80 transition-opacity"
+              >
+                <X size={10} strokeWidth={2.5} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center justify-center w-9 h-9 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
+            >
+              <Search size={15} strokeWidth={1.8} />
+            </button>
+          )}
         </div>
       </header>
     );
