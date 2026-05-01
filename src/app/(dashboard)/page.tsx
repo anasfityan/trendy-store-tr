@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Package,
   ArrowLeft,
+  Plus,
 } from "lucide-react";
 import { formatIQD } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
@@ -316,6 +317,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const router = useRouter();
+  const handleNewOrder = () => router.push("/orders?new=true");
   useAuthStore((s) => s.token);
 
   useEffect(() => {
@@ -385,8 +387,14 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4">
 
-      {/* Page title */}
-      <h1 className="text-xl font-bold" style={{ color: GOLD }}>الرئيسية</h1>
+      {/* Add order button */}
+      <button
+        onClick={handleNewOrder}
+        className="w-full flex items-center justify-center h-11 rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all duration-150 cursor-pointer shadow-sm"
+        style={{ background: "#c9a84c", color: "#111111" }}
+      >
+        <Plus size={20} strokeWidth={2.5} />
+      </button>
 
       {/* Row 1: Stats */}
       <div className="stagger-children grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

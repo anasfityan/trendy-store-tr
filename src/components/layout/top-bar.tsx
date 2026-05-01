@@ -118,15 +118,6 @@ export function AppNavbar() {
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={() => router.push("/orders?new=true")}
-            title={t.topbar.newOrder}
-            className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity duration-200 cursor-pointer shadow-sm"
-            style={{ background: "#c9a84c", color: "#111111" }}
-          >
-            <Plus size={15} strokeWidth={2.5} />
-            <span className="hidden sm:inline">{t.topbar.newOrder}</span>
-          </button>
           <button onClick={openCommandBar} className="flex sm:hidden items-center justify-center w-9 h-9 rounded-xl text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--surface-secondary)] transition-colors duration-200 cursor-pointer">
             <Search size={18} strokeWidth={1.8} />
           </button>
