@@ -8,7 +8,7 @@ interface BatchFilterStore {
 }
 
 export const useBatchFilterStore = create<BatchFilterStore>((set) => ({
-  statusFilter: "all",
+  statusFilter: "open",
   counts: {},
   setStatusFilter: (statusFilter) => set({ statusFilter }),
   setCounts: (counts) => set({ counts }),

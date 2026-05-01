@@ -9,9 +9,11 @@ import {
   Users,
   DollarSign,
   Settings,
+  Warehouse,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { useT } from "@/lib/i18n";
+import { playSound } from "@/lib/sound";
 
 export function Dock() {
   const pathname = usePathname();
@@ -22,6 +24,7 @@ export function Dock() {
     { href: "/", label: t.nav.home, icon: LayoutDashboard, adminOnly: false },
     { href: "/orders", label: t.nav.orders, icon: ShoppingCart, adminOnly: false },
     { href: "/batches", label: t.nav.batches, icon: Package, adminOnly: false },
+    { href: "/warehouse", label: t.nav.warehouse, icon: Warehouse, adminOnly: false },
     { href: "/finance", label: t.nav.finance, icon: DollarSign, adminOnly: true },
     { href: "/customers", label: t.nav.customers, icon: Users, adminOnly: true },
     { href: "/settings", label: t.nav.settings, icon: Settings, adminOnly: true },
@@ -54,7 +57,8 @@ export function Dock() {
           <Link
             key={item.href}
             href={item.href}
-            className={`relative flex flex-col items-center justify-center gap-0.5 w-14 sm:w-16 py-1.5 rounded-xl transition-all duration-200 group ${
+            onClick={() => playSound("tap")}
+            className={`relative flex flex-col items-center justify-center gap-0.5 w-14 sm:w-16 py-1.5 rounded-3xl transition-all duration-200 group ${
               active
                 ? "text-[var(--accent)]"
                 : "text-[var(--muted)] hover:text-[var(--accent)]"
@@ -67,7 +71,7 @@ export function Dock() {
 
             {/* Icon container with glow */}
             <div
-              className={`relative flex items-center justify-center w-10 h-8 rounded-xl transition-all duration-200 ${
+              className={`relative flex items-center justify-center w-10 h-8 rounded-3xl transition-all duration-200 ${
                 active
                   ? "bg-[var(--accent)]/12 dock-glow"
                   : "group-hover:bg-[var(--accent)]/5"
