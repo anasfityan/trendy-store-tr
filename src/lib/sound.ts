@@ -47,34 +47,34 @@ export function playSound(type: SoundType = "tap") {
     switch (type) {
       // ─── Navigation tap — clean double-tick
       case "tap":
-        haptic(8);
-        playTone(900, 600, 0.07, 0.18, "sine");
-        playTone(1100, 700, 0.05, 0.12, "sine", 0.04);
+        haptic(6);
+        playTone(900, 600, 0.07, 0.10, "sine");
+        playTone(1100, 700, 0.05, 0.07, "sine", 0.04);
         break;
 
       // ─── Success — bright rising chime
       case "success":
-        haptic(10);
-        playTone(520, 780, 0.09, 0.18, "sine");
-        playTone(660, 1040, 0.11, 0.14, "sine", 0.07);
+        haptic(8);
+        playTone(520, 780, 0.09, 0.11, "sine");
+        playTone(660, 1040, 0.11, 0.08, "sine", 0.07);
         break;
 
       // ─── Error — low descending thud
       case "error":
-        haptic(15);
-        playTone(380, 200, 0.13, 0.22, "sine");
+        haptic(12);
+        playTone(380, 200, 0.13, 0.13, "sine");
         break;
 
       // ─── Open modal — quick ascending pop
       case "open":
-        haptic(6);
-        playTone(420, 720, 0.09, 0.2, "sine");
+        haptic(5);
+        playTone(420, 720, 0.09, 0.11, "sine");
         break;
 
       // ─── Close modal — quick descending pop
       case "close":
-        haptic(6);
-        playTone(720, 420, 0.08, 0.18, "sine");
+        haptic(5);
+        playTone(720, 420, 0.08, 0.10, "sine");
         break;
     }
   } catch {
