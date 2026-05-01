@@ -78,27 +78,51 @@
    ============================================ */
 
 .dark {
-  --color-ground: #111111;
-  --color-card: #1a1a1a;
-  --color-border: #2a2a2a;
-  --color-border-light: #222222;
+  --color-ground: #0F0F0F;
+  --color-card: #1A1A1A;
+  --color-border: #2A2A2A;
+  --color-border-light: #1F1F1F;
 
-  --color-navy: #c9a84c;
+  --color-navy: #C9A84C;
   --color-navy-light: #d4b86a;
   --color-navy-lighter: #dfc890;
-  --color-royal: #b8860b;
-  --color-royal-light: #c9a84c;
-  --color-success: #81C995;
-  --color-success-light: rgba(52, 168, 83, 0.15);
-  --color-warning: #FDD663;
-  --color-warning-light: rgba(251, 188, 5, 0.15);
-  --color-danger: #F28B82;
-  --color-danger-light: rgba(234, 67, 53, 0.15);
+  --color-royal: #B8860B;
+  --color-royal-light: #C9A84C;
+  --color-success: #4ade80;
+  --color-success-light: rgba(74, 222, 128, 0.13);
+  --color-warning: #fbbf24;
+  --color-warning-light: rgba(251, 191, 36, 0.13);
+  --color-danger: #f87171;
+  --color-danger-light: rgba(248, 113, 113, 0.13);
 
-  --color-ink: #f0f0f0;
-  --color-ink-secondary: #a0a0a0;
-  --color-ink-muted: #666666;
-  --color-ink-inverse: #111111;
+  --color-ink: #F0F0F0;
+  --color-ink-secondary: #A0A0A0;
+  --color-ink-muted: #69717E;
+  --color-ink-inverse: #0F0F0F;
+
+  /* Trendy Store tokens */
+  --bg:          #0F0F0F;
+  --surface-t:   #1A1A1A;
+  --surface-2t:  #1F1F1F;
+  --gold:        #C9A84C;
+  --gold-2:      #B8860B;
+  --glow:        0 0 20px rgba(201, 168, 76, 0.35);
+  --fg:          #F0F0F0;
+  --fg-2:        #A0A0A0;
+  --fg-muted:    #69717E;
+  --fg-dim:      #666666;
+
+  /* Status colors */
+  --status-new:        #60a5fa;
+  --status-progress:   #fbbf24;
+  --status-bought:     #c084fc;
+  --status-shipped:    #818cf8;
+  --status-delivered:  #4ade80;
+  --status-cancelled:  #f87171;
+
+  /* Font aliases */
+  --font-arabic: 'IBM Plex Sans Arabic', sans-serif;
+  --font-num:    'Geist', sans-serif;
 
   --shadow-xs: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 1px 3px rgba(0, 0, 0, 0.6);
@@ -161,12 +185,32 @@
   --navy: var(--color-navy);
   --royal: var(--color-royal);
   --ink: var(--color-ink);
+
+  /* Light mode Trendy Store tokens */
+  --bg:      var(--color-ground);
+  --gold:    #4285F4;
+  --gold-2:  #3B5BDB;
+  --glow:    0 0 20px rgba(66, 133, 244, 0.25);
+  --fg:      var(--color-ink);
+  --fg-2:    var(--color-ink-secondary);
+  --fg-muted: var(--color-ink-muted);
+  --fg-dim:  #9CA3AF;
+  --font-arabic: 'IBM Plex Sans Arabic', sans-serif;
+  --font-num:    'Geist', sans-serif;
+
+  /* Status colors */
+  --status-new:        #3b82f6;
+  --status-progress:   #f59e0b;
+  --status-bought:     #a855f7;
+  --status-shipped:    #6366f1;
+  --status-delivered:  #22c55e;
+  --status-cancelled:  #ef4444;
 }
 
 .dark {
-  --surface-secondary: #1f1f1f;
-  --surface-tertiary: #2a2a2a;
-  --surface-2: #1f1f1f;
+  --surface-secondary: #1F1F1F;
+  --surface-tertiary: #2A2A2A;
+  --surface-2: #1F1F1F;
   --card: var(--color-card);
 }
 
