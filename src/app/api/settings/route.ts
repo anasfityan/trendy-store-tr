@@ -37,6 +37,9 @@ export async function PUT(req: NextRequest) {
       data: {
         ...(data.storeName && { storeName: data.storeName }),
         ...(data.logo !== undefined && { logo: data.logo }),
+        ...(data.phone !== undefined && { phone: data.phone || null }),
+        ...(data.instagram !== undefined && { instagram: data.instagram || null }),
+        ...(data.city !== undefined && { city: data.city || null }),
         ...(data.usdToTry !== undefined && { usdToTry: parseFloat(data.usdToTry) }),
         ...(data.usdToIqd !== undefined && { usdToIqd: parseFloat(data.usdToIqd) }),
         ...(data.tryToIqd !== undefined && { tryToIqd: parseFloat(data.tryToIqd) }),

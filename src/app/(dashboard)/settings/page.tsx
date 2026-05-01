@@ -36,6 +36,9 @@ interface SettingsData {
   id: string;
   storeName: string;
   logo: string | null;
+  phone: string | null;
+  instagram: string | null;
+  city: string | null;
   usdToTry: number;
   usdToIqd: number;
   tryToIqd: number;
@@ -116,14 +119,16 @@ export default function SettingsPage() {
   // Form fields
   const [storeName, setStoreName] = useState("");
   const [logo, setLogo] = useState("");
+  const [storePhone, setStorePhone] = useState("");
+  const [storeInstagram, setStoreInstagram] = useState("");
+  const [storeCity, setStoreCity] = useState("");
   const [usdToTry, setUsdToTry] = useState("");
   const [usdToIqd, setUsdToIqd] = useState("");
   const [tryToIqd, setTryToIqd] = useState("");
 
   // Invoice template
-  const [invoiceTemplate, setInvoiceTemplate] = useState(CLASSIC_TEMPLATE);
-  const [invoiceEditMode, setInvoiceEditMode] = useState(false);
-  const [invoicePreviewMode, setInvoicePreviewMode] = useState(true);
+  const [invoiceTemplate, setInvoiceTemplate] = useState("");
+  const [invoicePreviewMode, setInvoicePreviewMode] = useState(false);
 
   // CSV import
   const [importing, setImporting] = useState(false);
@@ -141,10 +146,13 @@ export default function SettingsPage() {
           setSettings(data);
           setStoreName(data.storeName || "");
           setLogo(data.logo || "");
+          setStorePhone(data.phone || "");
+          setStoreInstagram(data.instagram || "");
+          setStoreCity(data.city || "");
           setUsdToTry(String(data.usdToTry));
           setUsdToIqd(String(data.usdToIqd));
           setTryToIqd(String(data.tryToIqd));
-          setInvoiceTemplate(data.invoiceTemplate || CLASSIC_TEMPLATE);
+          if (data.invoiceTemplate) setInvoiceTemplate(data.invoiceTemplate);
         }
       } catch (err) {
         console.error("Failed to fetch settings:", err);
@@ -181,10 +189,13 @@ export default function SettingsPage() {
         body: JSON.stringify({
           storeName,
           logo: logo || null,
+          phone: storePhone || null,
+          instagram: storeInstagram || null,
+          city: storeCity || null,
           usdToTry: parseFloat(usdToTry),
           usdToIqd: parseFloat(usdToIqd),
           tryToIqd: parseFloat(tryToIqd),
-          invoiceTemplate,
+          invoiceTemplate: invoiceTemplate || null,
         }),
       });
       if (res.ok) {
@@ -573,15 +584,25 @@ export default function SettingsPage() {
                     className="h-16 w-16 object-contain rounded-xl border border-[var(--border)]"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setLogo("")}
-                    className="text-[12px] text-red-400 hover:text-red-300 transition-colors"
-                  >
+                  <button type="button" onClick={() => setLogo("")} className="text-[12px] text-red-400 hover:text-red-300 transition-colors">
                     حذف الشعار
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* Store contact info for invoice */}
+            <div className="space-y-2">
+              <Label>رقم الهاتف (للفاتورة)</Label>
+              <Input value={storePhone} onChange={(e) => setStorePhone(e.target.value)} placeholder="+90 535 000 00 00" dir="ltr" className="text-left" />
+            </div>
+            <div className="space-y-2">
+              <Label>انستغرام (للفاتورة)</Label>
+              <Input value={storeInstagram} onChange={(e) => setStoreInstagram(e.target.value)} placeholder="@trendy.store.tr" dir="ltr" className="text-left" />
+            </div>
+            <div className="space-y-2">
+              <Label>المدينة (للفاتورة)</Label>
+              <Input value={storeCity} onChange={(e) => setStoreCity(e.target.value)} placeholder="Istanbul, Türkiye" dir="ltr" className="text-left" />
             </div>
           </div>
         );
@@ -641,147 +662,78 @@ export default function SettingsPage() {
         );
 
       case "invoice": {
-        const previewHtml = renderTemplate(
-          invoiceTemplate,
-          buildInvoiceVars(SAMPLE_INVOICE_ORDER, storeName || "Trendy Store"),
-        );
         return (
           <div
             className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 space-y-5"
             style={{ boxShadow: "var(--shadow-sm)" }}
           >
-            {/* Header */}
             <div className="flex items-center gap-3 mb-2">
               <div className="w-9 h-9 rounded-xl bg-[var(--navy)]/10 flex items-center justify-center">
                 <FileText size={18} className="text-[var(--navy)]" />
               </div>
               <div>
-                <h2 className="text-lg font-bold">{t.settings.invoice.title}</h2>
-                <p className="text-xs text-[var(--muted)] mt-0.5">{t.settings.invoice.subtitle}</p>
+                <h2 className="text-lg font-bold">قالب الفاتورة</h2>
+                <p className="text-xs text-[var(--muted)] mt-0.5">عدّل الـ HTML/CSS مباشرة — المتغيرات تُحقن تلقائياً عند الفتح</p>
               </div>
             </div>
 
-            {/* Template selector cards */}
-            <div>
-              <p className="text-xs font-semibold text-[var(--muted)] mb-3 uppercase tracking-wide">
-                {t.settings.invoice.selectTemplate}
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                {INVOICE_TEMPLATES.map((tpl) => {
-                  const isSelected = invoiceTemplate === tpl.template;
-                  return (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      onClick={() => setInvoiceTemplate(tpl.template)}
-                      className={`relative rounded-xl border-2 p-3 text-start transition-all cursor-pointer ${
-                        isSelected
-                          ? "border-[var(--navy)] bg-[var(--navy)]/5"
-                          : "border-[var(--border)] hover:border-[var(--navy)]/40 bg-[var(--background)]"
-                      }`}
-                    >
-                      {/* Visual thumbnail */}
-                      <div
-                        className="w-full h-16 rounded-lg mb-2 overflow-hidden flex items-center justify-center text-white text-xs font-bold"
-                        style={{
-                          background:
-                            tpl.id === "classic" ? "#111" :
-                            tpl.id === "modern"  ? "linear-gradient(135deg,#0f172a,#1e3a5f)" :
-                            "#f5f5f5",
-                          color: tpl.id === "minimal" ? "#555" : "#fff",
-                          border: tpl.id === "minimal" ? "1px dashed #ccc" : "none",
-                        }}
-                      >
-                        {locale === "ar" ? tpl.nameAr : tpl.nameEn}
-                      </div>
-                      <p className="text-xs font-semibold text-[var(--foreground)]">
-                        {locale === "ar" ? tpl.nameAr : tpl.nameEn}
-                      </p>
-                      <p className="text-[11px] text-[var(--muted)] mt-0.5">
-                        {locale === "ar" ? tpl.descAr : tpl.descEn}
-                      </p>
-                      {isSelected && (
-                        <div className="absolute top-2 left-2 w-5 h-5 rounded-full bg-[var(--navy)] flex items-center justify-center">
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                            <path d="M2 5l2 2 4-4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+            {/* HTML editor */}
+            <div className="space-y-2">
+              <textarea
+                value={invoiceTemplate}
+                onChange={(e) => setInvoiceTemplate(e.target.value)}
+                rows={20}
+                spellCheck={false}
+                dir="ltr"
+                placeholder="اتركه فارغاً لاستخدام القالب الافتراضي..."
+                className="w-full rounded-xl border border-[var(--border)] bg-[#0d1117] text-[#e6edf3] p-4 text-xs font-mono resize-y outline-none focus:border-[var(--accent)]/50 transition-colors"
+                style={{ lineHeight: 1.6 }}
+              />
+
+              {/* Variables reference */}
+              <details className="text-xs">
+                <summary className="cursor-pointer text-[var(--muted)] hover:text-[var(--foreground)] transition-colors select-none">
+                  المتغيرات المتاحة ← انقر للعرض
+                </summary>
+                <div className="mt-2 p-3 bg-[var(--background)] rounded-lg border border-[var(--border)] font-mono text-[11px] text-[var(--muted)] leading-8 break-all" dir="ltr">
+                  {`{{STORE_NAME}}  {{STORE_CITY}}  {{STORE_PHONE}}  {{STORE_INSTAGRAM}}\n{{STORE_LOGO_HTML}}  {{QR_CODE_HTML}}\n{{CUSTOMER_NAME}}  {{CUSTOMER_PHONE}}  {{CUSTOMER_CITY}}\n{{INVOICE_NUMBER}}  {{DATE}}\n{{ITEMS_TABLE_ROWS}}\n{{SUBTOTAL}}  {{DELIVERY}}  {{DISCOUNT}}  {{DISCOUNT_PCT}}  {{TOTAL}}`}
+                </div>
+              </details>
             </div>
 
             {/* Action buttons */}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setInvoiceEditMode((v) => !v)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-[var(--border)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
-              >
-                <Code2 size={13} />
-                {invoiceEditMode ? t.settings.invoice.hideHtml : t.settings.invoice.editHtml}
-              </button>
-              <button
-                type="button"
                 onClick={() => setInvoicePreviewMode((v) => !v)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-[var(--border)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-[var(--border)] hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
               >
                 <Eye size={13} />
-                {t.settings.invoice.preview}
+                {invoicePreviewMode ? "إخفاء المعاينة" : "معاينة"}
               </button>
               <button
                 type="button"
-                onClick={() => setInvoiceTemplate(CLASSIC_TEMPLATE)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-[var(--border)] text-[var(--muted)] hover:text-destructive hover:border-destructive/50 transition-colors cursor-pointer"
+                onClick={() => setInvoiceTemplate("")}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-[var(--border)] text-[var(--muted)] hover:text-red-400 hover:border-red-400/40 transition-colors cursor-pointer"
               >
                 <RotateCcw size={13} />
-                {t.settings.invoice.resetTemplate}
+                إعادة للافتراضي
               </button>
             </div>
 
-            {/* HTML editor */}
-            {invoiceEditMode && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-[var(--muted)]">{t.settings.invoice.editHtml}</p>
-                <textarea
-                  value={invoiceTemplate}
-                  onChange={(e) => setInvoiceTemplate(e.target.value)}
-                  rows={16}
-                  spellCheck={false}
-                  dir="ltr"
-                  className="w-full rounded-xl border border-[var(--border)] bg-[#0d1117] text-[#e6edf3] p-4 text-xs font-mono resize-y outline-none focus:border-[var(--navy)]/50 transition-colors"
-                  style={{ lineHeight: 1.6 }}
-                />
-                {/* Variables reference */}
-                <details className="text-xs">
-                  <summary className="cursor-pointer text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-                    {t.settings.invoice.variables}
-                  </summary>
-                  <div className="mt-2 p-3 bg-[var(--background)] rounded-lg border border-[var(--border)] font-mono text-[11px] text-[var(--muted)] leading-7 break-all" dir="ltr">
-                    {t.settings.invoice.variablesList}
-                  </div>
-                </details>
-              </div>
-            )}
-
             {/* Live preview */}
-            {invoicePreviewMode && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-[var(--muted)]">{t.settings.invoice.preview}</p>
-                <div className="rounded-xl border border-[var(--border)] overflow-hidden" style={{ height: 520 }}>
-                  <iframe
-                    srcDoc={previewHtml}
-                    className="w-full h-full"
-                    sandbox="allow-same-origin"
-                    title="invoice preview"
-                  />
-                </div>
+            {invoicePreviewMode && invoiceTemplate && (
+              <div className="rounded-xl border border-[var(--border)] overflow-hidden" style={{ height: 500 }}>
+                <iframe
+                  srcDoc={invoiceTemplate}
+                  className="w-full h-full"
+                  sandbox="allow-same-origin"
+                  title="invoice preview"
+                />
               </div>
             )}
 
-            <p className="text-xs text-[var(--muted)] italic">{t.settings.invoice.saveNote}</p>
+            <p className="text-xs text-[var(--muted)] italic">احفظ التغييرات بعد التعديل لتطبيقها على الفواتير القادمة.</p>
           </div>
         );
       }
