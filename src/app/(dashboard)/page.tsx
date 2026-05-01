@@ -417,10 +417,9 @@ export default function DashboardPage() {
       {/* Row 2: Donut + Bar Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <div className="flex items-baseline gap-2 mb-5">
-            <h2 className="text-base font-bold tracking-tight" style={{ color: "var(--foreground)" }}>حالات الطلبات</h2>
-            <span className="text-xs font-medium" style={{ color: GOLD }}>توزيع</span>
-          </div>
+          <h2 className="mb-5 text-[15px] font-bold tracking-wide" style={{ color: GOLD, letterSpacing: "0.04em" }}>
+            حالات الطلبات
+          </h2>
           <DonutChart statusCounts={data.statusCounts ?? []} />
         </div>
         <div className="lg:col-span-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
