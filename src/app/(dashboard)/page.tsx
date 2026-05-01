@@ -387,14 +387,16 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4">
 
-      {/* Add order button */}
-      <button
-        onClick={handleNewOrder}
-        className="w-full flex items-center justify-center h-11 rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all duration-150 cursor-pointer shadow-sm"
-        style={{ background: "#c9a84c", color: "#111111" }}
-      >
-        <Plus size={20} strokeWidth={2.5} />
-      </button>
+      {/* Add order button — small pill, left side */}
+      <div className="flex" dir="ltr">
+        <button
+          onClick={handleNewOrder}
+          className="flex items-center justify-center h-9 px-5 rounded-full hover:opacity-90 active:scale-[0.98] transition-all duration-150 cursor-pointer shadow-sm"
+          style={{ background: "#c9a84c", color: "#111111" }}
+        >
+          <Plus size={17} strokeWidth={2.5} />
+        </button>
+      </div>
 
       {/* Row 1: Stats */}
       <div className="stagger-children grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

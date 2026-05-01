@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  Sun, Moon, Search, ChevronLeft, Plus, ChevronDown, Package, X, Users, Upload, DollarSign,
+  Sun, Moon, Search, ChevronLeft, Plus, ChevronDown, Package, X, Users, Upload, DollarSign, Clock,
 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useBatchFilterStore } from "@/store/batch-filter";
@@ -366,6 +366,21 @@ export function AppNavbar() {
               <Plus size={16} strokeWidth={2.5} />
             </button>
           </div>
+        </div>
+      </header>
+    );
+  }
+
+  /* ── Pending page ── */
+  if (pathname === "/pending") {
+    return (
+      <header className={HEADER_CLS} style={{ height: "56px" }}>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center w-8 h-8 rounded-xl"
+            style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.25)" }}>
+            <Clock size={15} style={{ color: "#fbbf24" }} />
+          </div>
+          <span className="text-base font-bold" style={{ color: "var(--foreground)" }}>الطلبات المعلقة</span>
         </div>
       </header>
     );
