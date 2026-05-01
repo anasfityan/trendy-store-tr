@@ -13,25 +13,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { useT } from "@/lib/i18n";
-
-function playTap() {
-  try {
-    if (navigator.vibrate) navigator.vibrate(8);
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.setValueAtTime(520, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.06);
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.08);
-  } catch {
-    // ignore — audio/vibration may not be available
-  }
-}
+import { playSound } from "@/lib/sound";
 
 export function Dock() {
   const pathname = usePathname();
@@ -75,7 +57,7 @@ export function Dock() {
           <Link
             key={item.href}
             href={item.href}
-            onClick={playTap}
+            onClick={() => playSound("tap")}
             className={`relative flex flex-col items-center justify-center gap-0.5 w-14 sm:w-16 py-1.5 rounded-3xl transition-all duration-200 group ${
               active
                 ? "text-[var(--accent)]"

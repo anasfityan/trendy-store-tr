@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { playSound } from "@/lib/sound";
 import {
   Sun, Moon, Search, ChevronLeft, Plus, ChevronDown, Package, X, Users, Upload, DollarSign, Warehouse,
 } from "lucide-react";
@@ -198,7 +199,7 @@ export function AppNavbar() {
             )}
           </div>
           <button
-            onClick={() => window.dispatchEvent(new CustomEvent("trendy:open-new-batch"))}
+            onClick={() => { playSound("open"); window.dispatchEvent(new CustomEvent("trendy:open-new-batch")); }}
             className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
             style={{ background: "#c9a84c", color: "#111111" }}
           >
@@ -297,7 +298,7 @@ export function AppNavbar() {
 
           {/* Add order */}
           <button
-            onClick={() => router.push("/orders?new=true")}
+            onClick={() => { playSound("open"); router.push("/orders?new=true"); }}
             title={t.topbar.newOrder}
             className="flex items-center justify-center w-9 h-9 rounded-full hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
             style={{ background: "#c9a84c", color: "#111111" }}
@@ -351,14 +352,14 @@ export function AppNavbar() {
               </button>
             )}
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent("trendy:open-import-customers"))}
+              onClick={() => { playSound("open"); window.dispatchEvent(new CustomEvent("trendy:open-import-customers")); }}
               title="استيراد زبائن"
               className="flex items-center justify-center w-9 h-9 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer"
             >
               <Upload size={15} strokeWidth={1.8} />
             </button>
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent("trendy:open-new-customer"))}
+              onClick={() => { playSound("open"); window.dispatchEvent(new CustomEvent("trendy:open-new-customer")); }}
               title="عميل جديد"
               className="flex items-center justify-center w-9 h-9 rounded-full hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
               style={{ background: "#c9a84c", color: "#111111" }}

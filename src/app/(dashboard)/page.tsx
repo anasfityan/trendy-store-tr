@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { playSound } from "@/lib/sound";
 import {
   ShoppingCart,
   Clock,
@@ -328,7 +329,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const router = useRouter();
-  const handleNewOrder = () => router.push("/orders?new=true");
+  const handleNewOrder = () => { playSound("open"); router.push("/orders?new=true"); };
   useAuthStore((s) => s.token);
 
   useEffect(() => {
