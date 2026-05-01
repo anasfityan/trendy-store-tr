@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 
@@ -9,22 +9,29 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const setAuth = useAuthStore((s) => s.setAuth);
   const router = useRouter();
   const pathname = usePathname();
-
-  // Start as false if user already in store — avoids loading flash on navigation
-  const [checking, setChecking] = useState(() => {
-    if (pathname === "/login") return false;
-    return !useAuthStore.getState().user;
-  });
+  const [checking, setChecking] = useState(true);
+  const checked = useRef(false);
 
   useEffect(() => {
     if (pathname === "/login") {
       setChecking(false);
       return;
     }
-    if (user) {
+
+    // Already verified in this session — skip
+    if (checked.current) {
       setChecking(false);
       return;
     }
+
+    // User already in store (persisted) — no need to fetch
+    if (user) {
+      checked.current = true;
+      setChecking(false);
+      return;
+    }
+
+    // Try to restore session from cookie
     fetch("/api/auth/me")
       .then((res) => {
         if (res.ok) return res.json();
@@ -32,12 +39,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       })
       .then((data) => {
         setAuth(data.user, "cookie");
+        checked.current = true;
         setChecking(false);
       })
       .catch(() => {
         router.replace("/login");
       });
-  }, [pathname, user]);
+  }, [pathname]);
 
   // Role-based route protection
   useEffect(() => {
@@ -51,7 +59,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (checking && pathname !== "/login") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">جاري التحميل...</div>
+        <div
+          className="w-7 h-7 rounded-full border-2 border-transparent animate-spin"
+          style={{ borderTopColor: "var(--accent)", borderRightColor: "var(--accent)" }}
+        />
       </div>
     );
   }
