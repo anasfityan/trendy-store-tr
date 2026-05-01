@@ -1037,37 +1037,32 @@ export default function OrdersPage() {
                 )}
               </>
             ) : (
-              <div className="relative flex-1 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground group">
-                <ImageIcon className="h-8 w-8 opacity-20" />
-                <label
-                  className="absolute inset-0 flex items-end justify-end p-1.5 cursor-pointer"
-                  title="رفع صورة يدوياً"
-                >
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full text-[var(--muted)] opacity-30 group-hover:opacity-70 transition-opacity text-lg leading-none select-none">+</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
-                        const dataUrl = ev.target?.result as string;
-                        if (dataUrl) {
-                          updateProductItem(item.id, {
-                            fetchedImages: [dataUrl],
-                            images: JSON.stringify([dataUrl]),
-                            selectedImageIdx: 0,
-                          });
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              </div>
+              <label className="relative flex-1 min-h-[100px] rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground cursor-pointer group hover:border-[var(--accent)]/50 transition-colors">
+                <ImageIcon className="h-7 w-7 opacity-20 group-hover:opacity-40 transition-opacity" />
+                <span className="mt-1 text-[11px] opacity-25 group-hover:opacity-50 transition-opacity select-none">+</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const dataUrl = ev.target?.result as string;
+                      if (dataUrl) {
+                        updateProductItem(item.id, {
+                          fetchedImages: [dataUrl],
+                          images: JSON.stringify([dataUrl]),
+                          selectedImageIdx: 0,
+                        });
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
             )}
           </div>
 
