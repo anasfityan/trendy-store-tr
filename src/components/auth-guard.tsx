@@ -9,35 +9,35 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const setAuth = useAuthStore((s) => s.setAuth);
   const router = useRouter();
   const pathname = usePathname();
-  const [checking, setChecking] = useState(true);
+
+  // Start as false if user already in store — avoids loading flash on navigation
+  const [checking, setChecking] = useState(() => {
+    if (pathname === "/login") return false;
+    return !useAuthStore.getState().user;
+  });
 
   useEffect(() => {
     if (pathname === "/login") {
       setChecking(false);
       return;
     }
-
-    // If zustand already has the user (persisted from localStorage), skip the check
     if (user) {
       setChecking(false);
       return;
     }
-
-    // Try to restore session from the httpOnly cookie
     fetch("/api/auth/me")
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error("no session");
       })
       .then((data) => {
-        // Cookie session is valid — restore user into store (token not needed client-side)
         setAuth(data.user, "cookie");
         setChecking(false);
       })
       .catch(() => {
         router.replace("/login");
       });
-  }, [pathname]);
+  }, [pathname, user]);
 
   // Role-based route protection
   useEffect(() => {

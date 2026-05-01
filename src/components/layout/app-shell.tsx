@@ -1,24 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
 import { AuraBackground } from "./aura-background";
 import { AppNavbar } from "./top-bar";
 import { Dock } from "./dock";
 import { useDir } from "@/lib/i18n";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
   const dir = useDir();
-
-  useEffect(() => {
-    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-    const isInitialOpen = nav?.type === "navigate" || nav?.type === "reload";
-    if (isInitialOpen && pathname !== "/") {
-      router.replace("/");
-    }
-  }, []);
 
   return (
     <div className="min-h-dvh bg-ground transition-colors duration-300" dir={dir}>
