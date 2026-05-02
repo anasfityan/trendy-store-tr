@@ -4,8 +4,7 @@ const CACHE_NAME = "trendy-store-v1";
 const PRECACHE = [
   "/",
   "/manifest.json",
-  "/icon-192.svg",
-  "/icon-512.svg",
+  "/logo.png",
 ];
 
 self.addEventListener("install", (event) => {
