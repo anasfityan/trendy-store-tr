@@ -10,7 +10,7 @@ export async function GET() {
 
   const customers = await db.customer.findMany({
     include: {
-      orders: true,
+      orders: { select: { sellingPrice: true } },
       _count: { select: { orders: true } },
     },
     orderBy: { createdAt: "desc" },

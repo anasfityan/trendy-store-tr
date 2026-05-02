@@ -365,7 +365,7 @@ function BatchOrdersModal({
                 >
                   {/* Thumbnail */}
                   {imgDetails[0]?.img ? (
-                    <img src={imgDetails[0].img} alt="" className="h-10 w-10 rounded-xl object-cover shrink-0 border border-[var(--border)]" />
+                    <img src={imgDetails[0].img} alt="" loading="lazy" className="h-10 w-10 rounded-xl object-cover shrink-0 border border-[var(--border)]" />
                   ) : (
                     <div className="h-10 w-10 rounded-xl bg-[var(--background)] border border-[var(--border)] flex items-center justify-center shrink-0">
                       <ImageIcon size={14} className="text-[var(--muted)]" />
@@ -551,7 +551,7 @@ function BatchOrdersModal({
           onClick={() => setPreviewImg(null)}
         >
           <div className="relative mx-4" style={{ maxWidth: "min(420px, 92vw)" }} onClick={(e) => e.stopPropagation()}>
-            <img src={previewImg} alt="" className="w-full rounded-2xl object-contain shadow-2xl" style={{ maxHeight: "72dvh" }} />
+            <img src={previewImg} alt="" loading="eager" className="w-full rounded-2xl object-contain shadow-2xl" style={{ maxHeight: "72dvh" }} />
             <button
               onClick={() => setPreviewImg(null)}
               className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-[var(--background)] border border-[var(--border)] flex items-center justify-center shadow hover:bg-[var(--surface-secondary)] transition-colors"

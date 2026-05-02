@@ -1020,7 +1020,7 @@ export default function OrdersPage() {
                             : "border-transparent opacity-50 hover:opacity-80"
                         }`}
                       >
-                        <img src={img} alt="" className="w-full h-full object-cover" />
+                        <img src={img} alt="" loading="lazy" className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>
@@ -1454,7 +1454,7 @@ export default function OrdersPage() {
                             <TableCell>
                               {subImg ? (
                                 <button type="button" onClick={() => setPreviewImg(subImg)} className="block">
-                                  <img src={subImg} alt="" className="h-10 w-10 rounded-md object-cover border border-border hover:opacity-80 transition-opacity cursor-zoom-in" />
+                                  <img src={subImg} alt="" loading="lazy" className="h-10 w-10 rounded-md object-cover border border-border hover:opacity-80 transition-opacity cursor-zoom-in" />
                                 </button>
                               ) : (
                                 <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
@@ -1644,7 +1644,7 @@ export default function OrdersPage() {
                           <div className="flex items-center gap-2">
                             {sub.images?.[0] && (
                               <button type="button" onClick={() => setPreviewImg(sub.images![0])}>
-                                <img src={sub.images[0]} alt="" className="h-10 w-10 rounded-lg object-cover border border-[var(--border)] cursor-zoom-in" />
+                                <img src={sub.images[0]} alt="" loading="lazy" className="h-10 w-10 rounded-lg object-cover border border-[var(--border)] cursor-zoom-in" />
                               </button>
                             )}
                             <div className="flex-1 min-w-0 space-y-0.5">
