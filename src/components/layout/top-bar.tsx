@@ -108,11 +108,8 @@ export function AppNavbar() {
       <header className={HEADER_CLS} style={{ height: "56px" }}>
         <div className="flex items-center gap-2.5">
           <a href="/" className="flex flex-col items-start sm:flex-row sm:items-center gap-0 group select-none" title="الرئيسية">
-            <div className="flex items-center">
-              <span className="transition-opacity duration-200 group-hover:opacity-75"
-                style={{ fontSize: "17px", fontWeight: 500, letterSpacing: "0.16em", color: "var(--foreground)" }}>trendy</span>
-              <span className="transition-opacity duration-200 group-hover:opacity-75"
-                style={{ fontSize: "17px", fontWeight: 800, letterSpacing: "0.16em", color: "#c9a84c" }}>&nbsp;store</span>
+            <div className="flex items-center transition-opacity duration-200 group-hover:opacity-75">
+              <img src="/gacela-logo.png" alt="Trendy Store" height={28} style={{ height: "28px", width: "auto", objectFit: "contain" }} />
             </div>
             {greeting && (
               <span className="sm:hidden text-[10px] font-medium leading-none -mt-0.5" style={{ color: "#c9a84c", opacity: 0.65 }}>
