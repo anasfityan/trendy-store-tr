@@ -24,13 +24,13 @@ export const metadata: Metadata = {
     title: "Trendy Store",
   },
   icons: {
-    icon: [{ url: "/logo.png", type: "image/png" }],
+    icon: "/logo.png",
     apple: "/logo.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#C9A84C",
+  themeColor: "#1a1a1a",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
