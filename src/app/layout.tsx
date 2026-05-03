@@ -4,7 +4,6 @@ import "./globals.css";
 import { Providers } from "@/components/theme-provider";
 import { AuthGuard } from "@/components/auth-guard";
 import { LocaleProvider } from "@/components/locale-provider";
-import { PWARegister } from "@/components/pwa-register";
 
 const ibmPlex = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
@@ -48,6 +47,7 @@ export default function RootLayout({
       lang="ar"
       dir="rtl"
       className={`${ibmPlex.variable} h-full`}
+      style={{ background: "#0f0f0f", colorScheme: "dark" }}
       suppressHydrationWarning
     >
       <head>
@@ -58,13 +58,12 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Trendy Store" />
         <link rel="apple-touch-icon" href="/logo.png" />
       </head>
-      <body className="min-h-full antialiased">
+      <body className="min-h-full antialiased" style={{ background: "#0f0f0f" }}>
         <Providers>
           <LocaleProvider>
             <AuthGuard>{children}</AuthGuard>
           </LocaleProvider>
         </Providers>
-        <PWARegister />
       </body>
     </html>
   );
