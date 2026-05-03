@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -115,6 +116,9 @@ model Settings {
   id              String   @id @default("default")
   storeName       String   @default("Trendy Store")
   logo            String?
+  phone           String?
+  instagram       String?
+  city            String?
   usdToTry        Float    @default(38.0)
   usdToIqd        Float    @default(1460.0)
   tryToIqd        Float    @default(38.4)
