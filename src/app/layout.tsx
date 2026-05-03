@@ -4,7 +4,6 @@ import "./globals.css";
 import { Providers } from "@/components/theme-provider";
 import { AuthGuard } from "@/components/auth-guard";
 import { LocaleProvider } from "@/components/locale-provider";
-import { PWARegister } from "@/components/pwa-register";
 
 const ibmPlex = IBM_Plex_Sans_Arabic({
   subsets: ["arabic", "latin"],
@@ -65,7 +64,6 @@ export default function RootLayout({
             <AuthGuard>{children}</AuthGuard>
           </LocaleProvider>
         </Providers>
-        <PWARegister />
       </body>
     </html>
   );
