@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -29,31 +30,29 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
-
   @@index([phone])
   @@index([instagram])
 }
 
 model Batch {
-  id           String    @id @default(cuid())
-  name         String
-  openDate     DateTime  @default(now())
-  closeDate    DateTime?
+  id            String    @id @default(cuid())
+  name          String
+  openDate      DateTime  @default(now())
+  closeDate     DateTime?
   shippingCost  Float     @default(0)
   promotionCost Float     @default(0)
   expenses      Float     @default(0)
   status        String    @default("open")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  orders       Order[]
-
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  orders        Order[]
   @@index([status])
 }
 
 model Order {
-  id            String   @id @default(cuid())
+  id            String          @id @default(cuid())
   customerId    String
-  customer      Customer @relation(fields: [customerId], references: [id])
+  customer      Customer        @relation(fields: [customerId], references: [id])
   batchId       String?
   batch         Batch?          @relation(fields: [batchId], references: [id])
   variantId     String?
@@ -78,7 +77,6 @@ model Order {
   items         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
   @@index([status])
   @@index([paymentStatus])
   @@index([batchId])
@@ -115,6 +113,9 @@ model Settings {
   id              String   @id @default("default")
   storeName       String   @default("Trendy Store")
   logo            String?
+  phone           String?
+  instagram       String?
+  city            String?
   usdToTry        Float    @default(38.0)
   usdToIqd        Float    @default(1460.0)
   tryToIqd        Float    @default(38.4)
